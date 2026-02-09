@@ -86,7 +86,7 @@ impl GhostHillClimber {
 
                 let keys = best_layout.keys();
 
-                if callback.on_progress(step, best_score.to_f32(), keys, ips)
+                if callback.on_progress(step, best_score, keys, ips)
                     != crate::OptimizationControl::Continue
                 {
                     return Err(EvolutionError::Aborted);

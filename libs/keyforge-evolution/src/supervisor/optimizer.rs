@@ -222,11 +222,11 @@ mod tests {
         let kb = Keyboard::new(
             vec![
                 KeyNode {
-                    index: 0,
+                    index: keyforge_model::types::KeyIndex::new(0),
                     ..Default::default()
                 },
                 KeyNode {
-                    index: 1,
+                    index: keyforge_model::types::KeyIndex::new(1),
                     ..Default::default()
                 },
             ],
@@ -236,13 +236,13 @@ mod tests {
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
+        let fs = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex::new(0), fw(1.0))]),
+                        base: std::collections::HashMap::from([(RowIndex::new(0), fs(1.0))]),
                         ..Default::default()
                     },
                 ),
@@ -282,7 +282,7 @@ mod tests {
     fn test_evolve_basic() -> anyhow::Result<()> {
         let (engine, config) = setup_env()?;
         let res = evolve(&engine, &config, NoOpCallback, None, None)?;
-        assert_eq!(res.layout.len(), 2);
+        assert_eq!(res.layout.keys().len(), 2);
         Ok(())
     }
 
@@ -304,17 +304,24 @@ mod tests {
 
     #[test]
     fn test_optimize_wrapper() -> anyhow::Result<()> {
-        let kb = Keyboard::new(vec![KeyNode::default()], RowIndex::new(0), "test".into())?;
+        let kb = Keyboard::new(
+            vec![KeyNode {
+                index: keyforge_model::types::KeyIndex::new(0),
+                ..Default::default()
+            }],
+            RowIndex::new(0),
+            "test".into(),
+        )?;
         use keyforge_model::cost_model::CostModel;
         let mut cost_model = CostModel::default();
         let mut fingers = std::collections::HashMap::new();
-        let fw = |v: f32| keyforge_model::types::FixedWeight::from_f32(v).unwrap_or_default();
+        let fs = |v: f32| keyforge_model::types::Score::from_f32(v).unwrap_or_default();
         for finger in ["thumb", "index", "middle", "ring", "pinky"] {
             fingers.insert(
                 finger.to_string(),
                 keyforge_model::cost_model::FingerDefinition::Standard(
                     keyforge_model::cost_model::FingerReach {
-                        base: std::collections::HashMap::from([(RowIndex::new(0), fw(1.0))]),
+                        base: std::collections::HashMap::from([(RowIndex::new(0), fs(1.0))]),
                         ..Default::default()
                     },
                 ),
@@ -344,7 +351,7 @@ mod tests {
                 seed: 42,
                 patience: 10,
                 reheats: 0,
-                reheat_factor: 1,
+                reheat_factor: 1.0,
                 include_thumbs: false,
             },
             initial_layout: None,

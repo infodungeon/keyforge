@@ -22,9 +22,8 @@ use keyforge_model::constants::{ASSET_KEYCODES, MAX_INPUT_FILE_SIZE};
 use keyforge_model::geometry::kle::to_kle_json;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::types::path::SafePath;
 use std::error::Error;
-use std::fs;
-use std::path::PathBuf;
 
 #[derive(Args, Debug, Clone)]
 pub struct ExportArgs {
@@ -42,7 +41,7 @@ pub enum ExportCommands {
         #[arg(short, long, value_enum)]
         format: FirmwareFormat,
         #[arg(short, long)]
-        output: Option<PathBuf>,
+        output: Option<SafePath>,
     },
 }
 
@@ -65,10 +64,12 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
             eprintln!("💾 Exporting '{layout}' to {format:?}...");
 
             let root = loader.root();
-            let path = root.join(keyboard);
+            let rel_kb = SafePath::try_from_str(&keyboard)
+                .map_err(|e| format!("Invalid keyboard name: {e}"))?;
+            let path = SafePath::from_trusted_root(root.as_path(), &rel_kb);
 
             let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-                .map_err(|e| format!("Failed to read keyboard file {}: {e}", path.display()))?;
+                .map_err(|e| format!("Failed to read keyboard file {path}: {e}"))?;
 
             let def: KeyboardDefinition = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse keyboard JSON: {e}"))?;
@@ -112,16 +113,12 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
             };
 
             if let Some(out_path) = output {
-                if out_path.exists() {
-                    eprintln!(
-                        "⚠️  Warning: Output file {} already exists. Overwriting...",
-                        out_path.display()
-                    );
+                if out_path.as_path().exists() {
+                    eprintln!("⚠️  Warning: Output file {out_path} already exists. Overwriting...");
                 }
-                fs::write(&out_path, code).map_err(|e| {
-                    format!("Failed to write export to {}: {e}", out_path.display())
-                })?;
-                eprintln!("✅ Exported to {}", out_path.display());
+                keyforge_infra::fs::io::atomic_write(&out_path, code)
+                    .map_err(|e| format!("Failed to write export to {out_path}: {e}"))?;
+                eprintln!("✅ Exported to {out_path}");
             } else {
                 println!("{code}");
             }

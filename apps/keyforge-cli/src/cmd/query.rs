@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cli_parsers::resolve_path;
 use crate::constants::DEFAULT_HIVE_URL;
 use clap::Args;
 use keyforge_infra::fs::io::read_to_string_limited;
@@ -22,9 +21,9 @@ use keyforge_model::constants::{
 };
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::job::JobIdentifier;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::CostMatrixSource;
 use std::convert::TryFrom;
-use std::path::Path;
 
 #[derive(Args, Debug, Clone)]
 pub struct QueryArgs {
@@ -39,7 +38,7 @@ pub struct QueryArgs {
 
 use keyforge_model::Validator;
 
-pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(args: QueryArgs, root: &SafePath) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🔍 Calculating Job Hash for criteria…");
 
     // Resolve Defaults
@@ -52,10 +51,12 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
         .cost
         .unwrap_or_else(|| ASSET_DEFAULT_COST_MATRIX.to_string());
 
-    let kb_path = resolve_path(&kb_input, Some("keyboards"), root)?;
+    let kb_rel =
+        SafePath::try_from_str(&kb_input).map_err(|e| format!("Invalid keyboard path: {e}"))?;
+    let kb_path = SafePath::from_trusted_root(root.as_path(), &kb_rel);
 
     let kb_content = read_to_string_limited(&kb_path, MAX_INPUT_FILE_SIZE)
-        .map_err(|e| format!("Failed to read keyboard file: {e}"))?;
+        .map_err(|e| format!("Failed to read keyboard file {kb_path}: {e}"))?;
 
     let kb_def = KeyboardDefinition::parse(&kb_content, None)
         .map_err(|e| format!("Failed to parse keyboard definition: {e}"))?;
@@ -93,7 +94,8 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     .hash;
 
     eprintln!("   Job ID: {job_id}");
-    eprintln!("   Hive:   {}", args.hive);
+    let hive = &args.hive;
+    eprintln!("   Hive:   {hive}");
 
     let url = format!("{}/jobs/{}/population", args.hive, job_id);
 

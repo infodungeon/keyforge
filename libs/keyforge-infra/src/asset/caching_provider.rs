@@ -3,10 +3,10 @@
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, Corpus};
 use moka::future::Cache;
 use std::any::{Any, TypeId};
-use std::path::Path;
 use std::sync::Arc;
 
 type AssetCache = Cache<(TypeId, String), Arc<dyn Any + Send + Sync>>;
@@ -64,7 +64,7 @@ impl<L: AssetLoader> AssetLoader for CachingProvider<L> {
         self.provider.get_hash(category, id).await
     }
 
-    fn root(&self) -> &Path {
+    fn root(&self) -> &SafePath {
         self.provider.root()
     }
 }

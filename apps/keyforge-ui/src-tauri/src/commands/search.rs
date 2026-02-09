@@ -199,7 +199,7 @@ impl ProgressCallback for TauriProgressCallback {
     fn on_progress(
         &self,
         epoch: usize,
-        score: f32,
+        score: keyforge_model::Score,
         layout: &[KeyCode],
         ips: f32,
     ) -> OptimizationControl {
@@ -224,7 +224,7 @@ impl ProgressCallback for TauriProgressCallback {
 
             let update = SearchUpdate {
                 epoch,
-                score,
+                score: score.to_f32(),
                 layout: layout_str.trim().to_string(),
                 ips,
             };

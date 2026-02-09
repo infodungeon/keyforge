@@ -9,6 +9,7 @@
 
 use keyforge_model::constants::MAX_SESSION_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::types::path::SafePath;
 use keyforge_persistence::store::autosave::{AutoSaveService, SessionSnapshot};
 use keyforge_persistence::UserRepo;
 use keyforge_protocol::BiometricSample;
@@ -29,7 +30,7 @@ mod integration_tests {
     #[test]
     fn user_repo_layout_lifecycle() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let repo = UserRepo::new(dir.path().to_path_buf());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(dir.path().to_path_buf()));
 
         repo.save_layout("kb1", "name1", "layout1")?;
         let layouts = repo.get_layouts("kb1");
@@ -50,7 +51,7 @@ mod integration_tests {
     #[test]
     fn user_repo_biometrics_lifecycle() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let repo = UserRepo::new(dir.path().to_path_buf());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(dir.path().to_path_buf()));
 
         let sample = BiometricSample {
             key_a: 116,
@@ -75,7 +76,7 @@ mod integration_tests {
         use keyforge_compute::biometrics::StreamingProfileBuilder;
 
         let dir = tempdir()?;
-        let repo = UserRepo::new(dir.path().to_path_buf());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(dir.path().to_path_buf()));
 
         // 1. Should fail with insufficient data (count < 5)
         let mut builder = StreamingProfileBuilder::new();
@@ -107,7 +108,7 @@ mod integration_tests {
     #[test]
     fn user_repo_keyboard_definition() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let repo = UserRepo::new(dir.path().to_path_buf());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(dir.path().to_path_buf()));
 
         let def = KeyboardDefinition::default();
         repo.save_keyboard_definition("test_kb", &def)?;
@@ -120,7 +121,7 @@ mod integration_tests {
     #[test]
     fn user_repo_corruption_handling() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let repo = UserRepo::new(dir.path().to_path_buf());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(dir.path().to_path_buf()));
         let path = dir.path().join("user/user_layouts.json");
         fs::create_dir_all(
             path.parent()
@@ -147,7 +148,7 @@ mod integration_tests {
     #[test]
     fn user_repo_keyboard_filename_sanitization() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let repo = UserRepo::new(dir.path().to_path_buf());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(dir.path().to_path_buf()));
         let def = KeyboardDefinition::default();
 
         // Use a "dirty" filename
@@ -178,7 +179,7 @@ mod integration_tests {
     #[tokio::test]
     async fn autosave_load_non_existent() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         assert!(service.load().await?.is_none());
         Ok(())
     }
@@ -190,7 +191,7 @@ mod integration_tests {
         let dir = tempdir()?;
         let path = dir.path().join("session.json");
         tokio::fs::write(&path, vec![0u8; MAX_SESSION_FILE_SIZE as usize + 1]).await?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         assert!(service.load().await?.is_none());
         Ok(())
     }
@@ -202,7 +203,7 @@ mod integration_tests {
         let dir = tempdir()?;
         let path = dir.path().join("session.json");
         tokio::fs::write(&path, "invalid json").await?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         assert!(service.load().await?.is_none());
         Ok(())
     }
@@ -212,7 +213,7 @@ mod integration_tests {
     #[tokio::test]
     async fn autosave_debounce_flush() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         // Set last_save to the past to trigger immediate flush
         {
             let mut state = service
@@ -237,7 +238,7 @@ mod integration_tests {
         let path = dir.path().join("session.json");
         // Create a directory named session.json to force a read error
         std::fs::create_dir(&path)?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         assert!(service.load().await.is_err());
         Ok(())
     }
@@ -254,7 +255,7 @@ mod integration_tests {
         };
         tokio::fs::write(&path, serde_json::to_string(&snapshot)?).await?;
 
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         let loaded = service
             .load()
             .await?
@@ -275,7 +276,7 @@ mod integration_tests {
         });
         tokio::fs::write(&path, serde_json::to_string(&persisted)?).await?;
 
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         assert!(service.load().await?.is_none());
         Ok(())
     }
@@ -285,7 +286,7 @@ mod integration_tests {
     #[tokio::test]
     async fn autosave_flush_force_and_empty() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
 
         // Flush empty should be no-op
         service.flush(true).await;
@@ -312,7 +313,7 @@ mod integration_tests {
     #[tokio::test]
     async fn autosave_flush_empty_pending() -> anyhow::Result<()> {
         let dir = tempdir()?;
-        let service = AutoSaveService::new(dir.path().to_path_buf());
+        let service = AutoSaveService::new(dir.path());
         service.flush(false).await;
         Ok(())
         // Should complete without error

@@ -250,6 +250,11 @@ prune:
 
 # --- LLM DEVELOPMENT (LID) ---
 
+# Delegates a complex task to the Aider autonomous worker.
+# Usage: just delegate "Refactor the physics Score type"
+delegate task:
+	aider --no-auto-commits --message "{{task}}"
+
 context FILE:
 	python3 ops/scripts/minify_context.py {{FILE}}
 

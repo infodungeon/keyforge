@@ -12,7 +12,19 @@ mod runtime_tests {
     use std::sync::Arc;
 
     #[derive(Debug)]
-    struct MockLoader;
+    struct MockLoader {
+        root: keyforge_model::types::path::SafePath,
+    }
+
+    impl MockLoader {
+        fn new() -> Self {
+            Self {
+                root: keyforge_model::types::path::SafePath::from_trusted_root_path(
+                    std::path::PathBuf::from("."),
+                ),
+            }
+        }
+    }
 
     #[async_trait]
     impl AssetLoader for MockLoader {
@@ -60,8 +72,8 @@ mod runtime_tests {
             Ok(Arc::new(Corpus::default()))
         }
 
-        fn root(&self) -> &Path {
-            Path::new(".")
+        fn root(&self) -> &keyforge_model::types::path::SafePath {
+            &self.root
         }
 
         async fn get_hash(
@@ -75,7 +87,7 @@ mod runtime_tests {
 
     #[tokio::test]
     async fn test_runtime_execution() {
-        let loader = MockLoader;
+        let loader = MockLoader::new();
         let mut kb_def = KeyboardDefinition::default();
         kb_def
             .geometry

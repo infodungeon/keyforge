@@ -3,11 +3,11 @@
 use async_trait::async_trait;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, Corpus};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 /// A specialized result type for asset loading operations.
@@ -30,14 +30,24 @@ pub trait AssetLoader: Send + Sync + Debug {
     ) -> LoaderResult<String>;
 
     /// Returns the root directory of the asset source.
-    fn root(&self) -> &Path;
+    fn root(&self) -> &SafePath;
 }
 
 /// An in-memory implementation of `AssetLoader`.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InMemoryLoader {
     #[allow(clippy::type_complexity)]
     assets: RwLock<HashMap<TypeId, HashMap<String, Arc<dyn Any + Send + Sync>>>>,
+    root: SafePath,
+}
+
+impl Default for InMemoryLoader {
+    fn default() -> Self {
+        Self {
+            assets: RwLock::new(HashMap::new()),
+            root: SafePath::from_trusted_root_path(std::path::PathBuf::from(".")),
+        }
+    }
 }
 
 #[async_trait]
@@ -85,8 +95,8 @@ impl AssetLoader for InMemoryLoader {
         Ok("in-memory-hash".to_string())
     }
 
-    fn root(&self) -> &Path {
-        Path::new(".")
+    fn root(&self) -> &SafePath {
+        &self.root
     }
 }
 

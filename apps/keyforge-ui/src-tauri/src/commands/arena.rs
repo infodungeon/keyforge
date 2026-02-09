@@ -7,6 +7,7 @@ use keyforge_compute::biometrics::StreamingProfileBuilder;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::ARENA_TOP_WORDS_LIMIT;
+use keyforge_model::types::path::SafePath;
 use keyforge_persistence::UserRepo;
 use keyforge_protocol::BiometricSample;
 use tauri::AppHandle;
@@ -19,7 +20,9 @@ pub async fn cmd_get_typing_words(
     count: usize,
 ) -> Result<Vec<String>, CommandError> {
     use keyforge_adapter::conversion;
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let provider = FsProvider::new(data_dir);
 
     let domain_corpora: Vec<CorpusSource> = corpora
@@ -71,7 +74,9 @@ pub fn cmd_save_biometrics(
     app: AppHandle,
     samples: Vec<BiometricSample>,
 ) -> Result<String, CommandError> {
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let user_data = UserRepo::new(data_dir);
     user_data
         .record_biometrics(samples)
@@ -82,7 +87,9 @@ pub fn cmd_save_biometrics(
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, CommandError> {
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let user_data = UserRepo::new(data_dir);
     Ok(user_data.get_biometrics())
 }
@@ -91,7 +98,9 @@ pub fn cmd_load_user_stats(app: AppHandle) -> Result<Vec<BiometricSample>, Comma
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, CommandError> {
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let user_data = UserRepo::new(data_dir);
 
     let mut builder = StreamingProfileBuilder::new();
@@ -119,7 +128,9 @@ pub fn cmd_generate_personal_profile(app: AppHandle) -> Result<String, CommandEr
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_reset_user_stats(app: AppHandle) -> Result<String, CommandError> {
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let user_data = UserRepo::new(data_dir);
     user_data
         .reset_biometrics()
@@ -135,7 +146,9 @@ pub async fn cmd_get_corpus_bigrams(
     limit: usize,
 ) -> Result<Vec<String>, CommandError> {
     use keyforge_adapter::conversion;
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let provider = FsProvider::new(data_dir);
 
     let domain_corpora: Vec<CorpusSource> = corpora

@@ -4,6 +4,7 @@ use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_infra::fs::listing;
+use keyforge_model::types::path::SafePath;
 use keyforge_protocol::KeyboardGeometryDto;
 use std::sync::Arc;
 use tauri::AppHandle;
@@ -11,14 +12,18 @@ use tauri::AppHandle;
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_keyboards(app: AppHandle) -> Result<Vec<String>, CommandError> {
-    let root = get_data_dir(&app)?;
+    let root_buf = get_data_dir(&app)?;
+
+    let root = SafePath::from_trusted_root_path(root_buf);
     listing::list_keyboards(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 pub fn cmd_list_keymap_extras(app: AppHandle) -> Result<Vec<String>, CommandError> {
-    let root = get_data_dir(&app)?;
+    let root_buf = get_data_dir(&app)?;
+
+    let root = SafePath::from_trusted_root_path(root_buf);
     listing::list_keymap_extras(&root).map_err(|e| CommandError::Internal(e.to_string()))
 }
 

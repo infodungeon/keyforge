@@ -165,13 +165,13 @@ impl Keyboard {
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use crate::types::{FingerIndex, HandIndex};
+    use crate::types::{FingerIndex, HandIndex, KeyIndex};
 
     #[test]
     fn test_keyboard_spatial_precomputation() -> anyhow::Result<()> {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex(0),
                 x: crate::types::SpatialUnit::from_f32(0.0),
                 y: crate::types::SpatialUnit::from_f32(0.0),
                 hand: HandIndex::new(0),
@@ -179,7 +179,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex(1),
                 x: crate::types::SpatialUnit::from_f32(3.0),
                 y: crate::types::SpatialUnit::from_f32(4.0),
                 hand: HandIndex::new(0),

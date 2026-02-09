@@ -7,10 +7,10 @@ use keyforge_compute::ScoringSession;
 use keyforge_infra::AssetManager;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, Corpus};
 use sha2::Digest;
 use std::fmt;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -45,14 +45,17 @@ pub struct SearchState {
 /// A tiered asset cache that prioritizes high-performance reads for UI commands.
 #[derive(Debug)]
 pub struct AssetCache {
-    pub root: PathBuf,
+    pub root: SafePath,
     pub manager: Arc<AssetManager>,
 }
 
 impl AssetCache {
     /// Creates a new `AssetCache` using the application handle to resolve the data directory.
     pub fn new(app: &tauri::AppHandle) -> Result<Self, crate::error::CommandError> {
-        let root = get_data_dir(app)?;
+        let root_buf = get_data_dir(app)?;
+
+        let root = SafePath::from_trusted_root_path(root_buf);
+
         let client_config = keyforge_infra::net::client::ClientConfig::default();
         let client = keyforge_infra::HiveClient::new(client_config)?;
         let manager = Arc::new(AssetManager::new(client, root.clone()));
@@ -69,9 +72,9 @@ impl AssetLoader for AssetCache {
             .map_err(|e| ForgeError::NotFound(e.to_string()))?;
         let path = self
             .root
-            .join("system/keyboards")
-            .join(format!("{id}.json"));
-        let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
+            .join("system/keyboards")?
+            .join(&format!("{id}.json"))?;
+        let data = std::fs::read(path.as_path()).map_err(|e| ForgeError::Io(e.to_string()))?;
         serde_json::from_slice(&data)
             .map(Arc::new)
             .map_err(|e| ForgeError::Serde(e.to_string()))
@@ -84,8 +87,8 @@ impl AssetLoader for AssetCache {
                 .ensure_corpus(&src.id, None)
                 .await
                 .map_err(|e| ForgeError::NotFound(e.to_string()))?;
-            let path = self.root.join("system/corpora").join(&src.id);
-            let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
+            let path = self.root.join("system/corpora")?.join(&src.id)?;
+            let data = std::fs::read(path.as_path()).map_err(|e| ForgeError::Io(e.to_string()))?;
             let corpus: Corpus =
                 serde_json::from_slice(&data).map_err(|e| ForgeError::Serde(e.to_string()))?;
             blended.merge(&corpus, src.weight);
@@ -100,19 +103,19 @@ impl AssetLoader for AssetCache {
     ) -> LoaderResult<String> {
         let path = self
             .root
-            .join("system/keyboards")
-            .join(format!("{id}.json"));
-        if path.exists() {
-            let data = std::fs::read(path).map_err(|e| ForgeError::Io(e.to_string()))?;
+            .join("system/keyboards")?
+            .join(&format!("{id}.json"))?;
+        if path.as_path().exists() {
+            let data = std::fs::read(path.as_path()).map_err(|e| ForgeError::Io(e.to_string()))?;
             let mut hasher = sha2::Sha256::new();
-            sha2::Digest::update(&mut hasher, &data);
+            hasher.update(&data);
             Ok(hex::encode(hasher.finalize()))
         } else {
             Ok("ui-placeholder-hash".to_string())
         }
     }
 
-    fn root(&self) -> &Path {
+    fn root(&self) -> &SafePath {
         &self.root
     }
 }

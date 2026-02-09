@@ -23,19 +23,15 @@ pub struct HiveKeyboardMetaRow {
 /// Database-aligned DTO for a Keyboard Key row.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct HiveKeyRow {
-    // sg-ignore
+    // ast-grep-ignore
     pub idx: i32,
     pub x: f32,
     pub y: f32,
     pub w: Option<f32>,
     pub h: Option<f32>,
-    // sg-ignore
     pub hand: i32,
-    // sg-ignore
     pub finger: i32,
-    // sg-ignore
     pub row_idx: i32,
-    // sg-ignore
     pub col_idx: i32,
     pub is_stretch: Option<bool>,
     pub is_prime: Option<bool>,

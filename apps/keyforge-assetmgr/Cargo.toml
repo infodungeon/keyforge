@@ -16,6 +16,7 @@ clap.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 keyforge-infra = { path = "../../libs/keyforge-infra" }
+keyforge-model = { path = "../../libs/keyforge-model" }
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 walkdir.workspace = true
 anyhow.workspace = true

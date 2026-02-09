@@ -46,7 +46,7 @@ pub trait ProgressCallback: Send + Sync {
     fn on_progress(
         &self,
         epoch: usize,
-        score: f32,
+        score: keyforge_model::Score,
         layout: &[KeyCode],
         ips: f32,
     ) -> OptimizationControl;
@@ -59,7 +59,7 @@ impl ProgressCallback for NoOpCallback {
     fn on_progress(
         &self,
         _epoch: usize,
-        _score: f32,
+        _score: keyforge_model::Score,
         _layout: &[KeyCode],
         _ips: f32,
     ) -> OptimizationControl {

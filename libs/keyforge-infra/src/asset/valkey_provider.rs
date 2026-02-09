@@ -9,9 +9,9 @@ use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, AssetCategory, Corpus};
 use sha2::Digest;
-use std::path::Path;
 use std::sync::Arc;
 
 const ASSET_PREFIX: &str = VALKEY_ASSET_PREFIX;
@@ -20,13 +20,18 @@ const ASSET_PREFIX: &str = VALKEY_ASSET_PREFIX;
 #[derive(Clone, Debug)]
 pub struct ValkeyProvider {
     coordinator: Arc<dyn DistributedCoordinator>,
+    root: SafePath,
 }
 
 impl ValkeyProvider {
     /// Creates a new `ValkeyProvider` using the provided distributed coordinator.
     #[must_use]
+    #[allow(clippy::expect_used, clippy::missing_panics_doc)]
     pub fn new(coordinator: Arc<dyn DistributedCoordinator>) -> Self {
-        Self { coordinator }
+        Self {
+            coordinator,
+            root: SafePath::from_trusted_root_path(std::path::PathBuf::from(".")),
+        }
     }
 
     /// Returns the underlying distributed coordinator.
@@ -225,8 +230,8 @@ impl AssetLoader for ValkeyProvider {
         }
     }
 
-    fn root(&self) -> &Path {
-        Path::new(".")
+    fn root(&self) -> &SafePath {
+        &self.root
     }
 }
 

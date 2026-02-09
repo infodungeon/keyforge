@@ -14,10 +14,10 @@
 
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
 use keyforge_physics::{EngineCompilationContext, EngineFactory};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
@@ -56,10 +56,10 @@ fn default_cost_model() -> Result<CostModel, AgentError> {
 
 pub async fn calibrate(
     assets: &AssetManager,
-    data_root: &Path,
+    data_root: &SafePath,
     config: &crate::models::CalibrationConfig,
 ) -> Result<f64, AgentError> {
-    let cal_path = data_root.join("user/calibration.json");
+    let cal_path = data_root.as_path().join("user/calibration.json");
 
     if cal_path.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&cal_path).await {

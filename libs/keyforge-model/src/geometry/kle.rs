@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn test_parse_kle_json_simple() -> anyhow::Result<()> {
         let json = r#"[["A", "B"]]"#;
-        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!("{}", e))?;
         assert_eq!(geom.keys().len(), 2);
         assert_eq!(geom.keys()[0].label, "A");
         assert_eq!(geom.keys()[1].label, "B");
@@ -229,14 +229,14 @@ mod tests {
     fn test_parse_kle_json_split_heuristic() -> anyhow::Result<()> {
         // Large gap (3 keys to hit gap logic)
         let json = r#"[["A", "B", {"x": 15}, "C"]]"#;
-        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!("{}", e))?;
         assert_eq!(geom.keys()[0].hand, HandIndex::LEFT);
         assert_eq!(geom.keys()[1].hand, HandIndex::LEFT);
         assert_eq!(geom.keys()[2].hand, HandIndex::RIGHT);
 
         // Small gap (ortho)
         let json = r#"[["A", "B", "C"]]"#;
-        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!("{}", e))?;
         assert_eq!(geom.keys().len(), 3);
         Ok(())
     }
@@ -246,7 +246,7 @@ mod tests {
         let json = r#"[
             [{"r": 15, "rx": 5, "ry": 5}, "A"]
         ]"#;
-        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!(e))?;
+        let geom = parse_kle_json(json).map_err(|e| anyhow::anyhow!("{}", e))?;
         assert_eq!(geom.keys()[0].r, 15.0);
         assert_eq!(geom.keys()[0].rx.to_f32(), 5.0);
         assert_eq!(geom.keys()[0].ry.to_f32(), 5.0);
@@ -273,7 +273,7 @@ mod tests {
         ];
         let geom = KeyboardGeometry::new(keys, vec![], vec![], vec![], RowIndex::new(1));
 
-        let json = to_kle_json(&geom).map_err(|e| anyhow::anyhow!(e))?;
+        let json = to_kle_json(&geom).map_err(|e| anyhow::anyhow!("{}", e))?;
         assert!(json.contains("meta"));
         assert!(json.contains("\"X\""));
         assert!(json.contains("\"Y\""));

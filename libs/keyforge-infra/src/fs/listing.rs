@@ -1,6 +1,7 @@
 // libs/keyforge-infra/src/fs/listing.rs
 
 use crate::error::{InfraError, InfraResult};
+use keyforge_model::types::path::SafePath;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -59,12 +60,12 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> InfraResult<Vec<PathBuf>
 
 /// Helper to scan a specific sub-path and add stems to a set.
 fn scan_dir(
-    root: &Path,
+    root: &SafePath,
     sub_path: &str,
     target_extensions: &[&str],
     results: &mut HashSet<String>,
 ) -> InfraResult<()> {
-    let target = root.join(sub_path);
+    let target = root.as_path().join(sub_path);
     if !target.exists() {
         return Ok(());
     }
@@ -100,7 +101,7 @@ fn scan_dir(
 ///
 /// # Errors
 /// Returns `InfraError` if directory scanning fails.
-pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
+pub fn list_keyboards(root: &SafePath) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     scan_dir(
         root,
@@ -119,11 +120,11 @@ pub fn list_keyboards(root: &Path) -> InfraResult<Vec<String>> {
 ///
 /// # Errors
 /// Returns `InfraError` if directory scanning fails.
-pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
+pub fn list_corpora(root: &SafePath) -> InfraResult<Vec<String>> {
     let mut ids = HashSet::new();
 
     for (scope, ext) in [("system", "mpk.zst"), ("user", "json")] {
-        let base = root.join(scope).join("corpora");
+        let base = root.as_path().join(scope).join("corpora");
         if !base.exists() {
             continue;
         }
@@ -161,7 +162,7 @@ pub fn list_corpora(root: &Path) -> InfraResult<Vec<String>> {
 ///
 /// # Errors
 /// Returns `InfraError` if directory scanning fails.
-pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
+pub fn list_cost_matrices(root: &SafePath) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     scan_dir(
         root,
@@ -180,7 +181,7 @@ pub fn list_cost_matrices(root: &Path) -> InfraResult<Vec<String>> {
 ///
 /// # Errors
 /// Returns `InfraError` if directory scanning fails.
-pub fn list_keymap_extras(root: &Path) -> InfraResult<Vec<String>> {
+pub fn list_keymap_extras(root: &SafePath) -> InfraResult<Vec<String>> {
     let mut names = HashSet::new();
     scan_dir(
         root,

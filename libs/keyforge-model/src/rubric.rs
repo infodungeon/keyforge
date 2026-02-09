@@ -371,6 +371,18 @@ impl Rubric {
                 "Trigram limit must be greater than 0".into(),
             ));
         }
+        if self.inner.sfb_base < Score::ZERO {
+            return Err(ForgeError::InvalidData(format!(
+                "SFB base penalty must be non-negative, found {}",
+                self.inner.sfb_base
+            )));
+        }
+        if self.inner.sfb_lateral < Score::ZERO {
+            return Err(ForgeError::InvalidData(format!(
+                "SFB lateral penalty must be non-negative, found {}",
+                self.inner.sfb_lateral
+            )));
+        }
         Ok(())
     }
 }

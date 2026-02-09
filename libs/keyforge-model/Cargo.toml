@@ -33,6 +33,7 @@ proptest = { workspace = true, optional = true }
 zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
+anyhow.workspace = true
 keyforge-testing = { path = "../keyforge-testing" }
 proptest.workspace = true
 

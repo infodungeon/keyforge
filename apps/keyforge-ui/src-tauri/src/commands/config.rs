@@ -3,6 +3,7 @@ use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::config::Config;
+use keyforge_model::types::path::SafePath;
 // use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
 use keyforge_model::keycodes::KeycodeRegistry;
@@ -35,25 +36,27 @@ pub fn cmd_get_ui_categories(
     app: AppHandle,
     _state: tauri::State<'_, SessionState>,
 ) -> Result<serde_json::Value, CommandError> {
-    let data_dir = get_data_dir(&app)?;
+    let data_dir_buf = get_data_dir(&app)?;
+
+    let data_dir = SafePath::from_trusted_root_path(data_dir_buf);
     let provider = keyforge_infra::FsProvider::new(data_dir);
 
     let stem = ASSET_UI_CATEGORIES;
     let system_path = provider
         .root()
-        .join("system/config")
-        .join(format!("{stem}.mpk.zst"));
+        .join("system/config")?
+        .join(&format!("{stem}.mpk.zst"))?;
 
-    if system_path.exists() {
-        let file = std::fs::File::open(system_path)?;
+    if system_path.as_path().exists() {
+        let file = std::fs::File::open(system_path.as_path())?;
         let decoder = zstd::Decoder::new(file)?;
         let json: serde_json::Value = rmp_serde::from_read(decoder)?;
         return Ok(json);
     }
 
-    let user_path = provider.root().join("user/config/ui_categories.json");
-    if user_path.exists() {
-        let content = std::fs::read_to_string(user_path)?;
+    let user_path = provider.root().join("user/config/ui_categories.json")?;
+    if user_path.as_path().exists() {
+        let content = keyforge_infra::fs::io::read_to_string_limited(&user_path, 1024 * 1024)?;
         return Ok(serde_json::from_str(&content)?);
     }
 

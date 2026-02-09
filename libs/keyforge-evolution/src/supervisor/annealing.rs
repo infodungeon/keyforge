@@ -33,7 +33,7 @@ use std::thread;
 use std::time::Instant;
 
 struct ProgressReporter {
-    tx: mpsc::SyncSender<(IterationCount, f32, Vec<KeyCode>, f32)>,
+    tx: mpsc::SyncSender<(IterationCount, Score, Vec<KeyCode>, f32)>,
     report_interval: IterationCount,
     last_report_time: Instant,
     last_report_step: IterationCount,
@@ -41,7 +41,7 @@ struct ProgressReporter {
 
 impl ProgressReporter {
     fn new(
-        tx: mpsc::SyncSender<(IterationCount, f32, Vec<KeyCode>, f32)>,
+        tx: mpsc::SyncSender<(IterationCount, Score, Vec<KeyCode>, f32)>,
         total_steps: IterationCount,
         start_time: Instant,
     ) -> Self {
@@ -77,10 +77,10 @@ impl ProgressReporter {
                 0.0
             };
 
-            let score_f32 = Score::from_scaled_i64(state.best_score).to_f32();
+            let score = Score::from_scaled_i64(state.best_score);
             let layout_snapshot = state.best_layout().keys().to_vec();
 
-            let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
+            let _ = self.tx.try_send((step, score, layout_snapshot, ips));
 
             if step.raw() > 0 {
                 self.last_report_time = now;
@@ -193,7 +193,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         let cooling_rate = self.calculate_cooling_rate();
         let start_time = self.time_keeper.now();
         let abort_flag = Arc::new(std::sync::atomic::AtomicU8::new(0)); // 0=Run, 1=Stop, 2=Abort
-        let (tx, rx) = mpsc::sync_channel::<(IterationCount, f32, Vec<KeyCode>, f32)>(1);
+        let (tx, rx) = mpsc::sync_channel::<(IterationCount, Score, Vec<KeyCode>, f32)>(1);
         let status_ref = abort_flag.clone();
 
         let mut reporter = ProgressReporter::new(tx, self.config.steps, start_time);
@@ -350,7 +350,7 @@ mod tests {
         fn on_progress(
             &self,
             _epoch: usize,
-            _score: f32,
+            _score: Score,
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
@@ -365,7 +365,7 @@ mod tests {
         fn on_progress(
             &self,
             _epoch: usize,
-            _score: f32,
+            _score: Score,
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {

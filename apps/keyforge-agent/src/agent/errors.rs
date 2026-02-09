@@ -124,6 +124,13 @@ impl From<keyforge_infra::error::InfraError> for AgentError {
                 Self::Internal(s)
             }
             InfraError::Model(e) => Self::from(e),
+            InfraError::Internal(s) => Self::Internal(s),
         }
+    }
+}
+
+impl From<keyforge_model::error::ModelError> for AgentError {
+    fn from(e: keyforge_model::error::ModelError) -> Self {
+        Self::Internal(e.to_string())
     }
 }

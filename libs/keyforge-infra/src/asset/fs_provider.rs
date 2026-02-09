@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use crate::asset::{resolver::PathResolver, AssetServerProvider};
-use crate::error::InfraResult;
+use crate::error::{InfraError, InfraResult};
 use crate::net::sync::ServerManifest;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, AssetCategory};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
 
@@ -29,18 +29,18 @@ use tokio::fs;
 /// for serving assets over HTTP.
 #[derive(Debug, Clone)]
 pub struct FsProvider {
-    root: PathBuf,
+    root: SafePath,
 }
 
 impl FsProvider {
     /// Creates a new `FsProvider` with the specified root directory.
     #[must_use]
-    pub fn new(root: PathBuf) -> Self {
+    pub fn new(root: SafePath) -> Self {
         Self { root }
     }
 
-    fn resolve_asset_path(&self, category: AssetCategory, id: &str) -> LoaderResult<PathBuf> {
-        let resolver = PathResolver::new(self.root.clone());
+    fn resolve_asset_path(&self, category: AssetCategory, id: &str) -> LoaderResult<SafePath> {
+        let resolver = PathResolver::new(self.root.as_path());
         let cat_str = category.as_str();
 
         // 1. Try direct path first (to support existing tests/absolute paths)
@@ -66,11 +66,11 @@ impl FsProvider {
 impl AssetLoader for FsProvider {
     async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
         let path = self.resolve_asset_path(T::category(), id)?;
-        let content = fs::read(&path).await.map_err(|e| {
+        let content = fs::read(path.as_path()).await.map_err(|e| {
             keyforge_model::error::ForgeError::Io(format!("Failed to read {id}: {e}"))
         })?;
 
-        let final_id = path.to_string_lossy().to_string();
+        let final_id = path.as_path().to_string_lossy().to_string();
 
         if final_id.to_lowercase().ends_with(".zst")
             || final_id.to_lowercase().ends_with(".mpk.zst")
@@ -118,7 +118,7 @@ impl AssetLoader for FsProvider {
             .map_err(|e| keyforge_model::error::ForgeError::Io(e.to_string()))
     }
 
-    fn root(&self) -> &Path {
+    fn root(&self) -> &SafePath {
         &self.root
     }
 }
@@ -134,12 +134,14 @@ impl AssetServerProvider for FsProvider {
     }
 
     async fn get_file_content(&self, path: &str) -> InfraResult<Option<bytes::Bytes>> {
-        let full_path = self.root.join(path);
-        if !full_path.exists() || !full_path.is_file() {
+        let rel = SafePath::try_from_str(path).map_err(InfraError::from)?;
+        let full_path = SafePath::from_trusted_root(self.root.as_path(), &rel);
+
+        if !full_path.as_path().exists() || !full_path.as_path().is_file() {
             return Ok(None);
         }
 
-        let content = fs::read(full_path).await?;
+        let content = fs::read(full_path.as_path()).await?;
         Ok(Some(bytes::Bytes::from(content)))
     }
 }

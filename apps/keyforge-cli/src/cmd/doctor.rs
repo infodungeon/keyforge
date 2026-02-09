@@ -15,15 +15,16 @@
 
 use crate::constants::DEFAULT_HIVE_URL;
 use clap::Args;
-use std::path::Path;
 use std::time::Duration;
 use sysinfo::System;
 
 #[derive(Args, Debug, Clone)]
 pub struct DoctorArgs {}
 
+use keyforge_model::types::path::SafePath;
+
 // [Fixed] Made async to avoid blocking reqwest
-pub async fn run(_args: DoctorArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(_args: DoctorArgs, root: &SafePath) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🩺 KeyForge Doctor");
     eprintln!("========================================");
 
@@ -95,9 +96,9 @@ fn print_cpu_info() {
     }
 }
 
-fn check_workspace_integrity(root: &Path) -> bool {
+fn check_workspace_integrity(root: &SafePath) -> bool {
     eprintln!("\n📂 Workspace");
-    eprintln!("   Root:     {}", root.display());
+    eprintln!("   Root:     {root}");
 
     let required = [
         ("system/keyboards", true),
@@ -110,7 +111,7 @@ fn check_workspace_integrity(root: &Path) -> bool {
 
     let mut all_good = true;
     for (item, is_dir) in required {
-        let p = root.join(item);
+        let p = root.as_path().join(item);
         if p.exists() {
             let matches_type = if is_dir { p.is_dir() } else { p.is_file() };
             if matches_type {

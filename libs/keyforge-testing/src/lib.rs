@@ -23,6 +23,7 @@ pub use keyforge_testing_macros::kf_test;
 
 use keyforge_infra::fs::init::{initialize_workspace_async, InitMode};
 use keyforge_infra::FsProvider;
+use keyforge_model::types::path::SafePath;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -75,9 +76,11 @@ impl HermeticWorkspace {
         .await?;
 
         // Initialize structure (will validate assets now)
-        initialize_workspace_async(&root, InitMode::Create).await?;
 
-        let provider = FsProvider::new(root.clone());
+        let safe_root = SafePath::from_trusted_root_path(root.clone());
+        initialize_workspace_async(&safe_root, InitMode::Create).await?;
+
+        let provider = FsProvider::new(safe_root);
 
         Ok(Self {
             _temp: temp,

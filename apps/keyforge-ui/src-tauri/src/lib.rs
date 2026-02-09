@@ -8,6 +8,7 @@
 
 #![allow(clippy::missing_errors_doc)]
 use keyforge_infra::fs::init::{initialize_workspace, InitMode};
+use keyforge_model::types::path::SafePath;
 pub use state::{AssetCache, LocalWorkerState, SearchState, SessionState};
 use std::sync::Arc;
 use tauri::Manager;
@@ -44,6 +45,8 @@ pub fn run() {
                 .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, e)))?;
 
             tracing::info!("Initializing workspace at: {:?}", data_dir);
+
+            let data_dir = SafePath::from_trusted_root_path(data_dir);
 
             // Self-Healing Initialization
             if let Err(e) = initialize_workspace(&data_dir, InitMode::Create) {

@@ -61,6 +61,16 @@ pub enum InfraError {
     /// Error originating from the core domain model.
     #[error("Model Error: {0}")]
     Model(#[from] keyforge_model::error::ForgeError),
+
+    /// An internal or unexpected error occurred.
+    #[error("Internal Error: {0}")]
+    Internal(String),
+}
+
+impl From<keyforge_model::error::ModelError> for InfraError {
+    fn from(e: keyforge_model::error::ModelError) -> Self {
+        Self::Model(keyforge_model::error::ForgeError::Model(e))
+    }
 }
 
 impl InfraError {

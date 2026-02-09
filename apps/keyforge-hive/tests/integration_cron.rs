@@ -83,14 +83,11 @@ mod integration_tests {
         // Note: If schema is fully migrated, this tests normal behavior.
         assert!(reset >= 1);
 
-        let status: String = sqlx::query_scalar!(
-            "SELECT status FROM jobs WHERE id = $1",
-            job_id
-        )
-        .fetch_one(&pool)
-        .await
-        .unwrap()
-        .expect("Job status missing");
+        let status: String = sqlx::query_scalar!("SELECT status FROM jobs WHERE id = $1", job_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .expect("Job status missing");
         assert_eq!(status, "active");
     }
 

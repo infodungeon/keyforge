@@ -96,7 +96,10 @@ pub struct ProfileLockGuard {
 
 impl ProfileLockGuard {
     /// Creates a new guard for the specified signature.
-    pub fn new(coordinator: std::sync::Arc<dyn DistributedCoordinator>, cpu_signature: &str) -> Self {
+    pub fn new(
+        coordinator: std::sync::Arc<dyn DistributedCoordinator>,
+        cpu_signature: &str,
+    ) -> Self {
         Self {
             coordinator,
             cpu_signature: cpu_signature.to_string(),

@@ -99,7 +99,7 @@ async fn main() -> Result<()> {
         config.cores = c;
     }
     if let Some(d) = args.data_dir {
-        config.data_dir = d;
+        config.data_dir = keyforge_model::types::path::SafePath::from_trusted_root_path(d);
     }
     if args.skip_calibration {
         config.calibration.duration_ms = 0;
@@ -135,7 +135,10 @@ async fn main() -> Result<()> {
             layout,
             timeout: _,
         } => {
-            let job_content = std::fs::read_to_string(&job_file)?;
+            let safe_job_path =
+                keyforge_model::types::path::SafePath::from_trusted_root_path(job_file.clone());
+            let job_content =
+                keyforge_infra::fs::io::read_to_string_limited(&safe_job_path, 5 * 1024 * 1024)?;
             let job: JobConfig = serde_json::from_str(&job_content)?;
             keyforge_agent::cmd::score::run(&assets, &job, &config.compute, &layout).await?;
         }
@@ -143,7 +146,10 @@ async fn main() -> Result<()> {
             job_file,
             iterations,
         } => {
-            let job_content = std::fs::read_to_string(&job_file)?;
+            let safe_job_path =
+                keyforge_model::types::path::SafePath::from_trusted_root_path(job_file.clone());
+            let job_content =
+                keyforge_infra::fs::io::read_to_string_limited(&safe_job_path, 5 * 1024 * 1024)?;
             let job: JobConfig = serde_json::from_str(&job_content)?;
             keyforge_agent::cmd::bench::run(&assets, &job, &config.compute).await?;
             println!("Benchmark iterations requested: {iterations}");

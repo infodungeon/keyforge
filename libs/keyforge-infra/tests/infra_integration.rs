@@ -5,6 +5,7 @@ mod integration_tests {
 
     use keyforge_adapter::loader::AssetLoader;
     use keyforge_infra::FsProvider;
+    use keyforge_model::types::path::SafePath;
     use keyforge_model::KeyboardDefinition;
     use std::fs;
 
@@ -27,7 +28,7 @@ mod integration_tests {
     }"#;
         fs::write(kb_dir.join("test_kb.json"), kb_json).unwrap();
 
-        let provider = FsProvider::new(root.to_path_buf());
+        let provider = FsProvider::new(SafePath::from_trusted_root_path(root.to_path_buf()));
 
         // 1. Load existing asset
         let res = provider.load::<KeyboardDefinition>("test_kb").await;

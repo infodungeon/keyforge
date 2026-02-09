@@ -7,6 +7,7 @@ mod integration_tests {
     use keyforge_model::cost_model::CostModel;
     use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
     use keyforge_model::keycodes::KeycodeRegistry;
+    use keyforge_model::types::path::SafePath;
     use keyforge_model::types::{KeyCode, KeyIndex};
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;
@@ -18,6 +19,7 @@ mod integration_tests {
     #[derive(Debug)]
     struct MockLoader {
         assets: Arc<dyn Any + Send + Sync>,
+        root: SafePath,
     }
 
     #[async_trait::async_trait]
@@ -67,8 +69,8 @@ mod integration_tests {
             Ok(Arc::new(Corpus::default()))
         }
 
-        fn root(&self) -> &Path {
-            Path::new(".")
+        fn root(&self) -> &SafePath {
+            &self.root
         }
 
         async fn get_hash(
@@ -96,6 +98,7 @@ mod integration_tests {
 
         let loader = MockLoader {
             assets: Arc::new(kb_def),
+            root: SafePath::try_from_str(".").unwrap(),
         };
 
         let config = Config::default();
@@ -106,7 +109,9 @@ mod integration_tests {
     #[tokio::test]
     async fn test_compile_request_qwerty() {
         #[derive(Debug)]
-        struct QwertyLoader;
+        struct QwertyLoader {
+            root: SafePath,
+        }
         #[async_trait::async_trait]
         impl AssetLoader for QwertyLoader {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
@@ -169,8 +174,8 @@ mod integration_tests {
             async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
                 Ok(Arc::new(Corpus::default()))
             }
-            fn root(&self) -> &Path {
-                Path::new(".")
+            fn root(&self) -> &SafePath {
+                &self.root
             }
             async fn get_hash(
                 &self,
@@ -181,7 +186,9 @@ mod integration_tests {
             }
         }
 
-        let loader = QwertyLoader;
+        let loader = QwertyLoader {
+            root: SafePath::try_from_str(".").unwrap(),
+        };
         let mut config = Config::default();
         config.keyboard = "kb".into();
 
@@ -192,7 +199,9 @@ mod integration_tests {
     #[tokio::test]
     async fn test_compile_request_failures() {
         #[derive(Debug)]
-        struct FailingLoader;
+        struct FailingLoader {
+            root: SafePath,
+        }
         #[async_trait::async_trait]
         impl AssetLoader for FailingLoader {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
@@ -203,8 +212,8 @@ mod integration_tests {
                     "corpus".to_string(),
                 ))
             }
-            fn root(&self) -> &Path {
-                Path::new(".")
+            fn root(&self) -> &SafePath {
+                &self.root
             }
             async fn get_hash(
                 &self,
@@ -217,7 +226,9 @@ mod integration_tests {
             }
         }
 
-        let loader = FailingLoader;
+        let loader = FailingLoader {
+            root: SafePath::try_from_str(".").unwrap(),
+        };
         let mut config = Config::default();
         config.keyboard = "kb".into();
 

@@ -18,7 +18,13 @@ export function useJobDispatch() {
   const [isDispatching, setIsDispatching] = useState(false);
   const backend = useBackend();
   const { addToast } = useToast();
-  const { startJob, weights, searchParams, selectedCorpus, selectedCostMatrix } = useKeyboard();
+  const {
+    startJob,
+    weights,
+    searchParams,
+    selectedCorpus,
+    selectedCostMatrix,
+  } = useKeyboard();
   const { activeResult } = useAnalysis();
 
   /**
@@ -98,7 +104,11 @@ export function useJobDispatch() {
   /**
    * Dispatch an optimization job to the Hive
    */
-  const dispatchJob = async (hiveUrl: string, hiveSecret: string, pinnedKeys: string) => {
+  const dispatchJob = async (
+    hiveUrl: string,
+    hiveSecret: string,
+    pinnedKeys: string,
+  ) => {
     if (!activeResult?.geometry || !weights || !searchParams) {
       addToast(
         "error",

@@ -12,6 +12,8 @@ pub mod indices;
 pub mod math;
 /// Domain-specific newtypes.
 pub mod newtypes;
+/// Path types (`SafePath`).
+pub mod path;
 /// Optimization and analysis result types.
 pub mod results;
 /// Scoring types (Score, Weight).
@@ -26,6 +28,7 @@ pub use newtypes::{
     DurationMs, IterationCount, LatencyMs, PatienceCount, ReheatCount, ScalingFactor, Seed,
     Temperature,
 };
+pub use path::SafePath;
 pub use results::{
     AnalysisReport, MetricViolation, OptimizationResult, ScoringResult, SwapSuggestion,
 };

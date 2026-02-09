@@ -15,6 +15,7 @@
 use crate::constants::MAX_CLI_CORPORA;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::{MAX_FILENAME_LEN, MAX_KEYBOARD_NAME_LEN};
+use keyforge_model::types::path::SafePath;
 use keyforge_model::KeyConstraint;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -38,35 +39,56 @@ fn check_path(path: &Path) -> Option<PathBuf> {
     None
 }
 
-pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<PathBuf, String> {
+pub fn resolve_path(input: &str, subdir: Option<&str>, root: &Path) -> Result<SafePath, String> {
     let input_path = Path::new(input);
 
     // 1. Absolute paths
     if input_path.is_absolute() {
-        return check_path(input_path)
-            .ok_or_else(|| format!("Absolute path does not exist: {input}"));
+        let p = check_path(input_path)
+            .ok_or_else(|| format!("Absolute path does not exist: {input}"))?;
+        // For absolute paths, we wrap them in SafePath as untraversable roots
+        return Ok(SafePath::from_trusted_root_path(p));
     }
 
     // 2. Explicit CWD-relative paths
     if input.starts_with("./") || input.starts_with("../") {
         if let Ok(cwd) = std::env::current_dir() {
             if let Some(p) = check_path(&cwd.join(input)) {
-                return Ok(p);
+                // If the user explicitly used ../, they might be traversing, but if check_path finds it,
+                // we treat it as an explicit selection.
+                // However, for strictness, we should probably validate it via SafePath if we can.
+                // BUT, CWD might not be our workspace root.
+                return Ok(SafePath::from_trusted_root_path(p));
             }
         }
     }
 
     // 3. Workspace Resolution (Overlay: user -> system -> root)
     let sub = subdir.unwrap_or("");
-    let candidates = [
-        root.join("user").join(sub).join(input),
-        root.join("system").join(sub).join(input),
-        root.join(sub).join(input),
-        root.join(input),
-    ];
-    for p in candidates {
-        if let Some(found) = check_path(&p) {
-            return Ok(found);
+
+    // Candidates for relative segments
+    let segments = if sub.is_empty() {
+        vec![
+            format!("user/{input}"),
+            format!("system/{input}"),
+            input.to_string(),
+        ]
+    } else {
+        vec![
+            format!("user/{sub}/{input}"),
+            format!("system/{sub}/{input}"),
+            format!("{sub}/{input}"),
+            input.to_string(),
+        ]
+    };
+
+    for seg in segments {
+        if let Ok(rel) = SafePath::try_from_str(&seg) {
+            let combined = SafePath::from_trusted_root(root, &rel);
+            if let Some(found) = check_path(combined.as_path()) {
+                // Re-create from found path to ensure absolute/relative consistency
+                return Ok(SafePath::from_trusted_root_path(found));
+            }
         }
     }
 

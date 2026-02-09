@@ -29,10 +29,7 @@ function AppContent() {
   const [mode, setMode] = useState<AppMode>("analyze");
   const [pinnedKeys, setPinnedKeys] = useState("");
 
-  const {
-    stopJob,
-    keyboards,
-  } = useKeyboard();
+  const { stopJob, keyboards } = useKeyboard();
 
   const {
     hiveUrl,

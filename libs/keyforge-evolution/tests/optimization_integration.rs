@@ -38,7 +38,7 @@ fn mock_cost_model() -> anyhow::Result<CostModel> {
 fn setup_env() -> anyhow::Result<(Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>)> {
     let keys = vec![
         KeyNode {
-            index: 0,
+            index: keyforge_model::types::KeyIndex::new(0),
             label: "k0".to_string(),
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(1),
@@ -49,7 +49,7 @@ fn setup_env() -> anyhow::Result<(Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<C
             ..Default::default()
         },
         KeyNode {
-            index: 1,
+            index: keyforge_model::types::KeyIndex::new(1),
             label: "k1".to_string(),
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(2),
@@ -60,7 +60,7 @@ fn setup_env() -> anyhow::Result<(Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<C
             ..Default::default()
         },
         KeyNode {
-            index: 2,
+            index: keyforge_model::types::KeyIndex::new(2),
             label: "k2".to_string(),
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(3),
@@ -136,11 +136,11 @@ mod integration_tests {
             &engine_arc,
             &config,
             NoOpCallback,
-            Some(Arc::new(keyforge_model::Layout::new(vec![
+            Some(keyforge_model::Layout::new_unchecked(vec![
                 KeyCode::new(0),
                 KeyCode::new(1),
                 KeyCode::new(2),
-            ]))),
+            ])),
             None,
         )?;
         use keyforge_model::Score;
@@ -220,8 +220,8 @@ mod integration_tests {
         let total_freq: u64 = req.corpus.char_freqs.iter().sum();
         let expected_score = keyforge_physics::kernel::compute::analysis::deterministic_normalize(
             keyforge_model::types::Score::from_scaled_i64(raw_score),
-            100_000,
-            total_freq,
+            100_000.into(),
+            keyforge_model::types::IterationCount::new(total_freq as usize),
         );
 
         assert_eq!(result.score.raw(), expected_score.raw());

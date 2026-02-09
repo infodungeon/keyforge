@@ -35,3 +35,4 @@ server = []
 tokio.workspace = true
 serde_json.workspace = true
 keyforge-compute = { path = "../keyforge-compute" }
+anyhow.workspace = true

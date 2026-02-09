@@ -16,6 +16,7 @@ mod builder_tests {
     #[derive(Debug)]
     struct MockLoader {
         assets: Arc<dyn Any + Send + Sync>,
+        root: keyforge_model::types::path::SafePath,
     }
 
     #[async_trait::async_trait]
@@ -71,8 +72,8 @@ mod builder_tests {
             Ok(Arc::new(Corpus::default()))
         }
 
-        fn root(&self) -> &Path {
-            Path::new(".")
+        fn root(&self) -> &keyforge_model::types::path::SafePath {
+            &self.root
         }
 
         async fn get_hash(
@@ -100,6 +101,9 @@ mod builder_tests {
 
         let loader = MockLoader {
             assets: Arc::new(kb_def.clone()),
+            root: keyforge_model::types::path::SafePath::from_trusted_root_path(
+                std::path::PathBuf::from("."),
+            ),
         };
 
         let builder = SessionBuilder::new(&loader)

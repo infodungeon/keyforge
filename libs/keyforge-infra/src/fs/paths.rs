@@ -13,24 +13,26 @@
 // limitations under the License.
 
 use crate::config::CommonConfig;
+use keyforge_model::types::path::SafePath;
 use std::path::PathBuf;
 
 /// Resolves the absolute path to the `KeyForge` workspace root.
 ///
 /// # Errors
 /// Returns an `InfraError` if the root cannot be resolved or is invalid.
-pub fn resolve_root(override_path: Option<PathBuf>) -> crate::error::InfraResult<PathBuf> {
+#[allow(clippy::expect_used, clippy::missing_panics_doc)]
+pub fn resolve_root(override_path: Option<PathBuf>) -> crate::error::InfraResult<SafePath> {
     let config = CommonConfig {
         data_dir: override_path,
         ..CommonConfig::default()
     };
 
-    let root = config.resolve_data_dir();
+    let mut root = config.resolve_data_dir();
 
     // If it's a relative path (like "." or custom), we want to canonicalize it if it exists.
     if root.exists() {
-        return Ok(root.canonicalize()?);
+        root = root.canonicalize()?;
     }
 
-    Ok(root)
+    Ok(SafePath::from_trusted_root_path(root))
 }

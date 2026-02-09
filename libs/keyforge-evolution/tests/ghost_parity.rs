@@ -37,7 +37,7 @@ mod integration_tests {
     fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig, Layout) {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: keyforge_model::types::KeyIndex::new(0),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 row: RowIndex::new(0),
@@ -46,7 +46,7 @@ mod integration_tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: keyforge_model::types::KeyIndex::new(1),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(2),
                 row: RowIndex::new(0),
@@ -63,7 +63,7 @@ mod integration_tests {
         corpus_val.char_freqs = Arc::from(char_freqs);
         corpus_val.bigrams = Arc::from(vec![(0, 1, 100)]);
 
-        let rubric = Arc::new(Rubric::builder().travel_lat(1.0).build());
+        let rubric = Arc::new(Rubric::builder().travel_lat(1_000_000).build());
 
         let cm = Arc::new(mock_cost_model());
 
@@ -101,7 +101,7 @@ mod integration_tests {
         // Run Ghost Optimizer (Hill Climber)
         let ghost = GhostHillClimber;
         let ghost_layout = ghost
-            .run(engine.as_ref(), layout, 100, &NoOpCallback)
+            .run(engine.as_ref(), layout, 100.into(), &NoOpCallback)
             .unwrap();
         let ghost_score = engine.score(&ghost_layout).unwrap();
 

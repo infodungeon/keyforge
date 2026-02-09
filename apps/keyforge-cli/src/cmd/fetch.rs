@@ -16,7 +16,7 @@ use crate::error::CliError;
 use clap::{Args, Subcommand};
 use keyforge_infra::net::client::ClientConfig;
 use keyforge_infra::AssetManager;
-use std::path::Path;
+use keyforge_model::types::path::SafePath;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchArgs {
@@ -34,7 +34,7 @@ pub enum FetchCommands {
     Cost { name: String },
 }
 
-pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
+pub async fn run(args: FetchArgs, root: &SafePath) -> Result<(), CliError> {
     let common_config = keyforge_infra::config::CommonConfig::default();
     let hive_url = common_config
         .hive_url
@@ -49,7 +49,7 @@ pub async fn run(args: FetchArgs, root: &Path) -> Result<(), CliError> {
 
     let client = keyforge_infra::HiveClient::new(config)
         .map_err(|e| CliError::Other(format!("Client error: {e}")))?;
-    let manager = AssetManager::new(client, root.to_path_buf());
+    let manager = AssetManager::new(client, root.clone());
 
     match args.command {
         FetchCommands::Keyboard { name } => manager.ensure_keyboard(&name).await.map(|_| ()),

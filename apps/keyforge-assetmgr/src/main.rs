@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 use keyforge_assetmgr::is_hidden;
 use keyforge_assetmgr::ops::upload_file;
 use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
+use keyforge_model::types::path::SafePath;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -165,8 +166,16 @@ async fn verify_integrity(
     let mut mismatches = 0;
 
     for (id, remote_hash) in entries {
-        let local_path = system_root.join(&id);
-        if !local_path.exists() {
+        let p_id = match SafePath::try_from_str(&id) {
+            Ok(p) => p,
+            Err(e) => {
+                error!("❌ Invalid Asset ID {id}: {e}");
+                mismatches += 1;
+                continue;
+            }
+        };
+        let local_path = SafePath::from_trusted_root(system_root, &p_id);
+        if !local_path.as_path().exists() {
             error!("❌ Missing Local: {}", id);
             mismatches += 1;
             continue;

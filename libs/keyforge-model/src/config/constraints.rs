@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn test_key_constraint_from_str() -> anyhow::Result<()> {
         // Valid
-        let c: KeyConstraint = "0:KC_A".parse()?;
+        let c: KeyConstraint = "0:KC_A".parse().map_err(anyhow::Error::msg)?;
         assert_eq!(c.index.raw(), 0);
         assert_eq!(c.key, "KC_A");
 

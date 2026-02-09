@@ -53,9 +53,10 @@ mod integration_tests {
 
         let weights_std = ScoringWeights::default();
         let mut weights_alt = ScoringWeights::default();
-        weights_alt
-            .weights
-            .insert("penalty_scissor".to_string(), keyforge_model::types::Score::from_f32(500.0).unwrap());
+        weights_alt.weights.insert(
+            "penalty_scissor".to_string(),
+            keyforge_model::types::Score::from_f32(500.0).unwrap(),
+        );
 
         let jobs_config = vec![
             (kb_corne.clone(), weights_std.clone(), "Corne-Std"),

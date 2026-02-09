@@ -1,7 +1,7 @@
 // apps/keyforge-agent/src/models.rs
 
+use keyforge_model::types::path::SafePath;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -135,7 +135,7 @@ pub struct AgentConfig {
     pub node_id: String,
     pub secret: String,
     pub private_key: String,
-    pub data_dir: PathBuf,
+    pub data_dir: SafePath,
     pub cores: usize,
     #[serde(default)]
     pub calibration: CalibrationConfig,
@@ -165,7 +165,11 @@ impl Default for AgentConfig {
             node_id: "unknown".to_string(),
             secret: String::new(),
             private_key: String::new(),
-            data_dir: common.resolve_data_dir(),
+            data_dir: {
+                let root = common.resolve_data_dir();
+
+                SafePath::from_trusted_root_path(root)
+            },
             cores: common.cores.unwrap_or(1),
             calibration: CalibrationConfig::default(),
             network: NetworkConfig::default(),
@@ -186,7 +190,7 @@ pub struct PartialAgentConfig {
     pub node_id: Option<String>,
     pub secret: Option<String>,
     pub private_key: Option<String>,
-    pub data_dir: Option<PathBuf>,
+    pub data_dir: Option<SafePath>,
     pub cores: Option<usize>,
     pub calibration: Option<CalibrationConfig>,
     pub network: Option<NetworkConfig>,
@@ -205,16 +209,18 @@ impl PartialAgentConfig {
     /// # Errors
     /// Returns an `AgentError` if the file cannot be read or parsed.
     pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> AgentResult<Self> {
-        let path = path.as_ref();
-        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            if ext == "zst" || path.to_string_lossy().ends_with(".mpk.zst") {
-                let file = std::fs::File::open(path)?;
+        let path_ref = path.as_ref();
+        let safe_path = SafePath::from_trusted_root_path(path_ref.to_path_buf());
+
+        if let Some(ext) = path_ref.extension().and_then(|s| s.to_str()) {
+            if ext == "zst" || path_ref.to_string_lossy().ends_with(".mpk.zst") {
+                let file = std::fs::File::open(path_ref)?;
                 let decoder = zstd::Decoder::new(file)?;
                 return Ok(rmp_serde::from_read(decoder)?);
             }
         }
-        let content = std::fs::read_to_string(path)?;
-        if path.extension().and_then(|s| s.to_str()) == Some("toml") {
+        let content = keyforge_infra::fs::io::read_to_string_limited(&safe_path, 10 * 1024 * 1024)?;
+        if path_ref.extension().and_then(|s| s.to_str()) == Some("toml") {
             Ok(toml::from_str(&content)?)
         } else {
             Ok(serde_json::from_str(&content)?)

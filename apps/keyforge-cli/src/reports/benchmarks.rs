@@ -14,9 +14,11 @@
 
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
+use keyforge_infra::fs::io::read_to_string_limited;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::AnalysisReport;
 use serde::Deserialize;
-use std::fs;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -47,14 +49,14 @@ impl Default for BenchmarkEntry {
     }
 }
 
-pub fn load(root: &std::path::Path) -> Option<Vec<BenchmarkEntry>> {
+pub fn load(root: &SafePath) -> Option<Vec<BenchmarkEntry>> {
     let input = crate::constants::DEFAULT_BENCHMARK_PATH;
 
-    let Ok(path) = crate::cli_parsers::resolve_path(input, None, root) else {
+    let Ok(path) = crate::cli_parsers::resolve_path(input, None, root.as_path()) else {
         return None;
     };
 
-    match fs::read_to_string(path) {
+    match read_to_string_limited(&path, MAX_INPUT_FILE_SIZE) {
         Ok(content) => match serde_json::from_str(&content) {
             Ok(data) => Some(data),
             Err(e) => {

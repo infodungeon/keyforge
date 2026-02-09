@@ -17,9 +17,9 @@ use crate::constants::DEFAULT_FMT_WIDTH;
 use clap::Args;
 use keyforge_model::constants::MAX_KEYBOARD_KEYS;
 use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::types::path::SafePath;
 use keyforge_model::KeyCode;
 use std::fmt::Write;
-use std::path::Path;
 
 #[derive(Args, Debug, Clone)]
 pub struct FmtArgs {
@@ -28,7 +28,7 @@ pub struct FmtArgs {
     pub width: usize,
 }
 
-pub fn run(args: &FmtArgs, _root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(args: &FmtArgs, _root: &SafePath) -> Result<(), Box<dyn std::error::Error>> {
     let registry = KeycodeRegistry::new_with_defaults();
 
     let layout = keyforge_adapter::conversion::parse_layout_string(

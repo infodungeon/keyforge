@@ -96,7 +96,14 @@ impl From<keyforge_infra::error::InfraError> for CommandError {
             InfraError::LockError(s) | InfraError::Config(s) => CommandError::Config(s),
             InfraError::Validation(s) => CommandError::Validation(s),
             InfraError::Model(e) => CommandError::Internal(e.to_string()),
+            InfraError::Internal(s) => CommandError::Internal(s),
         }
+    }
+}
+
+impl From<keyforge_model::error::ModelError> for CommandError {
+    fn from(e: keyforge_model::error::ModelError) -> Self {
+        CommandError::Internal(e.to_string())
     }
 }
 

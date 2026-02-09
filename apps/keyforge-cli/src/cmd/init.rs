@@ -14,9 +14,10 @@ pub struct InitArgs {
     #[arg(long)]
     pub asset_url: Option<String>,
 }
+use keyforge_model::types::path::SafePath;
 
-pub async fn run(args: InitArgs, root: &std::path::Path) -> Result<(), CliError> {
-    eprintln!("🚀 Initializing KeyForge Workspace at {}", root.display());
+pub async fn run(args: InitArgs, root: &SafePath) -> Result<(), CliError> {
+    eprintln!("🚀 Initializing KeyForge Workspace at {root}");
 
     for d in USER_WORKSPACE_DIRS {
         ensure_dir(root, d)

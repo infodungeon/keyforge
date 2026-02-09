@@ -142,15 +142,20 @@ async fn main() {
             let resolved_path = args
                 .data
                 .clone()
-                .or_else(|| file_config.map(|c| c.data_root))
+                .or_else(|| file_config.map(|c| c.data_root.into_inner()))
                 .unwrap_or_else(|| PathBuf::from("."));
 
             let data_path = std::fs::canonicalize(&resolved_path).unwrap_or(resolved_path);
 
             info!("🐝 Data root: {:?}", data_path);
 
+            // Convert to SafePath for directory initialization
+
+            let safe_data_path =
+                keyforge_model::types::path::SafePath::from_trusted_root_path(data_path.clone());
+
             for d in USER_RUNTIME_DIRS {
-                if let Err(e) = ensure_dir(&data_path, d) {
+                if let Err(e) = ensure_dir(&safe_data_path, d) {
                     error!("FATAL: Failed to create runtime directory {}: {}", d, e);
                     std::process::exit(1);
                 }
