@@ -81,6 +81,49 @@ pub trait DistributedCoordinator: Send + Sync + std::fmt::Debug {
         nonce: u64,
         ttl_secs: i64,
     ) -> InfraResult<bool>;
+
+    /// Releases a previously reserved hardware profile update slot.
+    async fn release_profile_update(&self, cpu_signature: &str) -> InfraResult<()>;
+}
+
+/// A Drop guard that ensures a hardware profile lock is released if the registration fails.
+#[derive(Debug)]
+pub struct ProfileLockGuard {
+    coordinator: std::sync::Arc<dyn DistributedCoordinator>,
+    cpu_signature: String,
+    active: bool,
+}
+
+impl ProfileLockGuard {
+    /// Creates a new guard for the specified signature.
+    pub fn new(coordinator: std::sync::Arc<dyn DistributedCoordinator>, cpu_signature: &str) -> Self {
+        Self {
+            coordinator,
+            cpu_signature: cpu_signature.to_string(),
+            active: true,
+        }
+    }
+
+    /// Disarms the guard, preventing the lock from being released when dropped.
+    pub fn commit(&mut self) {
+        self.active = false;
+    }
+}
+
+impl Drop for ProfileLockGuard {
+    fn drop(&mut self) {
+        if self.active {
+            let coordinator = self.coordinator.clone();
+            let signature = self.cpu_signature.clone();
+            tokio::spawn(async move {
+                if let Err(e) = coordinator.release_profile_update(&signature).await {
+                    tracing::error!("🚨 Failed to release profile lock for {}: {}", signature, e);
+                } else {
+                    debug!("🔓 Released profile lock for {} (Drop guard)", signature);
+                }
+            });
+        }
+    }
 }
 
 /// A coordinator that manages distributed state and communication across a cluster of nodes.
@@ -453,5 +496,14 @@ impl DistributedCoordinator for ValkeyDistributedCoordinator {
             .map_err(|e| InfraError::Io(std::io::Error::other(e)))?;
 
         Ok(result.is_some())
+    }
+
+    /// Releases a previously reserved hardware profile update slot.
+    async fn release_profile_update(&self, cpu_signature: &str) -> InfraResult<()> {
+        let key = format!("{KEY_PREFIX_V4}:hw_profile:{cpu_signature}");
+        self.client
+            .del(key)
+            .await
+            .map_err(|e| InfraError::Io(std::io::Error::other(e)))
     }
 }
