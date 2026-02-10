@@ -44,7 +44,7 @@ impl AssetSyncer for AssetManager {
         #[allow(clippy::match_wildcard_for_single_variants)]
         // Extract cost matrix name and primary corpus
         let cost_name = match &config.cost_matrix {
-            CostMatrixSourceDto::Predefined(s) => s.clone(),
+            CostMatrixSourceDto::Predefined { id, .. } => id.clone(),
         };
         let corpus_id = config.corpora[0].id.clone();
 
@@ -191,7 +191,10 @@ mod tests {
             params: keyforge_model::config::SearchParams::default().into(),
             pinned_keys: vec![].into(),
             corpora: vec![].into(),
-            cost_matrix: CostMatrixSourceDto::Predefined("test".to_string()),
+            cost_matrix: CostMatrixSourceDto::Predefined {
+                id: "test".to_string(),
+                hash: None,
+            },
             biometrics: vec![].into(),
             parent_job_id: None,
             baseline_score: None,

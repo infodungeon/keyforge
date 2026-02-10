@@ -3,6 +3,7 @@ use crate::models::{JobStatusUpdate, RegisterJobRequest, SearchUpdate, StartSear
 use crate::state::{LocalWorkerState, SearchState, SessionState};
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
+use keyforge_adapter::model::Asset as AssetWrapper;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::HiveClient;
@@ -295,13 +296,18 @@ pub async fn cmd_start_search(
     let window_handle = window.clone();
 
     // Resolve keycodes for labeling in the callback
-    let keycodes_dto = state
+    let keycodes_asset = state
         .assets
         .load::<keyforge_protocol::KeycodeRegistryDto>("default")
         .await
-        .unwrap_or_else(|_| Arc::new(keyforge_protocol::KeycodeRegistryDto::default()));
+        .unwrap_or_else(|_| {
+            AssetWrapper::new(
+                Arc::new(keyforge_protocol::KeycodeRegistryDto::default()),
+                [0u8; 32],
+            )
+        });
     let keycodes = Arc::new(keyforge_model::keycodes::KeycodeRegistry::from(
-        (*keycodes_dto).clone(),
+        keycodes_asset.content.as_ref().clone(),
     ));
 
     let callback = TauriProgressCallback {

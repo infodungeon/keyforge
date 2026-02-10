@@ -5,6 +5,7 @@ mod runtime_tests {
     use super::*;
     use async_trait::async_trait;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+    use keyforge_adapter::model::Asset as AssetWrapper;
     use keyforge_compute::Runtime;
     use keyforge_model::geometry::{KeyboardDefinition, KeyboardMeta};
     use keyforge_model::{Asset, Corpus};
@@ -28,13 +29,14 @@ mod runtime_tests {
 
     #[async_trait]
     impl AssetLoader for MockLoader {
-        async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
+        async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<AssetWrapper<T>> {
             let tid = std::any::TypeId::of::<T>();
 
             if tid == std::any::TypeId::of::<keyforge_protocol::KeycodeRegistryDto>() {
                 let reg = keyforge_protocol::KeycodeRegistryDto::default();
                 let any_kc = Arc::new(reg) as Arc<dyn std::any::Any + Send + Sync>;
-                return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
+                let content = any_kc.downcast::<T>().expect("Downcast failed");
+                return Ok(AssetWrapper::new(content, [0u8; 32]));
             }
 
             if tid == std::any::TypeId::of::<keyforge_protocol::CostModelDto>() {
@@ -55,14 +57,16 @@ mod runtime_tests {
                 model.models.insert("default".to_string(), model_def);
 
                 let any_model = Arc::new(model) as Arc<dyn std::any::Any + Send + Sync>;
-                return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+                let content = any_model.downcast::<T>().expect("Downcast failed");
+                return Ok(AssetWrapper::new(content, [0u8; 32]));
             }
 
             let kb_any = Arc::new(KeyboardDefinition {
                 meta: KeyboardMeta::default(),
                 ..Default::default()
             }) as Arc<dyn std::any::Any + Send + Sync>;
-            Ok(kb_any.downcast::<T>().expect("Downcast failed"))
+            let content = kb_any.downcast::<T>().expect("Downcast failed");
+            Ok(AssetWrapper::new(content, [0u8; 32]))
         }
 
         async fn load_corpus(

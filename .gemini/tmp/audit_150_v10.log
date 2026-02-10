@@ -1,0 +1,307 @@
+cargo fmt
+cd apps/keyforge-ui && npm run format
+
+> keyforge-ui@0.8.0 format
+> prettier --write .
+
+.vscode/extensions.json 49ms (unchanged)
+index.html 69ms (unchanged)
+package.json 11ms (unchanged)
+postcss.config.js 19ms (unchanged)
+README.md 61ms (unchanged)
+src-tauri/capabilities/default.json 5ms (unchanged)
+src-tauri/gen/schemas/acl-manifests.json 212ms (unchanged)
+src-tauri/gen/schemas/capabilities.json 3ms (unchanged)
+src-tauri/gen/schemas/desktop-schema.json 135ms (unchanged)
+src-tauri/gen/schemas/linux-schema.json 176ms (unchanged)
+src-tauri/tauri.conf.json 15ms (unchanged)
+src/api/client.ts 139ms (unchanged)
+src/api/constants.ts 34ms (unchanged)
+src/api/error.ts 35ms (unchanged)
+src/api/events.ts 15ms (unchanged)
+src/api/services/AssetService.ts 45ms (unchanged)
+src/api/services/BaseService.ts 25ms (unchanged)
+src/api/services/JobService.ts 24ms (unchanged)
+src/api/services/WorkerService.ts 25ms (unchanged)
+src/api/tauri.ts 52ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm_bg.wasm.d.ts 13ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.d.ts 25ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.js 140ms (unchanged)
+src/api/wasm-pkg/package.json 6ms (unchanged)
+src/api/web.ts 49ms (unchanged)
+src/api/worker.ts 26ms (unchanged)
+src/App.tsx 59ms (unchanged)
+src/components/ArenaCanvas.tsx 32ms (unchanged)
+src/components/AuthWidget.tsx 36ms (unchanged)
+src/components/Charts.tsx 23ms (unchanged)
+src/components/CommandPalette.tsx 43ms (unchanged)
+src/components/ContextControls.tsx 26ms (unchanged)
+src/components/CorpusManager.tsx 40ms (unchanged)
+src/components/Header.tsx 26ms (unchanged)
+src/components/HistoryTable.tsx 11ms (unchanged)
+src/components/Inspector.tsx 33ms (unchanged)
+src/components/KeyboardDesigner.tsx 40ms (unchanged)
+src/components/KeyboardMap.tsx 74ms (unchanged)
+src/components/KeyPicker.tsx 44ms (unchanged)
+src/components/KeyTester.tsx 37ms (unchanged)
+src/components/LiveGraph.tsx 17ms (unchanged)
+src/components/modals/ExportModal.tsx 27ms (unchanged)
+src/components/NavRail.tsx 14ms (unchanged)
+src/components/NetworkBar.tsx 9ms (unchanged)
+src/components/OptimizerConfig.tsx 18ms (unchanged)
+src/components/panels/analyze/ButterflyChart.tsx 17ms (unchanged)
+src/components/panels/analyze/MetricGrid.tsx 15ms (unchanged)
+src/components/panels/analyze/ViolationSection.tsx 4ms (unchanged)
+src/components/panels/analyze/ViolationTable.tsx 13ms (unchanged)
+src/components/panels/AnalyzePanel.tsx 23ms (unchanged)
+src/components/panels/ArenaPanel.tsx 25ms (unchanged)
+src/components/panels/OptimizePanel.tsx 20ms (unchanged)
+src/components/SmartSuggestions.tsx 38ms (unchanged)
+src/components/StatusBar.tsx 14ms (unchanged)
+src/components/ui/Badge.tsx 8ms (unchanged)
+src/components/ui/Button.tsx 9ms (unchanged)
+src/components/ui/Card.tsx 6ms (unchanged)
+src/components/ui/Input.tsx 4ms (unchanged)
+src/components/ui/Label.tsx 3ms (unchanged)
+src/components/ui/Select.tsx 10ms (unchanged)
+src/components/VisualBuilder.tsx 89ms (unchanged)
+src/components/WorkspaceSelector.tsx 7ms (unchanged)
+src/context/AnalysisContext.tsx 33ms (unchanged)
+src/context/ArenaContext.tsx 55ms (unchanged)
+src/context/BackendContext.tsx 9ms (unchanged)
+src/context/KeyboardContext.tsx 8ms (unchanged)
+src/context/LibraryContext.tsx 56ms (unchanged)
+src/context/SessionContext.tsx 31ms (unchanged)
+src/context/SystemContext.tsx 28ms (unchanged)
+src/context/ToastContext.tsx 26ms (unchanged)
+src/hooks/useAutoFocus.ts 4ms (unchanged)
+src/hooks/useJobDispatch.ts 21ms (unchanged)
+src/hooks/useUndo.ts 12ms (unchanged)
+src/index.css 54ms (unchanged)
+src/main.tsx 5ms (unchanged)
+src/services/coverage.ts 30ms (unchanged)
+src/services/keycode.ts 18ms (unchanged)
+src/services/ngrams.ts 8ms (unchanged)
+src/services/stats.ts 67ms (unchanged)
+src/types.ts 20ms (unchanged)
+src/types/generated/AnalysisReport.ts 11ms (unchanged)
+src/types/generated/AssetManifestEntry.ts 4ms (unchanged)
+src/types/generated/BiometricSample.ts 9ms (unchanged)
+src/types/generated/ColIndex.ts 7ms (unchanged)
+src/types/generated/Config.ts 18ms (unchanged)
+src/types/generated/CorpusSource.ts 8ms (unchanged)
+src/types/generated/CostMatrixSource.ts 3ms (unchanged)
+src/types/generated/FingerIndex.ts 3ms (unchanged)
+src/types/generated/HandIndex.ts 4ms (unchanged)
+src/types/generated/index.ts 9ms (unchanged)
+src/types/generated/JobConfig.ts 7ms (unchanged)
+src/types/generated/JobIdentifier.ts 4ms (unchanged)
+src/types/generated/JobIdError.ts 6ms (unchanged)
+src/types/generated/JobQueueResponse.ts 8ms (unchanged)
+src/types/generated/JobRequest.ts 6ms (unchanged)
+src/types/generated/JobResponse.ts 2ms (unchanged)
+src/types/generated/JobStatus.ts 3ms (unchanged)
+src/types/generated/KeyAction.ts 5ms (unchanged)
+src/types/generated/KeyboardDefinition.ts 5ms (unchanged)
+src/types/generated/KeyboardGeometry.ts 4ms (unchanged)
+src/types/generated/KeyboardMeta.ts 2ms (unchanged)
+src/types/generated/KeyCode.ts 2ms (unchanged)
+src/types/generated/KeycodeDefinition.ts 5ms (unchanged)
+src/types/generated/KeycodeRegistry.ts 3ms (unchanged)
+src/types/generated/KeyConstraint.ts 3ms (unchanged)
+src/types/generated/KeyIndex.ts 1ms (unchanged)
+src/types/generated/KeyNode.ts 4ms (unchanged)
+src/types/generated/Layout.ts 2ms (unchanged)
+src/types/generated/LayoutDefinitions.ts 2ms (unchanged)
+src/types/generated/MetricViolation.ts 4ms (unchanged)
+src/types/generated/ModelError.ts 4ms (unchanged)
+src/types/generated/NodeRequest.ts 4ms (unchanged)
+src/types/generated/NodeResponse.ts 2ms (unchanged)
+src/types/generated/NodeTelemetry.ts 2ms (unchanged)
+src/types/generated/OptimizationResult.ts 2ms (unchanged)
+src/types/generated/ParameterMetadata.ts 7ms (unchanged)
+src/types/generated/ParamType.ts 4ms (unchanged)
+src/types/generated/PhysicsError.ts 2ms (unchanged)
+src/types/generated/PopulationResponse.ts 2ms (unchanged)
+src/types/generated/ResultSubmission.ts 4ms (unchanged)
+src/types/generated/RowIndex.ts 2ms (unchanged)
+src/types/generated/Score.ts 3ms (unchanged)
+src/types/generated/ScoringWeights.ts 3ms (unchanged)
+src/types/generated/SearchConfig.ts 4ms (unchanged)
+src/types/generated/SearchParams.ts 2ms (unchanged)
+src/types/generated/SpaceHandPreference.ts 2ms (unchanged)
+src/types/generated/SwapSuggestion.ts 3ms (unchanged)
+src/types/generated/SystemMetrics.ts 2ms (unchanged)
+src/types/generated/TuningProfile.ts 3ms (unchanged)
+src/types/generated/UserStatsStore.ts 4ms (unchanged)
+src/utils.test.ts 16ms (unchanged)
+src/utils.ts 5ms (unchanged)
+src/views/AnalyzeView.tsx 24ms (unchanged)
+src/views/ArenaView.tsx 5ms (unchanged)
+src/views/ConstructView.tsx 2ms (unchanged)
+src/views/LayoutView.tsx 30ms (unchanged)
+src/views/OptimizeView.tsx 18ms (unchanged)
+src/views/SettingsView.tsx 30ms (unchanged)
+src/views/TesterView.tsx 2ms (unchanged)
+src/vite-env.d.ts 4ms (unchanged)
+tailwind.config.js 6ms (unchanged)
+tsconfig.json 4ms (unchanged)
+tsconfig.node.json 5ms (unchanged)
+vite.config.ts 12ms (unchanged)
+CARGO_TARGET_DIR=target/audit cargo clippy --workspace -- -D warnings
+    Checking keyforge-adapter v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-adapter)
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Checking keyforge-evolution v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-evolution)
+    Checking keyforge-security v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-security)
+    Checking keyforge-export v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-export)
+    Checking keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+    Checking keyforge-persistence v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assetmgr)
+    Checking keyforge-tui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-tui)
+    Checking keyforge-repros v0.1.0 (/home/robert/projects/keyforge/ops/repros)
+    Checking keyforge-wasm v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-wasm)
+    Checking keyforge-agent v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-agent)
+    Checking keyforge-ui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-ui/src-tauri)
+    Checking keyforge-hive v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-hive)
+    Checking keyforge-cli v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-cli)
+    Checking keyforge-testing v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.63s
+🔍 Verifying Architectural Invariants (ARCH-00x)...
+sg scan
+python3 ops/scripts/bouncer_100x.py
+--- 100x BOUNCER AUDIT PASSED---
+🏗️ Checking Layer Integrity...
+python3 ops/scripts/check_arch.py
+Verifying Architectural Layer Boundaries...
+Architectural layers intact (with known exceptions).
+cargo test -p keyforge-infra
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.55s
+     Running unittests src/lib.rs (target/debug/deps/keyforge_infra-04326d3ff5ce2ae3)
+
+running 21 tests
+test config::tests::test_common_config_merge ... ok
+test config::tests::test_common_config_from_env ... ok
+test config::tests::test_common_config_resolve ... ok
+test fs::init::tests::test_init_workspace_missing_assets ... ok
+test net::client::tests::test_hive_client_invalid_config ... ok
+test net::client::tests::test_url_normalization ... ok
+test config::tests::test_common_config_from_file ... ok
+test util::common::tests::test_normalize_path ... ok
+test util::common::tests::test_calculate_file_hash ... ok
+test util::common::tests::test_sanitize_filename ... ok
+test util::common::tests::test_load_keycode_registry ... ok
+test fs::init::tests::test_init_workspace_creates_dirs ... ok
+test util::corpus::tests::test_resolve_corpus_char ... ok
+test util::corpus::tests::test_parse_bigrams_invalid ... ok
+test util::corpus::tests::test_parse_trigrams_invalid ... ok
+test util::corpus::tests::test_parse_words_invalid ... ok
+test util::corpus::tests::test_parse_monograms_invalid ... ok
+test util::corpus::tests::test_populate_corpus_from_segments ... ok
+test util::corpus::tests::test_inject_synthetic_data ... ok
+test net::client::tests::test_hive_client_config ... ok
+test net::client::tests::test_hive_client_builders ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/content_addressing_tests.rs (target/debug/deps/content_addressing_tests-9aabda37ec24c455)
+
+running 1 test
+test content_hash_fingerprint_uniqueness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fs_integration.rs (target/debug/deps/fs_integration-3c01b02870c4838b)
+
+running 7 tests
+test integration_tests::test_atomic_write_fail ... ok
+test integration_tests::test_listing_empty_root ... ok
+test integration_tests::test_atomic_write ... ok
+test integration_tests::test_workspace_lock_release ... ok
+test integration_tests::test_read_to_string_limited ... ok
+test integration_tests::test_listing_filters ... ok
+test integration_tests::test_workspace_lock_exclusivity ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.55s
+
+     Running tests/infra_integration.rs (target/debug/deps/infra_integration-b818ab0adcdbadd1)
+
+running 1 test
+test integration_tests::test_fs_provider_lifecycle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/network_tests.rs (target/debug/deps/network_tests-efe71a9294e742d5)
+
+running 7 tests
+test integration_tests::test_ensure_cost_matrix ... ok
+test integration_tests::test_ensure_file_too_large ... ok
+test integration_tests::test_ensure_corpus_bundle ... ok
+test integration_tests::test_ensure_file_hash_mismatch ... ok
+test integration_tests::test_ensure_file_not_found ... ok
+test integration_tests::test_ensure_file_basic ... ok
+test integration_tests::test_ensure_file_server_error ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+
+     Running tests/provider_integration.rs (target/debug/deps/provider_integration-46313315e2b3e02a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests keyforge_infra
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+cargo test -p keyforge-compute
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+   Compiling keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+   Compiling keyforge-testing v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing)
+warning: unused import: `keyforge_adapter::loader::AssetLoader`
+ --> libs/keyforge-compute/tests/cache_invalidation_tests.rs:1:5
+  |
+1 | use keyforge_adapter::loader::AssetLoader;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `keyforge-compute` (test "cache_invalidation_tests") generated 1 warning (run `cargo fix --test "cache_invalidation_tests"` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.97s
+     Running unittests src/lib.rs (target/debug/deps/keyforge_compute-7eed623c6cea259c)
+
+running 3 tests
+test hardware::tests::test_cpu_topology_defaults_and_conversion ... ok
+test hardware::tests::test_hardware_probe_runs ... ok
+test biometrics::tests::test_biometric_profiler_logic ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/builder_integration.rs (target/debug/deps/builder_integration-2eef608dfe4dec25)
+
+running 1 test
+test builder_tests::test_builder_full_chain ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/cache_invalidation_tests.rs (target/debug/deps/cache_invalidation_tests-841b593a518a5b7c)
+
+running 1 test
+test cache_invalidation_on_content_update ... FAILED
+
+failures:
+
+---- cache_invalidation_on_content_update stdout ----
+Error: Configuration Error: Physics Compute Error: Engine configuration error: Hand definition not found for left_hand or universal_hand
+
+
+failures:
+    cache_invalidation_on_content_update
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p keyforge-compute --test cache_invalidation_tests`
+error: Recipe `test-compute` failed on line 148 with exit code 101

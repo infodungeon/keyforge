@@ -18,6 +18,8 @@ serde.workspace = true
 thiserror.workspace = true
 ts-rs = { workspace = true, optional = true }
 async-trait.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 keyforge-testing = { path = "../keyforge-testing" }

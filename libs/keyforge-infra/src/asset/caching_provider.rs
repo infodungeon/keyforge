@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
-use keyforge_model::{Asset, Corpus};
+// use keyforge_model::{Asset, Corpus}; // Original
+use keyforge_adapter::model::Asset as AssetWrapper; // Add this
+use keyforge_model::{Asset as AssetTrait, Corpus};
 use moka::future::Cache;
 use serde::de::DeserializeOwned;
 use std::any::{Any, TypeId};
@@ -38,17 +40,35 @@ impl<L: AssetLoader> CachingProvider<L> {
 
 #[async_trait]
 impl<L: AssetLoader> AssetLoader for CachingProvider<L> {
-    async fn load<T: Asset + DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: AssetTrait + DeserializeOwned>(
+        &self,
+        id: &str,
+    ) -> LoaderResult<AssetWrapper<T>> {
         let tid = TypeId::of::<T>();
-        if let Some(asset) = self.cache.get(&(tid, id.to_string())).await {
-            return asset.downcast::<T>().map_err(|_| {
-                keyforge_model::error::ForgeError::Internal("Cache downcast failed".into())
-            });
+        if let Some(arc_any) = self.cache.get(&(tid, id.to_string())).await {
+            // arc_any is Arc<dyn Any + Send + Sync>
+            // We expect it to contain Arc<AssetWrapper<T>> (or just AssetWrapper<T> wrapped in Arc?)
+            // Let's assume we store Arc<AssetWrapper<T>> in the cache (matches provider return type wrapped in Arc for type erasure)
+
+            // Wait, provider.load returns AssetWrapper<T>.
+            // We want to store something in Arc<dyn Any>.
+            // If we store AssetWrapper<T>, then downcast returns Arc<AssetWrapper<T>> (reference to value in Arc).
+            // Then we clone it.
+
+            if let Ok(arc_wrapper) = arc_any.downcast::<AssetWrapper<T>>() {
+                return Ok((*arc_wrapper).clone());
+            }
+
+            return Err(keyforge_model::error::ForgeError::Internal(
+                "Cache downcast failed".into(),
+            ));
         }
 
         let asset = self.provider.load::<T>(id).await?;
+        // Store in cache. asset is AssetWrapper<T>.
+        // We wrap in Arc to make it Arc<dyn Any>.
         self.cache
-            .insert((tid, id.to_string()), asset.clone())
+            .insert((tid, id.to_string()), Arc::new(asset.clone()))
             .await;
         Ok(asset)
     }

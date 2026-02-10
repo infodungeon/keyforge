@@ -17,7 +17,10 @@ fn default_version() -> u32 {
     PROTOCOL_VERSION
 }
 fn default_cost_matrix() -> CostMatrixSourceDto {
-    CostMatrixSourceDto::Predefined("cost_matrix.json".to_string())
+    CostMatrixSourceDto::Predefined {
+        id: "cost_matrix.json".to_string(),
+        hash: None,
+    }
 }
 fn default_corpora() -> LimitedVec<CorpusSourceDto> {
     LimitedVec(vec![CorpusSourceDto {
@@ -147,8 +150,11 @@ impl JobConfig {
     #[must_use]
     pub fn to_domain_cost_matrix(&self) -> keyforge_model::config::CostMatrixSource {
         match &self.cost_matrix {
-            CostMatrixSourceDto::Predefined(s) => {
-                keyforge_model::config::CostMatrixSource::Predefined(s.clone())
+            CostMatrixSourceDto::Predefined { id, hash } => {
+                keyforge_model::config::CostMatrixSource::Predefined {
+                    id: id.clone(),
+                    hash: hash.clone(),
+                }
             }
         }
     }

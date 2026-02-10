@@ -91,19 +91,27 @@ impl FromStr for CorpusSource {
 #[derive(Clone, Debug, PartialEq)]
 pub enum CostMatrixSource {
     /// A predefined cost matrix file (e.g. "`default_costmatrix.json`").
-    Predefined(String),
+    Predefined {
+        /// The identifier (filename stem).
+        id: String,
+        /// Optional content hash (SHA-256 hex).
+        hash: Option<String>,
+    },
 }
 
 impl Default for CostMatrixSource {
     fn default() -> Self {
-        CostMatrixSource::Predefined(ASSET_COST_MATRIX.to_string())
+        CostMatrixSource::Predefined {
+            id: ASSET_COST_MATRIX.to_string(),
+            hash: None,
+        }
     }
 }
 
 impl fmt::Display for CostMatrixSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CostMatrixSource::Predefined(s) => write!(f, "{s}"),
+            CostMatrixSource::Predefined { id, .. } => write!(f, "{id}"),
         }
     }
 }
@@ -114,9 +122,13 @@ impl CostMatrixSource {
     pub fn calculate_hash(&self) -> String {
         let mut hasher = Sha256::new();
         match self {
-            CostMatrixSource::Predefined(s) => {
+            CostMatrixSource::Predefined { id, hash } => {
                 hasher.update([0]); // discriminant
-                hasher.update(s.as_bytes());
+                hasher.update(id.as_bytes());
+                if let Some(h) = hash {
+                    hasher.update([0xFF]);
+                    hasher.update(h.as_bytes());
+                }
             }
         }
         hex::encode(hasher.finalize())
@@ -221,7 +233,7 @@ mod tests {
     #[test]
     fn test_cost_matrix_source() -> anyhow::Result<()> {
         let default = CostMatrixSource::default();
-        assert!(matches!(default, CostMatrixSource::Predefined(_)));
+        assert!(matches!(default, CostMatrixSource::Predefined { .. }));
         assert_eq!(format!("{default}"), ASSET_COST_MATRIX);
         Ok(())
     }

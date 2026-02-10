@@ -4168,6 +4168,7 @@ dependencies = [
  "keyforge-testing-macros",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
  "ts-rs",
 ]
@@ -4322,6 +4323,7 @@ dependencies = [
 name = "keyforge-compute"
 version = "0.9.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "keyforge-adapter",
  "keyforge-boundary",
@@ -4336,6 +4338,7 @@ dependencies = [
  "raw-cpuid",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "windows-sys 0.52.0",

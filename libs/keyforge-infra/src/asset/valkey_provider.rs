@@ -10,7 +10,9 @@ use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
-use keyforge_model::{Asset, AssetCategory, Corpus};
+// use keyforge_model::{Asset, AssetCategory, Corpus}; // Original
+use keyforge_adapter::model::Asset as AssetWrapper; // Add this
+use keyforge_model::{Asset as AssetTrait, AssetCategory, Corpus};
 use serde::de::DeserializeOwned;
 use sha2::Digest;
 use std::sync::Arc;
@@ -173,12 +175,15 @@ impl ValkeyProvider {
 
 #[async_trait]
 impl AssetLoader for ValkeyProvider {
-    async fn load<T: Asset + DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: AssetTrait + DeserializeOwned>(
+        &self,
+        id: &str,
+    ) -> LoaderResult<AssetWrapper<T>> {
         let category = T::category();
         let subpath = Self::id_to_subpath(category, id);
-        let (mut asset, _hash): (T, [u8; 32]) = self.hydrate_mpk(&subpath).await?;
+        let (mut asset, hash): (T, [u8; 32]) = self.hydrate_mpk(&subpath).await?;
         asset.post_load()?;
-        Ok(Arc::new(asset))
+        Ok(AssetWrapper::new(Arc::new(asset), hash))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {

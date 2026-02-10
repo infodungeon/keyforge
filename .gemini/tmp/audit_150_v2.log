@@ -1,0 +1,199 @@
+cargo fmt
+cd apps/keyforge-ui && npm run format
+
+> keyforge-ui@0.8.0 format
+> prettier --write .
+
+.vscode/extensions.json 29ms (unchanged)
+index.html 45ms (unchanged)
+package.json 5ms (unchanged)
+postcss.config.js 10ms (unchanged)
+README.md 33ms (unchanged)
+src-tauri/capabilities/default.json 3ms (unchanged)
+src-tauri/gen/schemas/acl-manifests.json 109ms
+src-tauri/gen/schemas/capabilities.json 1ms
+src-tauri/gen/schemas/desktop-schema.json 94ms
+src-tauri/gen/schemas/linux-schema.json 104ms
+src-tauri/tauri.conf.json 7ms (unchanged)
+src/api/client.ts 76ms (unchanged)
+src/api/constants.ts 15ms (unchanged)
+src/api/error.ts 16ms (unchanged)
+src/api/events.ts 11ms (unchanged)
+src/api/services/AssetService.ts 20ms (unchanged)
+src/api/services/BaseService.ts 14ms (unchanged)
+src/api/services/JobService.ts 16ms (unchanged)
+src/api/services/WorkerService.ts 13ms (unchanged)
+src/api/tauri.ts 32ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm_bg.wasm.d.ts 9ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.d.ts 10ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.js 89ms (unchanged)
+src/api/wasm-pkg/package.json 1ms (unchanged)
+src/api/web.ts 27ms (unchanged)
+src/api/worker.ts 15ms (unchanged)
+src/App.tsx 25ms (unchanged)
+src/components/ArenaCanvas.tsx 15ms (unchanged)
+src/components/AuthWidget.tsx 17ms (unchanged)
+src/components/Charts.tsx 10ms (unchanged)
+src/components/CommandPalette.tsx 29ms (unchanged)
+src/components/ContextControls.tsx 10ms (unchanged)
+src/components/CorpusManager.tsx 10ms (unchanged)
+src/components/Header.tsx 8ms (unchanged)
+src/components/HistoryTable.tsx 10ms (unchanged)
+src/components/Inspector.tsx 29ms (unchanged)
+src/components/KeyboardDesigner.tsx 35ms (unchanged)
+src/components/KeyboardMap.tsx 52ms (unchanged)
+src/components/KeyPicker.tsx 22ms (unchanged)
+src/components/KeyTester.tsx 16ms (unchanged)
+src/components/LiveGraph.tsx 7ms (unchanged)
+src/components/modals/ExportModal.tsx 17ms (unchanged)
+src/components/NavRail.tsx 6ms (unchanged)
+src/components/NetworkBar.tsx 3ms (unchanged)
+src/components/OptimizerConfig.tsx 19ms (unchanged)
+src/components/panels/analyze/ButterflyChart.tsx 7ms (unchanged)
+src/components/panels/analyze/MetricGrid.tsx 11ms (unchanged)
+src/components/panels/analyze/ViolationSection.tsx 3ms (unchanged)
+src/components/panels/analyze/ViolationTable.tsx 4ms (unchanged)
+src/components/panels/AnalyzePanel.tsx 20ms (unchanged)
+src/components/panels/ArenaPanel.tsx 16ms (unchanged)
+src/components/panels/OptimizePanel.tsx 9ms (unchanged)
+src/components/SmartSuggestions.tsx 12ms (unchanged)
+src/components/StatusBar.tsx 6ms (unchanged)
+src/components/ui/Badge.tsx 4ms (unchanged)
+src/components/ui/Button.tsx 7ms (unchanged)
+src/components/ui/Card.tsx 3ms (unchanged)
+src/components/ui/Input.tsx 2ms (unchanged)
+src/components/ui/Label.tsx 2ms (unchanged)
+src/components/ui/Select.tsx 3ms (unchanged)
+src/components/VisualBuilder.tsx 59ms (unchanged)
+src/components/WorkspaceSelector.tsx 7ms (unchanged)
+src/context/AnalysisContext.tsx 32ms (unchanged)
+src/context/ArenaContext.tsx 42ms (unchanged)
+src/context/BackendContext.tsx 12ms (unchanged)
+src/context/KeyboardContext.tsx 8ms (unchanged)
+src/context/LibraryContext.tsx 37ms (unchanged)
+src/context/SessionContext.tsx 21ms (unchanged)
+src/context/SystemContext.tsx 14ms (unchanged)
+src/context/ToastContext.tsx 16ms (unchanged)
+src/hooks/useAutoFocus.ts 2ms (unchanged)
+src/hooks/useJobDispatch.ts 16ms (unchanged)
+src/hooks/useUndo.ts 7ms (unchanged)
+src/index.css 29ms (unchanged)
+src/main.tsx 2ms (unchanged)
+src/services/coverage.ts 15ms (unchanged)
+src/services/keycode.ts 12ms (unchanged)
+src/services/ngrams.ts 4ms (unchanged)
+src/services/stats.ts 13ms (unchanged)
+src/types.ts 4ms (unchanged)
+src/types/generated/AnalysisReport.ts 3ms (unchanged)
+src/types/generated/AssetManifestEntry.ts 2ms (unchanged)
+src/types/generated/BiometricSample.ts 2ms (unchanged)
+src/types/generated/ColIndex.ts 1ms (unchanged)
+src/types/generated/Config.ts 2ms (unchanged)
+src/types/generated/CorpusSource.ts 1ms (unchanged)
+src/types/generated/CostMatrixSource.ts 1ms (unchanged)
+src/types/generated/FingerIndex.ts 1ms (unchanged)
+src/types/generated/HandIndex.ts 1ms (unchanged)
+src/types/generated/index.ts 3ms (unchanged)
+src/types/generated/JobConfig.ts 2ms (unchanged)
+src/types/generated/JobIdentifier.ts 1ms (unchanged)
+src/types/generated/JobIdError.ts 1ms (unchanged)
+src/types/generated/JobQueueResponse.ts 2ms (unchanged)
+src/types/generated/JobRequest.ts 4ms (unchanged)
+src/types/generated/JobResponse.ts 2ms (unchanged)
+src/types/generated/JobStatus.ts 1ms (unchanged)
+src/types/generated/KeyAction.ts 2ms (unchanged)
+src/types/generated/KeyboardDefinition.ts 2ms (unchanged)
+src/types/generated/KeyboardGeometry.ts 2ms (unchanged)
+src/types/generated/KeyboardMeta.ts 2ms (unchanged)
+src/types/generated/KeyCode.ts 5ms (unchanged)
+src/types/generated/KeycodeDefinition.ts 5ms (unchanged)
+src/types/generated/KeycodeRegistry.ts 2ms (unchanged)
+src/types/generated/KeyConstraint.ts 2ms (unchanged)
+src/types/generated/KeyIndex.ts 2ms (unchanged)
+src/types/generated/KeyNode.ts 4ms (unchanged)
+src/types/generated/Layout.ts 2ms (unchanged)
+src/types/generated/LayoutDefinitions.ts 2ms (unchanged)
+src/types/generated/MetricViolation.ts 1ms (unchanged)
+src/types/generated/ModelError.ts 1ms (unchanged)
+src/types/generated/NodeRequest.ts 2ms (unchanged)
+src/types/generated/NodeResponse.ts 1ms (unchanged)
+src/types/generated/NodeTelemetry.ts 2ms (unchanged)
+src/types/generated/OptimizationResult.ts 3ms (unchanged)
+src/types/generated/ParameterMetadata.ts 3ms (unchanged)
+src/types/generated/ParamType.ts 1ms (unchanged)
+src/types/generated/PhysicsError.ts 3ms (unchanged)
+src/types/generated/PopulationResponse.ts 1ms (unchanged)
+src/types/generated/ResultSubmission.ts 2ms (unchanged)
+src/types/generated/RowIndex.ts 1ms (unchanged)
+src/types/generated/Score.ts 1ms (unchanged)
+src/types/generated/ScoringWeights.ts 3ms (unchanged)
+src/types/generated/SearchConfig.ts 5ms (unchanged)
+src/types/generated/SearchParams.ts 3ms (unchanged)
+src/types/generated/SpaceHandPreference.ts 1ms (unchanged)
+src/types/generated/SwapSuggestion.ts 2ms (unchanged)
+src/types/generated/SystemMetrics.ts 2ms (unchanged)
+src/types/generated/TuningProfile.ts 1ms (unchanged)
+src/types/generated/UserStatsStore.ts 3ms (unchanged)
+src/utils.test.ts 23ms (unchanged)
+src/utils.ts 2ms (unchanged)
+src/views/AnalyzeView.tsx 24ms (unchanged)
+src/views/ArenaView.tsx 2ms (unchanged)
+src/views/ConstructView.tsx 2ms (unchanged)
+src/views/LayoutView.tsx 28ms (unchanged)
+src/views/OptimizeView.tsx 24ms (unchanged)
+src/views/SettingsView.tsx 30ms (unchanged)
+src/views/TesterView.tsx 1ms (unchanged)
+src/vite-env.d.ts 2ms (unchanged)
+tailwind.config.js 3ms (unchanged)
+tsconfig.json 3ms (unchanged)
+tsconfig.node.json 1ms (unchanged)
+vite.config.ts 5ms (unchanged)
+CARGO_TARGET_DIR=target/audit cargo clippy --workspace -- -D warnings
+    Checking keyforge-model v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-model)
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Checking keyforge-protocol v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-protocol)
+    Checking keyforge-physics v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-physics)
+    Checking keyforge-security v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-security)
+    Checking keyforge-adapter v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-adapter)
+    Checking keyforge-evolution v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-evolution)
+    Checking keyforge-export v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-export)
+    Checking keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+    Checking keyforge-persistence v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assetmgr)
+    Checking keyforge-tui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-tui)
+error[E0614]: type `keyforge_adapter::model::Asset<keyforge_protocol::KeyboardDefinitionDto>` cannot be dereferenced
+  --> libs/keyforge-persistence/src/compiler.rs:24:52
+   |
+24 |     let kb_def: Arc<KeyboardDefinition> = Arc::new((*kb_def_dto).clone().into());
+   |                                                    ^^^^^^^^^^^^^ can't be dereferenced
+
+error[E0614]: type `keyforge_adapter::model::Asset<keyforge_protocol::KeycodeRegistryDto>` cannot be dereferenced
+  --> libs/keyforge-persistence/src/compiler.rs:37:51
+   |
+37 |     let registry: Arc<KeycodeRegistry> = Arc::new((*registry_dto).clone().into());
+   |                                                   ^^^^^^^^^^^^^^^ can't be dereferenced
+
+error[E0164]: expected tuple struct or tuple variant, found struct variant `keyforge_model::CostMatrixSource::Predefined`
+  --> libs/keyforge-persistence/src/compiler.rs:41:9
+   |
+41 |         keyforge_model::CostMatrixSource::Predefined(name) => {
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not a tuple struct or tuple variant
+   |
+help: the struct variant's fields are being ignored
+   |
+41 -         keyforge_model::CostMatrixSource::Predefined(name) => {
+41 +         keyforge_model::CostMatrixSource::Predefined { id: _, hash: _ } => {
+   |
+
+error[E0614]: type `keyforge_adapter::model::Asset<keyforge_protocol::CostModelDto>` cannot be dereferenced
+  --> libs/keyforge-persistence/src/compiler.rs:46:22
+   |
+46 |             Arc::new((*dto).clone().into())
+   |                      ^^^^^^ can't be dereferenced
+
+Some errors have detailed explanations: E0164, E0614.
+For more information about an error, try `rustc --explain E0164`.
+error: could not compile `keyforge-persistence` (lib) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: Recipe `lint` failed on line 175 with exit code 101

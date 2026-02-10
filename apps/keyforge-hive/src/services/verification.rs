@@ -192,7 +192,7 @@ impl VerificationService {
                 .map_err(|e| {
                     AppError::Validation(format!("Failed to load keycodes for verification: {e}"))
                 })?;
-            let registry: KeycodeRegistry = (*registry_dto).clone().into();
+            let registry: KeycodeRegistry = registry_dto.content.as_ref().clone().into();
 
             let parsed = keyforge_adapter::conversion::parse_layout_string_strict(
                 &sub.layout,

@@ -1,5 +1,6 @@
 // libs/keyforge-adapter/src/loader.rs
 
+use crate::model::Asset as AssetWrapper;
 use async_trait::async_trait;
 use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
@@ -17,7 +18,10 @@ pub type LoaderResult<T> = Result<T, ForgeError>;
 #[async_trait]
 pub trait AssetLoader: Send + Sync + Debug {
     /// Generic asset loader.
-    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>>;
+    async fn load<T: Asset + serde::de::DeserializeOwned>(
+        &self,
+        id: &str,
+    ) -> LoaderResult<AssetWrapper<T>>;
 
     /// Loads one or more corpora and merges them into a single bundle.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
@@ -52,7 +56,10 @@ impl Default for InMemoryLoader {
 
 #[async_trait]
 impl AssetLoader for InMemoryLoader {
-    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + serde::de::DeserializeOwned>(
+        &self,
+        id: &str,
+    ) -> LoaderResult<AssetWrapper<T>> {
         self.load_any::<T>(id)
     }
 
@@ -61,7 +68,7 @@ impl AssetLoader for InMemoryLoader {
         let mut found_any = false;
         for src in sources {
             if let Ok(corpus) = self.load_any::<Corpus>(&src.id) {
-                blended.merge(&corpus, src.weight);
+                blended.merge(&corpus.content, src.weight);
                 found_any = true;
             } else {
                 return Err(ForgeError::NotFound(src.id.clone()));
@@ -87,7 +94,7 @@ impl AssetLoader for InMemoryLoader {
 }
 
 impl InMemoryLoader {
-    fn load_any<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    fn load_any<T: Asset>(&self, id: &str) -> LoaderResult<AssetWrapper<T>> {
         let tid = TypeId::of::<T>();
         let type_name = std::any::type_name::<T>();
         let maps = self
@@ -101,7 +108,8 @@ impl InMemoryLoader {
             .get(id)
             .cloned()
             .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
-        res.downcast::<T>()
+        res.downcast::<AssetWrapper<T>>()
+            .map(|wrapper| (*wrapper).clone()) // Clone the wrapper (cheap, as it holds Arc)
             .map_err(|_| ForgeError::Internal(format!("Downcast failed for {type_name}")))
     }
 
@@ -112,12 +120,30 @@ impl InMemoryLoader {
     }
 
     /// Generic injection of an asset into the in-memory loader.
-    pub fn inject<T: Asset + serde::de::DeserializeOwned>(&self, id: &str, asset: T) {
+    pub fn inject<T: Asset + serde::de::DeserializeOwned + serde::Serialize>(
+        &self,
+        id: &str,
+        asset: T,
+    ) {
         let tid = TypeId::of::<T>();
+        // Compute hash for injection
+        // This requires T to be Serialize, which we added to bounds
+        let content_hash = match serde_json::to_vec(&asset) {
+            Ok(bytes) => {
+                use sha2::Digest;
+                let mut hasher = sha2::Sha256::new();
+                hasher.update(&bytes);
+                hasher.finalize().into()
+            }
+            Err(_) => [0u8; 32], // Fallback if serialization fails (shouldn't happen for test data)
+        };
+
+        let wrapper = AssetWrapper::new(Arc::new(asset), content_hash);
+
         if let Ok(mut maps) = self.assets.write() {
             maps.entry(tid)
                 .or_default()
-                .insert(id.to_string(), Arc::new(asset));
+                .insert(id.to_string(), Arc::new(wrapper));
         }
     }
 }

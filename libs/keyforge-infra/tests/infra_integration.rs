@@ -36,7 +36,7 @@ mod integration_tests {
             .await;
         assert!(res.is_ok(), "Failed to load test_kb: {:?}", res.err());
         let def: keyforge_model::geometry::KeyboardDefinition =
-            res.unwrap().as_ref().clone().into();
+            res.unwrap().content.as_ref().clone().into();
         assert_eq!(def.meta.name, "Test Board");
 
         // 2. Load missing asset

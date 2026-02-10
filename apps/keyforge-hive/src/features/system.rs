@@ -102,7 +102,7 @@ pub async fn get_keyboard(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to load keyboard: {e}")))?;
 
-    Ok(Json((*kb_dto).clone())) // Return DTO directly since we want API to return DTO
+    Ok(Json(kb_dto.content.as_ref().clone())) // Return DTO directly since we want API to return DTO
 }
 
 /// Retrieves the global application configuration.

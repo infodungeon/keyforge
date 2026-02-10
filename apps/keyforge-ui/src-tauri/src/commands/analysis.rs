@@ -157,7 +157,7 @@ pub async fn validate_layout_string(
 
     // 2. Prepare analysis request
     let job_config = JobConfig {
-        definition: (*definition_dto).clone(),
+        definition: definition_dto.content.as_ref().clone(),
         weights: keyforge_model::config::ScoringWeights::default().into(),
         params: keyforge_model::config::SearchParams::default().into(),
         pinned_keys: vec![].into(),
@@ -167,7 +167,10 @@ pub async fn validate_layout_string(
             hash: None,
         }]
         .into(),
-        cost_matrix: CostMatrixSourceDto::Predefined("default".to_string()),
+        cost_matrix: CostMatrixSourceDto::Predefined {
+            id: "default".to_string(),
+            hash: None,
+        },
         biometrics: vec![].into(),
         parent_job_id: None,
         baseline_score: None,

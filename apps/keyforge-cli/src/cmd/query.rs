@@ -75,7 +75,10 @@ pub async fn run(args: QueryArgs, root: &SafePath) -> Result<(), Box<dyn std::er
     config.search.validate()?;
     config.weights.validate()?;
 
-    let cost_source = CostMatrixSource::Predefined(cost_input);
+    let cost_source = CostMatrixSource::Predefined {
+        id: cost_input,
+        hash: None,
+    };
 
     let job_config = keyforge_protocol::JobConfig {
         definition: kb_def.clone().into(),

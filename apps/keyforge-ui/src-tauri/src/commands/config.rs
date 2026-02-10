@@ -18,12 +18,11 @@ pub fn cmd_get_default_config() -> keyforge_protocol::ConfigDto {
 pub async fn cmd_get_keycodes(
     state: tauri::State<'_, SessionState>,
 ) -> Result<keyforge_protocol::KeycodeRegistryDto, CommandError> {
-    Ok(state
+    let asset = state
         .assets
         .load::<keyforge_protocol::KeycodeRegistryDto>(ASSET_KEYCODES)
-        .await?
-        .as_ref()
-        .clone())
+        .await?;
+    Ok(asset.content.as_ref().clone())
 }
 
 /// Retrieves UI category metadata from local configuration files.

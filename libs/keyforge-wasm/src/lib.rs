@@ -202,7 +202,7 @@ impl KeyforgeEngine {
             .load::<keyforge_protocol::KeyboardDefinitionDto>(&keyboard_name)
             .await
             .map_err(to_js_error)?;
-        let kb_def: Arc<KeyboardDefinition> = Arc::new((*kb_def_dto).clone().into());
+        let kb_def: Arc<KeyboardDefinition> = Arc::new(kb_def_dto.content.as_ref().clone().into());
 
         let corpus = self
             .loader
@@ -219,14 +219,14 @@ impl KeyforgeEngine {
             .load::<keyforge_protocol::CostModelDto>(&cost_model_name)
             .await
             .map_err(to_js_error)?;
-        let cost_model: Arc<CostModel> = Arc::new((*cost_model_dto).clone().into());
+        let cost_model: Arc<CostModel> = Arc::new(cost_model_dto.content.as_ref().clone().into());
 
         let reg_dto = self
             .loader
             .load::<keyforge_protocol::KeycodeRegistryDto>("default")
             .await
             .map_err(to_js_error)?;
-        let _registry: Arc<KeycodeRegistry> = Arc::new((*reg_dto).clone().into());
+        let _registry: Arc<KeycodeRegistry> = Arc::new(reg_dto.content.as_ref().clone().into());
 
         let keyboard = Arc::new(
             keyforge_model::Keyboard::new(

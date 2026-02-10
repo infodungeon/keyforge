@@ -3,6 +3,7 @@
 use crate::utils::get_data_dir;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+use keyforge_adapter::model::Asset as AssetWrapper;
 use keyforge_boundary::SafePath;
 use keyforge_compute::ScoringSession;
 use keyforge_infra::AssetManager;
@@ -65,7 +66,10 @@ impl AssetCache {
 
 #[async_trait]
 impl AssetLoader for AssetCache {
-    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + serde::de::DeserializeOwned>(
+        &self,
+        id: &str,
+    ) -> LoaderResult<AssetWrapper<T>> {
         self.manager
             .ensure_keyboard(id)
             .await
@@ -75,9 +79,19 @@ impl AssetLoader for AssetCache {
             .join("system/keyboards")?
             .join(&format!("{id}.json"))?;
         let data = std::fs::read(path.as_path()).map_err(|e| ForgeError::Io(e.to_string()))?;
-        serde_json::from_slice(&data)
+
+        let hash = {
+            use sha2::Digest;
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(&data);
+            hasher.finalize().into()
+        };
+
+        let content = serde_json::from_slice(&data)
             .map(Arc::new)
-            .map_err(|e| ForgeError::Serde(e.to_string()))
+            .map_err(|e| ForgeError::Serde(e.to_string()))?;
+
+        Ok(AssetWrapper::new(content, hash))
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {

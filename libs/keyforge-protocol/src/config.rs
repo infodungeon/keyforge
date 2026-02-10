@@ -286,19 +286,29 @@ impl From<CorpusSourceDto> for keyforge_model::config::CorpusSource {
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum CostMatrixSourceDto {
     /// A predefined model name.
-    Predefined(String),
+    Predefined {
+        /// Identifier.
+        id: String,
+        /// Optional hash.
+        hash: Option<String>,
+    },
 }
 
 impl Default for CostMatrixSourceDto {
     fn default() -> Self {
-        Self::Predefined("cost_matrix.json".to_string())
+        Self::Predefined {
+            id: "cost_matrix.json".to_string(),
+            hash: None,
+        }
     }
 }
 
 impl From<keyforge_model::config::CostMatrixSource> for CostMatrixSourceDto {
     fn from(val: keyforge_model::config::CostMatrixSource) -> Self {
         match val {
-            keyforge_model::config::CostMatrixSource::Predefined(s) => Self::Predefined(s),
+            keyforge_model::config::CostMatrixSource::Predefined { id, hash } => {
+                Self::Predefined { id, hash }
+            }
         }
     }
 }
@@ -306,7 +316,7 @@ impl From<keyforge_model::config::CostMatrixSource> for CostMatrixSourceDto {
 impl From<CostMatrixSourceDto> for keyforge_model::config::CostMatrixSource {
     fn from(val: CostMatrixSourceDto) -> Self {
         match val {
-            CostMatrixSourceDto::Predefined(s) => Self::Predefined(s),
+            CostMatrixSourceDto::Predefined { id, hash } => Self::Predefined { id, hash },
         }
     }
 }

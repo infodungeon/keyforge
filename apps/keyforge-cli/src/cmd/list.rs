@@ -38,9 +38,9 @@ async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::Cl
         {
             table.add_row(vec![
                 id,
-                def_dto.meta.name.clone(),
-                def_dto.meta.kb_type.clone(),
-                def_dto.meta.author.clone(),
+                def_dto.content.meta.name.clone(),
+                def_dto.content.meta.kb_type.clone(),
+                def_dto.content.meta.author.clone(),
             ]);
         }
     }

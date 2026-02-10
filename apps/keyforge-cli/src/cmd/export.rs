@@ -88,7 +88,8 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
                 .load::<keyforge_protocol::KeycodeRegistryDto>(ASSET_KEYCODES)
                 .await
                 .ok();
-            let registry: Option<KeycodeRegistry> = registry_dto.map(|dto| (*dto).clone().into());
+            let registry: Option<KeycodeRegistry> =
+                registry_dto.map(|dto| dto.content.as_ref().clone().into());
 
             let code = {
                 let exporter: Box<dyn Exporter> = match format {

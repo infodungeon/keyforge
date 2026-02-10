@@ -73,7 +73,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             .loader
             .load::<keyforge_protocol::KeyboardDefinitionDto>(name)
             .await?;
-        self.keyboard = Some(Arc::new((*dto).clone().into()));
+        self.keyboard = Some(Arc::new(dto.content.as_ref().clone().into()));
         Ok(self)
     }
 
@@ -104,12 +104,12 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
     /// Returns `LoaderResult` if the cost matrix fails to load.
     pub async fn with_cost_matrix(mut self, source: &CostMatrixSource) -> LoaderResult<Self> {
         match source {
-            CostMatrixSource::Predefined(name) => {
+            CostMatrixSource::Predefined { id: name, .. } => {
                 let dto = self
                     .loader
                     .load::<keyforge_protocol::CostModelDto>(name)
                     .await?;
-                self.cost_model = Some(Arc::new((*dto).clone().into()));
+                self.cost_model = Some(Arc::new(dto.content.as_ref().clone().into()));
             }
         }
         Ok(self)
@@ -130,7 +130,7 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
             .loader
             .load::<keyforge_protocol::KeycodeRegistryDto>(name)
             .await?;
-        self.registry = Some(Arc::new((*dto).clone().into()));
+        self.registry = Some(Arc::new(dto.content.as_ref().clone().into()));
         Ok(self)
     }
 

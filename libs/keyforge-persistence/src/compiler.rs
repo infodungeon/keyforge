@@ -21,7 +21,7 @@ pub async fn compile_request<L: AssetLoader>(
         .load::<keyforge_protocol::KeyboardDefinitionDto>(&config.keyboard)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard {}: {}", config.keyboard, e)))?;
-    let kb_def: Arc<KeyboardDefinition> = Arc::new((*kb_def_dto).clone().into());
+    let kb_def: Arc<KeyboardDefinition> = Arc::new(kb_def_dto.content.as_ref().clone().into());
 
     // 2. Load Corpus
     let corpus = loader
@@ -34,16 +34,16 @@ pub async fn compile_request<L: AssetLoader>(
         .load::<keyforge_protocol::KeycodeRegistryDto>(ASSET_KEYCODES)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {e}")))?;
-    let registry: Arc<KeycodeRegistry> = Arc::new((*registry_dto).clone().into());
+    let registry: Arc<KeycodeRegistry> = Arc::new(registry_dto.content.as_ref().clone().into());
 
     // 4. Load Cost Model
     let cost_model = match &config.cost_matrix {
-        keyforge_model::CostMatrixSource::Predefined(name) => {
+        keyforge_model::config::CostMatrixSource::Predefined { id, .. } => {
             let dto = loader
-                .load::<CostModelDto>(name)
+                .load::<CostModelDto>(id)
                 .await
-                .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model {name}: {e}")))?;
-            Arc::new((*dto).clone().into())
+                .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model {id}: {e}")))?;
+            Arc::new(dto.content.as_ref().clone().into())
         }
     };
 

@@ -1,0 +1,308 @@
+cargo fmt
+cd apps/keyforge-ui && npm run format
+
+> keyforge-ui@0.8.0 format
+> prettier --write .
+
+.vscode/extensions.json 28ms (unchanged)
+index.html 36ms (unchanged)
+package.json 6ms (unchanged)
+postcss.config.js 9ms (unchanged)
+README.md 31ms (unchanged)
+src-tauri/capabilities/default.json 2ms (unchanged)
+src-tauri/gen/schemas/acl-manifests.json 95ms (unchanged)
+src-tauri/gen/schemas/capabilities.json 2ms (unchanged)
+src-tauri/gen/schemas/desktop-schema.json 57ms (unchanged)
+src-tauri/gen/schemas/linux-schema.json 95ms (unchanged)
+src-tauri/tauri.conf.json 4ms (unchanged)
+src/api/client.ts 64ms (unchanged)
+src/api/constants.ts 14ms (unchanged)
+src/api/error.ts 12ms (unchanged)
+src/api/events.ts 7ms (unchanged)
+src/api/services/AssetService.ts 18ms (unchanged)
+src/api/services/BaseService.ts 10ms (unchanged)
+src/api/services/JobService.ts 11ms (unchanged)
+src/api/services/WorkerService.ts 10ms (unchanged)
+src/api/tauri.ts 25ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm_bg.wasm.d.ts 6ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.d.ts 10ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.js 67ms (unchanged)
+src/api/wasm-pkg/package.json 1ms (unchanged)
+src/api/web.ts 26ms (unchanged)
+src/api/worker.ts 13ms (unchanged)
+src/App.tsx 22ms (unchanged)
+src/components/ArenaCanvas.tsx 12ms (unchanged)
+src/components/AuthWidget.tsx 10ms (unchanged)
+src/components/Charts.tsx 11ms (unchanged)
+src/components/CommandPalette.tsx 16ms (unchanged)
+src/components/ContextControls.tsx 5ms (unchanged)
+src/components/CorpusManager.tsx 11ms (unchanged)
+src/components/Header.tsx 6ms (unchanged)
+src/components/HistoryTable.tsx 5ms (unchanged)
+src/components/Inspector.tsx 21ms (unchanged)
+src/components/KeyboardDesigner.tsx 14ms (unchanged)
+src/components/KeyboardMap.tsx 31ms (unchanged)
+src/components/KeyPicker.tsx 19ms (unchanged)
+src/components/KeyTester.tsx 19ms (unchanged)
+src/components/LiveGraph.tsx 8ms (unchanged)
+src/components/modals/ExportModal.tsx 12ms (unchanged)
+src/components/NavRail.tsx 6ms (unchanged)
+src/components/NetworkBar.tsx 3ms (unchanged)
+src/components/OptimizerConfig.tsx 9ms (unchanged)
+src/components/panels/analyze/ButterflyChart.tsx 7ms (unchanged)
+src/components/panels/analyze/MetricGrid.tsx 5ms (unchanged)
+src/components/panels/analyze/ViolationSection.tsx 2ms (unchanged)
+src/components/panels/analyze/ViolationTable.tsx 3ms (unchanged)
+src/components/panels/AnalyzePanel.tsx 11ms (unchanged)
+src/components/panels/ArenaPanel.tsx 10ms (unchanged)
+src/components/panels/OptimizePanel.tsx 4ms (unchanged)
+src/components/SmartSuggestions.tsx 23ms (unchanged)
+src/components/StatusBar.tsx 8ms (unchanged)
+src/components/ui/Badge.tsx 5ms (unchanged)
+src/components/ui/Button.tsx 6ms (unchanged)
+src/components/ui/Card.tsx 2ms (unchanged)
+src/components/ui/Input.tsx 3ms (unchanged)
+src/components/ui/Label.tsx 2ms (unchanged)
+src/components/ui/Select.tsx 4ms (unchanged)
+src/components/VisualBuilder.tsx 50ms (unchanged)
+src/components/WorkspaceSelector.tsx 4ms (unchanged)
+src/context/AnalysisContext.tsx 24ms (unchanged)
+src/context/ArenaContext.tsx 29ms (unchanged)
+src/context/BackendContext.tsx 3ms (unchanged)
+src/context/KeyboardContext.tsx 5ms (unchanged)
+src/context/LibraryContext.tsx 22ms (unchanged)
+src/context/SessionContext.tsx 12ms (unchanged)
+src/context/SystemContext.tsx 15ms (unchanged)
+src/context/ToastContext.tsx 12ms (unchanged)
+src/hooks/useAutoFocus.ts 5ms (unchanged)
+src/hooks/useJobDispatch.ts 10ms (unchanged)
+src/hooks/useUndo.ts 7ms (unchanged)
+src/index.css 37ms (unchanged)
+src/main.tsx 4ms (unchanged)
+src/services/coverage.ts 13ms (unchanged)
+src/services/keycode.ts 16ms (unchanged)
+src/services/ngrams.ts 3ms (unchanged)
+src/services/stats.ts 19ms (unchanged)
+src/types.ts 7ms (unchanged)
+src/types/generated/AnalysisReport.ts 4ms (unchanged)
+src/types/generated/AssetManifestEntry.ts 3ms (unchanged)
+src/types/generated/BiometricSample.ts 3ms (unchanged)
+src/types/generated/ColIndex.ts 3ms (unchanged)
+src/types/generated/Config.ts 2ms (unchanged)
+src/types/generated/CorpusSource.ts 1ms (unchanged)
+src/types/generated/CostMatrixSource.ts 1ms (unchanged)
+src/types/generated/FingerIndex.ts 1ms (unchanged)
+src/types/generated/HandIndex.ts 1ms (unchanged)
+src/types/generated/index.ts 2ms (unchanged)
+src/types/generated/JobConfig.ts 4ms (unchanged)
+src/types/generated/JobIdentifier.ts 2ms (unchanged)
+src/types/generated/JobIdError.ts 1ms (unchanged)
+src/types/generated/JobQueueResponse.ts 1ms (unchanged)
+src/types/generated/JobRequest.ts 4ms (unchanged)
+src/types/generated/JobResponse.ts 1ms (unchanged)
+src/types/generated/JobStatus.ts 1ms (unchanged)
+src/types/generated/KeyAction.ts 1ms (unchanged)
+src/types/generated/KeyboardDefinition.ts 2ms (unchanged)
+src/types/generated/KeyboardGeometry.ts 1ms (unchanged)
+src/types/generated/KeyboardMeta.ts 1ms (unchanged)
+src/types/generated/KeyCode.ts 2ms (unchanged)
+src/types/generated/KeycodeDefinition.ts 2ms (unchanged)
+src/types/generated/KeycodeRegistry.ts 2ms (unchanged)
+src/types/generated/KeyConstraint.ts 2ms (unchanged)
+src/types/generated/KeyIndex.ts 1ms (unchanged)
+src/types/generated/KeyNode.ts 2ms (unchanged)
+src/types/generated/Layout.ts 1ms (unchanged)
+src/types/generated/LayoutDefinitions.ts 1ms (unchanged)
+src/types/generated/MetricViolation.ts 1ms (unchanged)
+src/types/generated/ModelError.ts 1ms (unchanged)
+src/types/generated/NodeRequest.ts 1ms (unchanged)
+src/types/generated/NodeResponse.ts 1ms (unchanged)
+src/types/generated/NodeTelemetry.ts 2ms (unchanged)
+src/types/generated/OptimizationResult.ts 2ms (unchanged)
+src/types/generated/ParameterMetadata.ts 2ms (unchanged)
+src/types/generated/ParamType.ts 1ms (unchanged)
+src/types/generated/PhysicsError.ts 1ms (unchanged)
+src/types/generated/PopulationResponse.ts 1ms (unchanged)
+src/types/generated/ResultSubmission.ts 1ms (unchanged)
+src/types/generated/RowIndex.ts 1ms (unchanged)
+src/types/generated/Score.ts 1ms (unchanged)
+src/types/generated/ScoringWeights.ts 2ms (unchanged)
+src/types/generated/SearchConfig.ts 1ms (unchanged)
+src/types/generated/SearchParams.ts 1ms (unchanged)
+src/types/generated/SpaceHandPreference.ts 1ms (unchanged)
+src/types/generated/SwapSuggestion.ts 3ms (unchanged)
+src/types/generated/SystemMetrics.ts 2ms (unchanged)
+src/types/generated/TuningProfile.ts 2ms (unchanged)
+src/types/generated/UserStatsStore.ts 2ms (unchanged)
+src/utils.test.ts 10ms (unchanged)
+src/utils.ts 2ms (unchanged)
+src/views/AnalyzeView.tsx 17ms (unchanged)
+src/views/ArenaView.tsx 2ms (unchanged)
+src/views/ConstructView.tsx 5ms (unchanged)
+src/views/LayoutView.tsx 35ms (unchanged)
+src/views/OptimizeView.tsx 12ms (unchanged)
+src/views/SettingsView.tsx 20ms (unchanged)
+src/views/TesterView.tsx 1ms (unchanged)
+src/vite-env.d.ts 2ms (unchanged)
+tailwind.config.js 2ms (unchanged)
+tsconfig.json 2ms (unchanged)
+tsconfig.node.json 1ms (unchanged)
+vite.config.ts 6ms (unchanged)
+CARGO_TARGET_DIR=target/audit cargo clippy --workspace -- -D warnings
+    Checking keyforge-adapter v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-adapter)
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Checking keyforge-evolution v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-evolution)
+    Checking keyforge-security v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-security)
+    Checking keyforge-export v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-export)
+    Checking keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+    Checking keyforge-persistence v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assetmgr)
+    Checking keyforge-tui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-tui)
+    Checking keyforge-repros v0.1.0 (/home/robert/projects/keyforge/ops/repros)
+    Checking keyforge-testing v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing)
+    Checking keyforge-wasm v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-wasm)
+    Checking keyforge-ui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-ui/src-tauri)
+    Checking keyforge-agent v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-agent)
+    Checking keyforge-hive v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-hive)
+    Checking keyforge-cli v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.22s
+🔍 Verifying Architectural Invariants (ARCH-00x)...
+sg scan
+python3 ops/scripts/bouncer_100x.py
+--- 100x BOUNCER AUDIT PASSED---
+🏗️ Checking Layer Integrity...
+python3 ops/scripts/check_arch.py
+Verifying Architectural Layer Boundaries...
+Architectural layers intact (with known exceptions).
+cargo test -p keyforge-infra
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.42s
+     Running unittests src/lib.rs (target/debug/deps/keyforge_infra-04326d3ff5ce2ae3)
+
+running 21 tests
+test config::tests::test_common_config_from_env ... ok
+test config::tests::test_common_config_resolve ... ok
+test config::tests::test_common_config_merge ... ok
+test fs::init::tests::test_init_workspace_missing_assets ... ok
+test net::client::tests::test_hive_client_invalid_config ... ok
+test config::tests::test_common_config_from_file ... ok
+test net::client::tests::test_url_normalization ... ok
+test fs::init::tests::test_init_workspace_creates_dirs ... ok
+test util::common::tests::test_normalize_path ... ok
+test util::common::tests::test_sanitize_filename ... ok
+test util::common::tests::test_calculate_file_hash ... ok
+test util::common::tests::test_load_keycode_registry ... ok
+test util::corpus::tests::test_resolve_corpus_char ... ok
+test util::corpus::tests::test_parse_bigrams_invalid ... ok
+test util::corpus::tests::test_parse_words_invalid ... ok
+test util::corpus::tests::test_parse_trigrams_invalid ... ok
+test util::corpus::tests::test_parse_monograms_invalid ... ok
+test util::corpus::tests::test_populate_corpus_from_segments ... ok
+test util::corpus::tests::test_inject_synthetic_data ... ok
+test net::client::tests::test_hive_client_config ... ok
+test net::client::tests::test_hive_client_builders ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/content_addressing_tests.rs (target/debug/deps/content_addressing_tests-9aabda37ec24c455)
+
+running 1 test
+test content_hash_fingerprint_uniqueness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fs_integration.rs (target/debug/deps/fs_integration-3c01b02870c4838b)
+
+running 7 tests
+test integration_tests::test_atomic_write_fail ... ok
+test integration_tests::test_listing_empty_root ... ok
+test integration_tests::test_atomic_write ... ok
+test integration_tests::test_workspace_lock_release ... ok
+test integration_tests::test_read_to_string_limited ... ok
+test integration_tests::test_listing_filters ... ok
+test integration_tests::test_workspace_lock_exclusivity ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.55s
+
+     Running tests/infra_integration.rs (target/debug/deps/infra_integration-b818ab0adcdbadd1)
+
+running 1 test
+test integration_tests::test_fs_provider_lifecycle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/network_tests.rs (target/debug/deps/network_tests-efe71a9294e742d5)
+
+running 7 tests
+test integration_tests::test_ensure_corpus_bundle ... ok
+test integration_tests::test_ensure_cost_matrix ... ok
+test integration_tests::test_ensure_file_not_found ... ok
+test integration_tests::test_ensure_file_too_large ... ok
+test integration_tests::test_ensure_file_basic ... ok
+test integration_tests::test_ensure_file_hash_mismatch ... ok
+test integration_tests::test_ensure_file_server_error ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.52s
+
+     Running tests/provider_integration.rs (target/debug/deps/provider_integration-46313315e2b3e02a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests keyforge_infra
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+cargo test -p keyforge-compute
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+   Compiling keyforge-evolution v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-evolution)
+   Compiling keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+   Compiling keyforge-testing v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing)
+warning: unused import: `keyforge_adapter::loader::AssetLoader`
+ --> libs/keyforge-compute/tests/cache_invalidation_tests.rs:1:5
+  |
+1 | use keyforge_adapter::loader::AssetLoader;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0053]: method `load` has an incompatible type for trait
+  --> libs/keyforge-compute/tests/builder_integration.rs:22:5
+   |
+22 |     #[async_trait::async_trait]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `keyforge_adapter::model::Asset<T>`, found `Arc<T>`
+   |
+   = note: expected signature `fn(&'life0 MockLoader, &'life1 _) -> Pin<Box<(dyn Future<Output = Result<keyforge_adapter::model::Asset<T>, ForgeError>> + Send + 'async_trait)>>`
+              found signature `fn(&'life0 MockLoader, &'life1 _) -> Pin<Box<(dyn Future<Output = Result<Arc<T>, ForgeError>> + Send + 'async_trait)>>`
+   = note: this error originates in the attribute macro `async_trait::async_trait` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: change the output type to match the trait
+   |
+22 -     #[async_trait::async_trait]
+22 +     Pin<Box<(dyn Future<Output = Result<keyforge_adapter::model::Asset<T>, ForgeError>> + Send + 'async_trait)>>
+   |
+
+error[E0053]: method `load` has an incompatible type for trait
+  --> libs/keyforge-compute/tests/runtime_integration.rs:29:5
+   |
+29 |     #[async_trait]
+   |     ^^^^^^^^^^^^^^ expected `keyforge_adapter::model::Asset<T>`, found `Arc<T>`
+   |
+   = note: expected signature `fn(&'life0 MockLoader, &'life1 _) -> Pin<Box<(dyn Future<Output = Result<keyforge_adapter::model::Asset<T>, ForgeError>> + Send + 'async_trait)>>`
+              found signature `fn(&'life0 MockLoader, &'life1 _) -> Pin<Box<(dyn Future<Output = Result<Arc<T>, ForgeError>> + Send + 'async_trait)>>`
+   = note: this error originates in the attribute macro `async_trait` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: change the output type to match the trait
+   |
+29 -     #[async_trait]
+29 +     Pin<Box<(dyn Future<Output = Result<keyforge_adapter::model::Asset<T>, ForgeError>> + Send + 'async_trait)>>
+   |
+
+For more information about this error, try `rustc --explain E0053`.
+error: could not compile `keyforge-compute` (test "builder_integration") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `keyforge-compute` (test "runtime_integration") due to 1 previous error
+warning: `keyforge-compute` (test "cache_invalidation_tests") generated 1 warning (run `cargo fix --test "cache_invalidation_tests"` to apply 1 suggestion)
+error: Recipe `test-compute` failed on line 148 with exit code 101

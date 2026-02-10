@@ -48,8 +48,8 @@ impl JobService {
 
     pub fn validate_config(req: &JobRequest) -> AppResult<()> {
         match &req.config.cost_matrix {
-            CostMatrixSourceDto::Predefined(name) => {
-                if name.trim().is_empty() {
+            CostMatrixSourceDto::Predefined { id, .. } => {
+                if id.trim().is_empty() {
                     return Err(AppError::Validation(
                         "Cost matrix name cannot be empty".into(),
                     ));

@@ -1,0 +1,759 @@
+cargo fmt
+cd apps/keyforge-ui && npm run format
+
+> keyforge-ui@0.8.0 format
+> prettier --write .
+
+.vscode/extensions.json 27ms (unchanged)
+index.html 40ms (unchanged)
+package.json 4ms (unchanged)
+postcss.config.js 8ms (unchanged)
+README.md 32ms (unchanged)
+src-tauri/capabilities/default.json 4ms (unchanged)
+src-tauri/gen/schemas/acl-manifests.json 140ms (unchanged)
+src-tauri/gen/schemas/capabilities.json 2ms (unchanged)
+src-tauri/gen/schemas/desktop-schema.json 75ms (unchanged)
+src-tauri/gen/schemas/linux-schema.json 112ms (unchanged)
+src-tauri/tauri.conf.json 7ms (unchanged)
+src/api/client.ts 62ms (unchanged)
+src/api/constants.ts 13ms (unchanged)
+src/api/error.ts 15ms (unchanged)
+src/api/events.ts 10ms (unchanged)
+src/api/services/AssetService.ts 21ms (unchanged)
+src/api/services/BaseService.ts 12ms (unchanged)
+src/api/services/JobService.ts 10ms (unchanged)
+src/api/services/WorkerService.ts 16ms (unchanged)
+src/api/tauri.ts 34ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm_bg.wasm.d.ts 12ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.d.ts 12ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.js 75ms (unchanged)
+src/api/wasm-pkg/package.json 3ms (unchanged)
+src/api/web.ts 42ms (unchanged)
+src/api/worker.ts 14ms (unchanged)
+src/App.tsx 25ms (unchanged)
+src/components/ArenaCanvas.tsx 11ms (unchanged)
+src/components/AuthWidget.tsx 18ms (unchanged)
+src/components/Charts.tsx 9ms (unchanged)
+src/components/CommandPalette.tsx 18ms (unchanged)
+src/components/ContextControls.tsx 5ms (unchanged)
+src/components/CorpusManager.tsx 8ms (unchanged)
+src/components/Header.tsx 11ms (unchanged)
+src/components/HistoryTable.tsx 7ms (unchanged)
+src/components/Inspector.tsx 16ms (unchanged)
+src/components/KeyboardDesigner.tsx 19ms (unchanged)
+src/components/KeyboardMap.tsx 31ms (unchanged)
+src/components/KeyPicker.tsx 20ms (unchanged)
+src/components/KeyTester.tsx 24ms (unchanged)
+src/components/LiveGraph.tsx 9ms (unchanged)
+src/components/modals/ExportModal.tsx 16ms (unchanged)
+src/components/NavRail.tsx 8ms (unchanged)
+src/components/NetworkBar.tsx 5ms (unchanged)
+src/components/OptimizerConfig.tsx 11ms (unchanged)
+src/components/panels/analyze/ButterflyChart.tsx 6ms (unchanged)
+src/components/panels/analyze/MetricGrid.tsx 6ms (unchanged)
+src/components/panels/analyze/ViolationSection.tsx 5ms (unchanged)
+src/components/panels/analyze/ViolationTable.tsx 6ms (unchanged)
+src/components/panels/AnalyzePanel.tsx 11ms (unchanged)
+src/components/panels/ArenaPanel.tsx 15ms (unchanged)
+src/components/panels/OptimizePanel.tsx 6ms (unchanged)
+src/components/SmartSuggestions.tsx 13ms (unchanged)
+src/components/StatusBar.tsx 13ms (unchanged)
+src/components/ui/Badge.tsx 3ms (unchanged)
+src/components/ui/Button.tsx 5ms (unchanged)
+src/components/ui/Card.tsx 2ms (unchanged)
+src/components/ui/Input.tsx 6ms (unchanged)
+src/components/ui/Label.tsx 3ms (unchanged)
+src/components/ui/Select.tsx 4ms (unchanged)
+src/components/VisualBuilder.tsx 46ms (unchanged)
+src/components/WorkspaceSelector.tsx 5ms (unchanged)
+src/context/AnalysisContext.tsx 20ms (unchanged)
+src/context/ArenaContext.tsx 30ms (unchanged)
+src/context/BackendContext.tsx 3ms (unchanged)
+src/context/KeyboardContext.tsx 6ms (unchanged)
+src/context/LibraryContext.tsx 20ms (unchanged)
+src/context/SessionContext.tsx 19ms (unchanged)
+src/context/SystemContext.tsx 11ms (unchanged)
+src/context/ToastContext.tsx 15ms (unchanged)
+src/hooks/useAutoFocus.ts 2ms (unchanged)
+src/hooks/useJobDispatch.ts 9ms (unchanged)
+src/hooks/useUndo.ts 8ms (unchanged)
+src/index.css 34ms (unchanged)
+src/main.tsx 3ms (unchanged)
+src/services/coverage.ts 12ms (unchanged)
+src/services/keycode.ts 9ms (unchanged)
+src/services/ngrams.ts 4ms (unchanged)
+src/services/stats.ts 19ms (unchanged)
+src/types.ts 4ms (unchanged)
+src/types/generated/AnalysisReport.ts 3ms (unchanged)
+src/types/generated/AssetManifestEntry.ts 1ms (unchanged)
+src/types/generated/BiometricSample.ts 1ms (unchanged)
+src/types/generated/ColIndex.ts 1ms (unchanged)
+src/types/generated/Config.ts 2ms (unchanged)
+src/types/generated/CorpusSource.ts 1ms (unchanged)
+src/types/generated/CostMatrixSource.ts 1ms (unchanged)
+src/types/generated/FingerIndex.ts 1ms (unchanged)
+src/types/generated/HandIndex.ts 1ms (unchanged)
+src/types/generated/index.ts 2ms (unchanged)
+src/types/generated/JobConfig.ts 2ms (unchanged)
+src/types/generated/JobIdentifier.ts 1ms (unchanged)
+src/types/generated/JobIdError.ts 1ms (unchanged)
+src/types/generated/JobQueueResponse.ts 1ms (unchanged)
+src/types/generated/JobRequest.ts 3ms (unchanged)
+src/types/generated/JobResponse.ts 1ms (unchanged)
+src/types/generated/JobStatus.ts 1ms (unchanged)
+src/types/generated/KeyAction.ts 2ms (unchanged)
+src/types/generated/KeyboardDefinition.ts 3ms (unchanged)
+src/types/generated/KeyboardGeometry.ts 2ms (unchanged)
+src/types/generated/KeyboardMeta.ts 1ms (unchanged)
+src/types/generated/KeyCode.ts 1ms (unchanged)
+src/types/generated/KeycodeDefinition.ts 1ms (unchanged)
+src/types/generated/KeycodeRegistry.ts 1ms (unchanged)
+src/types/generated/KeyConstraint.ts 1ms (unchanged)
+src/types/generated/KeyIndex.ts 1ms (unchanged)
+src/types/generated/KeyNode.ts 2ms (unchanged)
+src/types/generated/Layout.ts 1ms (unchanged)
+src/types/generated/LayoutDefinitions.ts 1ms (unchanged)
+src/types/generated/MetricViolation.ts 1ms (unchanged)
+src/types/generated/ModelError.ts 2ms (unchanged)
+src/types/generated/NodeRequest.ts 2ms (unchanged)
+src/types/generated/NodeResponse.ts 1ms (unchanged)
+src/types/generated/NodeTelemetry.ts 1ms (unchanged)
+src/types/generated/OptimizationResult.ts 1ms (unchanged)
+src/types/generated/ParameterMetadata.ts 2ms (unchanged)
+src/types/generated/ParamType.ts 1ms (unchanged)
+src/types/generated/PhysicsError.ts 1ms (unchanged)
+src/types/generated/PopulationResponse.ts 1ms (unchanged)
+src/types/generated/ResultSubmission.ts 2ms (unchanged)
+src/types/generated/RowIndex.ts 1ms (unchanged)
+src/types/generated/Score.ts 1ms (unchanged)
+src/types/generated/ScoringWeights.ts 3ms (unchanged)
+src/types/generated/SearchConfig.ts 2ms (unchanged)
+src/types/generated/SearchParams.ts 2ms (unchanged)
+src/types/generated/SpaceHandPreference.ts 1ms (unchanged)
+src/types/generated/SwapSuggestion.ts 1ms (unchanged)
+src/types/generated/SystemMetrics.ts 1ms (unchanged)
+src/types/generated/TuningProfile.ts 1ms (unchanged)
+src/types/generated/UserStatsStore.ts 1ms (unchanged)
+src/utils.test.ts 16ms (unchanged)
+src/utils.ts 3ms (unchanged)
+src/views/AnalyzeView.tsx 18ms (unchanged)
+src/views/ArenaView.tsx 2ms (unchanged)
+src/views/ConstructView.tsx 2ms (unchanged)
+src/views/LayoutView.tsx 24ms (unchanged)
+src/views/OptimizeView.tsx 13ms (unchanged)
+src/views/SettingsView.tsx 24ms (unchanged)
+src/views/TesterView.tsx 1ms (unchanged)
+src/vite-env.d.ts 2ms (unchanged)
+tailwind.config.js 1ms (unchanged)
+tsconfig.json 2ms (unchanged)
+tsconfig.node.json 1ms (unchanged)
+vite.config.ts 5ms (unchanged)
+CARGO_TARGET_DIR=target/audit cargo clippy --workspace -- -D warnings
+   Compiling aws-lc-sys v0.37.0
+    Checking hyper-util v0.1.20
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+    Checking utoipa v5.4.0
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+   Compiling derive_more v0.99.20
+   Compiling serde_derive_internals v0.29.1
+    Checking raw-cpuid v11.6.0
+   Compiling indexmap v1.9.3
+   Compiling html5ever v0.29.1
+   Compiling erased-serde v0.4.9
+   Compiling brotli-decompressor v5.0.0
+   Compiling camino v1.2.2
+   Compiling proc-macro-error-attr v1.0.4
+   Compiling unic-ucd-ident v0.9.0
+   Compiling cfb v0.7.3
+   Compiling jsonptr v0.6.3
+    Checking openssl-sys v0.9.111
+   Compiling cargo-platform v0.1.9
+   Compiling schemars_derive v0.8.22
+   Compiling dyn-clone v1.0.20
+   Compiling cargo_metadata v0.19.2
+   Compiling infer v0.19.0
+   Compiling json-patch v3.0.1
+   Compiling brotli v8.0.2
+   Compiling proc-macro-error v1.0.4
+   Compiling urlpattern v0.3.0
+   Compiling serde-untagged v0.1.9
+   Compiling serde_with v3.16.1
+   Compiling http v1.4.0
+    Checking keyforge-protocol v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-protocol)
+    Checking openssl-probe v0.1.6
+   Compiling glob v0.3.3
+    Checking openssl v0.10.75
+    Checking rand_xoshiro v0.7.0
+   Compiling schemars v0.8.22
+   Compiling gdk-pixbuf-sys v0.18.0
+   Compiling atk-sys v0.18.2
+   Compiling pango-sys v0.18.0
+   Compiling cairo-sys-rs v0.18.2
+   Compiling proc-macro-crate v2.0.2
+   Compiling selectors v0.24.0
+   Compiling heck v0.4.1
+   Compiling num-conv v0.2.0
+   Compiling time-core v0.1.8
+    Checking powerfmt v0.2.0
+    Checking lazy_static v1.5.0
+    Checking deranged v0.5.5
+   Compiling time-macros v0.2.27
+   Compiling glib-macros v0.18.5
+   Compiling kuchikiki v0.8.8-speedreader
+    Checking keyforge-physics v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-physics)
+    Checking num_threads v0.1.7
+    Checking anyhow v1.0.101
+   Compiling gtk-sys v0.18.2
+   Compiling crc32fast v1.5.0
+    Checking gdk-sys v0.18.2
+   Compiling simd-adler32 v0.3.8
+   Compiling gio v0.18.4
+    Checking iana-time-zone v0.1.65
+    Checking time v0.3.47
+    Checking chrono v0.4.43
+    Checking unicode-ident v1.0.23
+   Compiling option-ext v0.2.0
+    Checking byteorder v1.5.0
+   Compiling tauri-utils v2.8.2
+   Compiling adler2 v2.0.1
+   Compiling miniz_oxide v0.8.9
+   Compiling dirs-sys v0.5.0
+    Checking native-tls v0.2.14
+    Checking tokio-native-tls v0.3.1
+    Checking serde_urlencoded v0.7.1
+   Compiling embed-resource v3.0.6
+    Checking unicode-segmentation v1.12.0
+   Compiling zlib-rs v0.6.0
+   Compiling dirs v6.0.0
+   Compiling cargo_toml v0.22.3
+   Compiling tauri-winres v0.3.5
+    Checking keyforge-adapter v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-adapter)
+    Checking keyforge-evolution v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-evolution)
+    Checking sha1 v0.10.6
+   Compiling memoffset v0.9.1
+    Checking data-encoding v2.10.0
+    Checking utf-8 v0.7.6
+   Compiling field-offset v0.3.6
+   Compiling toml_edit v0.19.15
+    Checking tungstenite v0.28.0
+    Checking winnow v0.7.14
+   Compiling base64 v0.22.1
+    Checking axum-core v0.5.6
+   Compiling soup3-sys v0.5.0
+    Checking tokio-tungstenite v0.28.0
+   Compiling javascriptcore-rs-sys v1.1.1
+   Compiling either v1.15.0
+   Compiling axum-macros v0.5.0
+    Checking glib v0.18.5
+    Checking serde_path_to_error v0.1.20
+   Compiling gtk v0.18.2
+    Checking alloc-no-stdlib v2.0.4
+   Compiling target-lexicon v0.13.3
+    Checking matchit v0.8.4
+    Checking alloc-stdlib v0.2.2
+    Checking sharded-slab v0.1.7
+    Checking matchers v0.2.0
+   Compiling proc-macro-crate v1.3.1
+   Compiling webkit2gtk-sys v2.0.2
+   Compiling flate2 v1.1.9
+    Checking tracing-serde v0.2.0
+    Checking tracing-log v0.2.0
+    Checking thread_local v1.1.9
+   Compiling x11 v2.21.0
+   Compiling bumpalo v3.19.1
+    Checking nu-ansi-term v0.50.3
+    Checking unicode-width v0.2.2
+    Checking tracing-subscriber v0.3.22
+   Compiling unic-langid-impl v0.9.6
+   Compiling gdkx11-sys v0.18.2
+   Compiling ahash v0.8.12
+    Checking bitflags v1.3.2
+    Checking unic-char-range v0.9.0
+   Compiling signal-hook v0.3.18
+    Checking axum v0.8.8
+    Checking unic-common v0.9.0
+    Checking unic-char-property v0.9.0
+    Checking unic-ucd-version v0.9.0
+   Compiling unic-langid v0.9.6
+   Compiling cfg-expr v0.20.6
+    Checking typeid v1.0.3
+   Compiling toml_edit v0.23.10+spec-1.0.0
+    Checking dpi v0.1.2
+   Compiling gtk3-macros v0.18.2
+   Compiling cookie v0.18.1
+   Compiling x11-dl v2.21.0
+    Checking raw-window-handle v0.6.2
+    Checking siphasher v1.0.2
+   Compiling proc-macro-crate v3.4.0
+    Checking phf_shared v0.11.3
+   Compiling system-deps v7.0.7
+    Checking toml_parser v1.0.6+spec-1.1.0
+   Compiling fdeflate v0.3.7
+   Compiling rust-embed-utils v8.11.0
+   Compiling pin-project-internal v1.1.10
+    Checking serde_spanned v1.0.4
+    Checking toml_datetime v0.7.5+spec-1.1.0
+   Compiling rayon-core v1.13.0
+   Compiling wasm-bindgen-shared v0.2.108
+   Compiling pin-project-lite v0.2.16
+   Compiling crossbeam-utils v0.8.21
+    Checking toml_writer v1.0.6+spec-1.1.0
+   Compiling zeroize v1.8.2
+    Checking const-oid v0.10.2
+    Checking toml v0.9.11+spec-1.1.0
+   Compiling rustls-pki-types v1.14.0
+   Compiling png v0.17.16
+   Compiling rust-embed-impl v8.11.0
+    Checking phf v0.11.3
+    Checking pin-project v1.1.10
+    Checking crossbeam-deque v0.8.6
+    Checking hmac v0.12.1
+   Compiling enumflags2_derive v0.7.12
+   Compiling dlopen2_derive v0.4.3
+    Checking base64ct v1.8.3
+    Checking dunce v1.0.5
+   Compiling futures-core v0.3.31
+   Compiling wry v0.54.1
+   Compiling tauri-runtime v2.10.0
+   Compiling proc-macro2 v1.0.106
+    Checking pem-rfc7468 v1.0.0
+    Checking cairo-rs v0.18.5
+    Checking atk v0.18.2
+    Checking javascriptcore-rs v1.1.2
+    Checking dlopen2 v0.8.2
+   Compiling ico v0.5.0
+   Compiling itertools v0.14.0
+   Compiling tauri-plugin v2.5.3
+   Compiling tauri-build v2.5.5
+    Checking gdkwayland-sys v0.18.2
+    Checking hyper-timeout v0.5.2
+   Compiling curve25519-dalek v4.1.3
+   Compiling zvariant_utils v3.3.0
+    Checking num-integer v0.1.46
+    Checking opentelemetry v0.31.0
+   Compiling untrusted v0.9.0
+   Compiling tauri-runtime-wry v2.10.0
+   Compiling foreign-types-shared v0.1.1
+   Compiling foreign-types v0.3.2
+   Compiling ring v0.17.14
+   Compiling zvariant_derive v5.9.2
+    Checking num-bigint v0.4.6
+   Compiling prost-derive v0.14.3
+    Checking tonic v0.14.3
+   Compiling tauri-codegen v2.5.4
+    Checking rayon v1.11.0
+    Checking der v0.8.0-rc.10
+    Checking keyboard-types v0.7.0
+    Checking hyper-tls v0.6.0
+   Compiling zstd-safe v7.2.4
+    Checking futures-lite v2.6.1
+    Checking half v2.7.1
+    Checking inout v0.1.4
+    Checking zstd v0.13.3
+    Checking hybrid-array v0.4.7
+   Compiling serialize-to-javascript-impl v0.1.2
+   Compiling serde_repr v0.1.20
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling mio v1.1.1
+   Compiling socket2 v0.6.2
+   Compiling bitflags v2.10.0
+   Compiling foldhash v0.1.5
+    Checking rustc-hash v2.1.1
+    Checking rand_core v0.10.0
+   Compiling tinyvec_macros v0.1.1
+   Compiling rustls v0.23.36
+   Compiling futures-sink v0.3.31
+   Compiling allocator-api2 v0.2.21
+    Checking cmov v0.5.2
+   Compiling tokio v1.49.0
+    Checking hashbrown v0.15.5
+   Compiling tinyvec v1.10.0
+    Checking ctutils v0.4.0
+   Compiling convert_case v0.10.0
+   Compiling type-map v0.5.1
+    Checking crypto-common v0.2.0
+    Checking arrow-buffer v57.3.0
+    Checking serialize-to-javascript v0.1.2
+    Checking cipher v0.4.4
+    Checking spki v0.8.0-rc.4
+    Checking reqwest v0.12.28
+    Checking prost v0.14.3
+    Checking quote v1.0.44
+   Compiling rustls-webpki v0.103.9
+   Compiling concurrent-queue v2.5.0
+    Checking hkdf v0.12.4
+   Compiling webpki-roots v1.0.6
+   Compiling tracing-core v0.1.36
+   Compiling darling_core v0.23.0
+   Compiling toml v0.5.11
+   Compiling basic-toml v0.1.10
+   Compiling async-io v2.6.0
+   Compiling parking v2.2.1
+   Compiling crc-catalog v2.4.0
+   Compiling slab v0.4.12
+    Checking lexical-util v1.0.7
+   Compiling futures-io v0.3.31
+   Compiling self_cell v1.2.2
+    Checking heck v0.5.0
+   Compiling futures-task v0.3.31
+    Checking arrow-schema v57.3.0
+    Checking cpubits v0.1.0
+   Compiling pin-utils v0.1.0
+    Checking home v0.5.12
+   Compiling futures-util v0.3.31
+    Checking crypto-bigint v0.7.0-rc.25
+   Compiling self_cell v0.10.3
+   Compiling find-crate v0.6.3
+   Compiling i18n-config v0.4.8
+   Compiling crc v3.4.0
+    Checking arrow-data v57.3.0
+   Compiling event-listener v5.4.1
+   Compiling tracing v0.1.44
+    Checking digest v0.11.0-rc.11
+    Checking rust-embed v8.11.0
+   Compiling wasm-bindgen-macro-support v0.2.108
+   Compiling webpki-roots v0.26.11
+    Checking tonic-prost v0.14.3
+    Checking syn v2.0.114
+   Compiling hashlink v0.10.0
+   Compiling derive_more-impl v2.1.1
+   Compiling tokio-stream v0.1.18
+   Compiling darling_macro v0.23.0
+   Compiling intl-memoizer v0.5.3
+   Compiling unicode-normalization v0.1.25
+    Checking sysinfo v0.33.1
+    Checking opentelemetry_sdk v0.31.0
+   Compiling crossbeam-queue v0.3.12
+   Compiling tauri v2.10.2
+   Compiling tauri-macros v2.5.4
+   Compiling tauri-plugin-fs v2.4.5
+   Compiling enumflags2 v0.7.12
+   Compiling futures-intrusive v0.5.0
+   Compiling glib-sys v0.20.10
+   Compiling fluent-langneg v0.13.1
+   Compiling intl_pluralrules v7.0.2
+    Checking quanta v0.12.6
+   Compiling fluent-syntax v0.11.1
+    Checking polling v3.11.0
+   Compiling wasm-bindgen v0.2.108
+    Checking gdk-pixbuf v0.18.5
+    Checking pango v0.18.3
+    Checking soup3 v0.5.0
+    Checking castaway v0.2.4
+    Checking num-complex v0.4.6
+    Checking atoi v2.0.0
+   Compiling ipnetwork v0.20.0
+   Compiling rustc-hash v1.1.0
+    Checking async-task v4.7.1
+   Compiling indoc v2.0.7
+   Compiling endi v1.1.1
+    Checking static_assertions v1.1.0
+   Compiling instability v0.3.11
+   Compiling unicode-properties v0.1.4
+    Checking fiat-crypto v0.3.0
+   Compiling unicode-bidi v0.3.18
+   Compiling litrs v1.0.0
+    Checking signature v2.2.0
+   Compiling zvariant v5.9.2
+    Checking ed25519 v2.2.3
+    Checking compact_str v0.9.0
+   Compiling sqlx-core v0.8.6
+   Compiling stringprep v0.1.5
+    Checking arrow-array v57.3.0
+   Compiling document-features v0.2.12
+    Checking unicode-truncate v2.0.1
+    Checking opentelemetry-proto v0.31.0
+    Checking gdk v0.18.2
+   Compiling fluent-bundle v0.15.3
+   Compiling wasm-bindgen-macro v0.2.108
+    Checking crypto-primes v0.7.0-pre.8
+   Compiling darling v0.23.0
+    Checking derive_more v2.1.1
+   Compiling i18n-embed-impl v0.8.4
+    Checking signature v3.0.0-rc.10
+    Checking opentelemetry-http v0.31.0
+    Checking pkcs8 v0.11.0-rc.10
+    Checking pkcs1 v0.8.0-rc.4
+   Compiling futures-channel v0.3.31
+   Compiling gobject-sys v0.20.10
+    Checking signal-hook-mio v0.2.5
+   Compiling zopfli v0.8.3
+   Compiling md-5 v0.10.6
+    Checking async-channel v2.5.0
+    Checking universal-hash v0.5.1
+    Checking kasuari v0.4.11
+    Checking lru v0.16.3
+    Checking ed25519-compact v2.2.0
+    Checking is-docker v0.2.0
+   Compiling whoami v1.6.1
+   Compiling rust_decimal v1.40.0
+   Compiling rustix v0.38.44
+    Checking hashbrown v0.14.5
+    Checking ct-codecs v1.1.6
+    Checking opaque-debug v0.3.1
+   Compiling dotenvy v0.15.7
+   Compiling hex v0.4.3
+    Checking poly1305 v0.8.0
+    Checking rsa v0.10.0-rc.15
+   Compiling zbus_names v4.3.1
+    Checking ratatui-core v0.1.0
+   Compiling sqlx-postgres v0.8.6
+   Compiling zip v3.0.0
+    Checking dashmap v6.1.0
+    Checking is-wsl v0.4.0
+    Checking arrow-select v57.3.0
+    Checking crossterm v0.29.0
+    Checking opentelemetry-otlp v0.31.0
+    Checking gdkx11 v0.18.2
+    Checking async-signal v0.2.13
+   Compiling fluent v0.16.1
+    Checking ed25519-dalek v2.2.0
+   Compiling tauri-plugin-log v2.8.0
+   Compiling tauri-plugin-shell v2.3.5
+   Compiling tauri-plugin-dialog v2.6.0
+   Compiling tauri-plugin-opener v2.5.3
+    Checking lexical-write-integer v1.0.6
+    Checking lexical-parse-integer v1.0.6
+    Checking chacha20 v0.9.1
+    Checking tracing-opentelemetry v0.32.1
+   Compiling gio-sys v0.20.10
+    Checking piper v0.2.4
+   Compiling flatbuffers v25.12.19
+   Compiling arc-swap v1.8.1
+    Checking aead v0.5.2
+    Checking spinning_top v0.3.0
+   Compiling tikv-jemalloc-sys v0.6.1+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7
+   Compiling proc-macro-error-attr2 v2.0.0
+    Checking os_pipe v1.2.3
+   Compiling fs-err v3.3.0
+    Checking arrayvec v0.7.6
+    Checking nonzero_ext v0.3.0
+   Compiling rfd v0.16.0
+    Checking linux-raw-sys v0.4.15
+   Compiling cfg_aliases v0.2.1
+    Checking pathdiff v0.2.3
+    Checking futures-timer v3.0.3
+    Checking web-time v1.1.0
+    Checking open v5.3.3
+   Compiling proc-macro-error2 v2.0.1
+   Compiling nix v0.30.1
+    Checking sigchld v0.2.4
+   Compiling i18n-embed v0.15.4
+    Checking chacha20poly1305 v0.10.1
+    Checking blocking v1.6.2
+    Checking lexical-write-float v1.0.6
+    Checking lexical-parse-float v1.0.6
+    Checking async-process v2.5.0
+   Compiling utoipa-swagger-ui v9.0.2
+   Compiling zbus_macros v5.13.2
+    Checking async-executor v1.13.3
+    Checking salsa20 v0.10.2
+    Checking pbkdf2 v0.12.2
+    Checking metrics v0.24.3
+    Checking async-broadcast v0.7.2
+    Checking secrecy v0.10.3
+    Checking line-clipping v0.3.5
+    Checking ordered-stream v0.2.0
+    Checking sketches-ddsketch v0.3.0
+    Checking io_tee v0.1.1
+   Compiling paste v1.0.15
+    Checking nonempty v0.7.0
+    Checking utf8-width v0.1.8
+    Checking base64 v0.21.7
+   Compiling snap v1.1.1
+    Checking byte-unit v5.2.0
+    Checking forwarded-header-value v0.1.1
+    Checking metrics-util v0.19.1
+   Compiling i18n-embed-fl v0.9.4
+    Checking age-core v0.11.0
+    Checking ratatui-widgets v0.3.0
+    Checking orion v0.17.12
+    Checking scrypt v0.11.0
+    Checking lexical-core v1.0.6
+    Checking which v6.0.3
+    Checking shared_child v1.1.1
+   Compiling sqlx-macros-core v0.8.6
+    Checking governor v0.10.4
+    Checking arrow-ord v57.3.0
+    Checking js-sys v0.3.85
+   Compiling keyforge-ui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-ui/src-tauri)
+    Checking x25519-dalek v2.0.1
+   Compiling glib-macros v0.20.12
+    Checking console v0.16.2
+    Checking pasetors v0.7.7
+    Checking console v0.15.11
+    Checking keyforge-export v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-export)
+    Checking keyforge-security v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-security)
+    Checking ordered-float v2.10.1
+    Checking fern v0.7.1
+    Checking no-std-compat v0.4.1
+    Checking number_prefix v0.4.0
+    Checking twox-hash v2.1.2
+    Checking unit-prefix v0.5.2
+    Checking bech32 v0.9.1
+    Checking integer-encoding v3.0.4
+   Compiling self_update v0.41.0
+    Checking age v0.11.2
+    Checking thrift v0.17.0
+    Checking lz4_flex v0.12.0
+    Checking zbus v5.13.2
+    Checking indicatif v0.18.3
+    Checking indicatif v0.17.11
+    Checking governor v0.8.1
+    Checking arrow-cast v57.3.0
+    Checking ratatui-macros v0.7.0
+    Checking tower_governor v0.8.0
+    Checking arrow-ipc v57.3.0
+    Checking ratatui-crossterm v0.1.0
+    Checking tracing-appender v0.2.4
+   Compiling sqlx-macros v0.8.6
+    Checking self-replace v1.5.0
+    Checking hostname v0.4.2
+    Checking quick-xml v0.23.1
+    Checking simdutf8 v0.1.5
+   Compiling seq-macro v0.3.6
+    Checking machine-uid v0.5.4
+    Checking wasm-bindgen-futures v0.4.58
+    Checking serde-wasm-bindgen v0.6.5
+    Checking ratatui v0.30.0
+    Checking ctrlc v3.5.1
+    Checking console_error_panic_hook v0.1.7
+    Checking comfy-table v7.2.2
+    Checking clap_complete v4.5.65
+    Checking num_cpus v1.17.0
+    Checking parquet v57.3.0
+    Checking keyforge-system-tests v0.1.0 (/home/robert/projects/keyforge/tests/system)
+    Checking glib v0.20.12
+    Checking keyforge-testing-macros v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing-macros)
+   Compiling aws-lc-rs v1.15.4
+    Checking tokio-rustls v0.26.4
+    Checking rustls-platform-verifier v0.6.2
+    Checking hyper-rustls v0.27.7
+    Checking fred v10.1.0
+    Checking axum-server v0.8.0
+    Checking reqwest v0.13.2
+    Checking metrics-exporter-prometheus v0.16.2
+    Checking openbookcorpus v0.9.0 (/home/robert/projects/keyforge/corpora/openbookcorpus)
+    Checking webkit2gtk v2.0.2
+    Checking tao v0.34.5
+    Checking muda v0.17.1
+    Checking sqlx v0.8.6
+    Checking keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+    Checking keyforge-persistence v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assetmgr)
+    Checking keyforge-tui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-tui)
+    Checking keyforge-repros v0.1.0 (/home/robert/projects/keyforge/ops/repros)
+    Checking keyforge-wasm v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-wasm)
+    Checking keyforge-agent v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-agent)
+    Checking keyforge-cli v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-cli)
+    Checking keyforge-testing v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing)
+    Checking tikv-jemallocator v0.6.1
+    Checking keyforge-hive v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-hive)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4m 37s
+🔍 Verifying Architectural Invariants (ARCH-00x)...
+sg scan
+python3 ops/scripts/bouncer_100x.py
+--- 100x BOUNCER AUDIT PASSED---
+🏗️ Checking Layer Integrity...
+python3 ops/scripts/check_arch.py
+Verifying Architectural Layer Boundaries...
+Architectural layers intact (with known exceptions).
+cargo test -p keyforge-infra
+   Compiling keyforge-model v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-model)
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+   Compiling keyforge-protocol v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-protocol)
+   Compiling keyforge-adapter v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-adapter)
+error: `self` parameter is only allowed in associated functions
+   --> libs/keyforge-adapter/src/loader.rs:143:27
+    |
+143 |     fn load_any<T: Asset>(&self, id: &str) -> LoaderResult<AssetWrapper<T>> {
+    |                           ^^^^^ not semantically valid as function parameter
+    |
+    = note: associated functions are those in `impl` or `trait` definitions
+
+error[E0432]: unresolved import `sha2`
+   --> libs/keyforge-adapter/src/loader.rs:133:21
+    |
+133 |                 use sha2::Digest;
+    |                     ^^^^ use of unresolved module or unlinked crate `sha2`
+    |
+    = help: if you wanted to use a crate named `sha2`, use `cargo add sha2` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `sha2`
+   --> libs/keyforge-adapter/src/loader.rs:134:34
+    |
+134 |                 let mut hasher = sha2::Sha256::new();
+    |                                  ^^^^ use of unresolved module or unlinked crate `sha2`
+    |
+    = help: if you wanted to use a crate named `sha2`, use `cargo add sha2` to add it to your `Cargo.toml`
+
+error[E0401]: can't use `Self` from outer item
+   --> libs/keyforge-adapter/src/loader.rs:143:28
+    |
+ 96 | impl InMemoryLoader {
+    | ---- `Self` type implicitly declared here, by this `impl`
+...
+143 |     fn load_any<T: Asset>(&self, id: &str) -> LoaderResult<AssetWrapper<T>> {
+    |                            ^^^^
+    |                            |
+    |                            use of `Self` from outer item
+    |                            refer to the type directly here instead
+
+error[E0425]: cannot find value `res` in this scope
+   --> libs/keyforge-adapter/src/loader.rs:146:9
+    |
+146 |         res.downcast::<AssetWrapper<T>>()
+    |         ^^^ not found in this scope
+
+error[E0425]: cannot find value `type_name` in this scope
+   --> libs/keyforge-adapter/src/loader.rs:148:77
+    |
+148 |             .map_err(|_| ForgeError::Internal(format!("Downcast failed for {type_name}")))
+    |                                                                             ^^^^^^^^^ not found in this scope
+    |
+help: consider importing this function
+    |
+  3 + use std::any::type_name;
+    |
+
+error[E0308]: mismatched types
+  --> libs/keyforge-adapter/src/loader.rs:71:31
+   |
+71 |                 blended.merge(&corpus, src.weight);
+   |                         ----- ^^^^^^^ expected `&Corpus`, found `&Asset<Corpus>`
+   |                         |
+   |                         arguments to this method are incorrect
+   |
+   = note: expected reference `&keyforge_model::Corpus`
+              found reference `&model::Asset<keyforge_model::Corpus>`
+note: method defined here
+  --> /home/robert/projects/keyforge/libs/keyforge-model/src/corpus.rs:96:12
+   |
+96 |     pub fn merge(&mut self, other: &Self, weight: f32) {
+   |            ^^^^^
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `serde_json`
+   --> libs/keyforge-adapter/src/loader.rs:131:34
+    |
+131 |         let content_hash = match serde_json::to_vec(&asset) {
+    |                                  ^^^^^^^^^^ use of unresolved module or unlinked crate `serde_json`
+    |
+    = help: if you wanted to use a crate named `serde_json`, use `cargo add serde_json` to add it to your `Cargo.toml`
+
+error[E0507]: cannot move out of an `Arc`
+   --> libs/keyforge-adapter/src/loader.rs:112:28
+    |
+112 |             .map(|wrapper| *wrapper) // Unbox Arc<AssetWrapper<T>> to AssetWrapper<T>
+    |                            ^^^^^^^^ move occurs because value has type `model::Asset<T>`, which does not implement the `Copy` trait
+    |
+help: consider cloning the value if the performance cost is acceptable
+    |
+112 -             .map(|wrapper| *wrapper) // Unbox Arc<AssetWrapper<T>> to AssetWrapper<T>
+112 +             .map(|wrapper| wrapper.clone()) // Unbox Arc<AssetWrapper<T>> to AssetWrapper<T>
+    |
+
+Some errors have detailed explanations: E0308, E0401, E0425, E0432, E0433, E0507.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `keyforge-adapter` (lib) due to 9 previous errors
+error: Recipe `test-infra` failed on line 154 with exit code 101

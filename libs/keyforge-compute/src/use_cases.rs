@@ -45,7 +45,7 @@ impl OptimizationUseCase {
         let params = req.config.to_domain_params();
         let pinned = req.config.to_domain_pinned_keys();
         let mut corpora = req.config.to_domain_corpus_sources();
-        let cost_matrix = req.config.to_domain_cost_matrix();
+        let mut cost_matrix = req.config.to_domain_cost_matrix();
 
         // 1.5. Resolve hashes for content-addressable Job ID
         for src in &mut corpora {
@@ -55,6 +55,19 @@ impl OptimizationUseCase {
                         .get_hash(keyforge_model::AssetCategory::Corpus, &src.id)
                         .await?,
                 );
+            }
+        }
+
+        // Resolve hash for Cost Matrix
+        match &mut cost_matrix {
+            keyforge_model::config::CostMatrixSource::Predefined { id, hash } => {
+                if hash.is_none() {
+                    *hash = Some(
+                        loader
+                            .get_hash(keyforge_model::AssetCategory::CostModel, id)
+                            .await?,
+                    );
+                }
             }
         }
 
@@ -81,10 +94,12 @@ impl OptimizationUseCase {
                 ))
             })?;
         let kb_def: Arc<keyforge_model::geometry::KeyboardDefinition> =
-            Arc::new((*kb_def_dto).clone().into());
+            Arc::new(kb_def_dto.content.as_ref().clone().into());
 
-        let keyforge_protocol::config::CostMatrixSourceDto::Predefined(cost_model_name) =
-            &req.config.cost_matrix;
+        let keyforge_protocol::config::CostMatrixSourceDto::Predefined {
+            id: cost_model_name,
+            ..
+        } = &req.config.cost_matrix;
 
         let cost_model_dto = loader
             .load::<CostModelDto>(cost_model_name)
@@ -94,7 +109,7 @@ impl OptimizationUseCase {
                     "Failed to load cost model {cost_model_name}: {e}"
                 ))
             })?;
-        let cost_model = Arc::new((*cost_model_dto).clone().into());
+        let cost_model = Arc::new(cost_model_dto.content.as_ref().clone().into());
 
         let session = SessionBuilder::new(loader)
             .with_keyboard_def(kb_def)

@@ -82,7 +82,11 @@ mod integration_tests {
                     }
                     .into()]
                     .into(),
-                    cost_matrix: CostMatrixSource::Predefined("cost_matrix.json".into()).into(),
+                    cost_matrix: CostMatrixSource::Predefined {
+                        id: "cost_matrix.json".into(),
+                        hash: None,
+                    }
+                    .into(),
                     biometrics: vec![].into(),
                     parent_job_id: None,
                     baseline_score: None,

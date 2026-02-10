@@ -18,7 +18,9 @@ use crate::net::sync::ServerManifest;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
 use keyforge_boundary::SafePath;
-use keyforge_model::{Asset, AssetCategory};
+// use keyforge_model::{Asset, AssetCategory}; // Original
+use keyforge_adapter::model::Asset as AssetWrapper; // Add this
+use keyforge_model::{Asset as AssetTrait, AssetCategory};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs;
@@ -64,14 +66,22 @@ impl FsProvider {
 
 #[async_trait]
 impl AssetLoader for FsProvider {
-    async fn load<T: Asset + for<'de> serde::Deserialize<'de>>(
+    async fn load<T: AssetTrait + for<'de> serde::Deserialize<'de>>(
         &self,
         id: &str,
-    ) -> LoaderResult<Arc<T>> {
+    ) -> LoaderResult<AssetWrapper<T>> {
         let path = self.resolve_asset_path(T::category(), id)?;
         let content = fs::read(path.as_path()).await.map_err(|e| {
             keyforge_model::error::ForgeError::Io(format!("Failed to read {id}: {e}"))
         })?;
+
+        // Compute hash
+        let hash = {
+            use sha2::Digest;
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(&content);
+            hasher.finalize().into()
+        };
 
         let final_id = path.as_path().to_string_lossy().to_string();
 
@@ -84,14 +94,14 @@ impl AssetLoader for FsProvider {
             let asset: T = rmp_serde::from_read(decoder).map_err(|e| {
                 keyforge_model::error::ForgeError::Serde(format!("MsgPack decode error: {e}"))
             })?;
-            return Ok(Arc::new(asset));
+            return Ok(AssetWrapper::new(Arc::new(asset), hash));
         }
 
         if final_id.to_lowercase().ends_with(".json") {
             let asset: T = serde_json::from_slice(&content).map_err(|e| {
                 keyforge_model::error::ForgeError::Serde(format!("JSON decode error: {e}"))
             })?;
-            return Ok(Arc::new(asset));
+            return Ok(AssetWrapper::new(Arc::new(asset), hash));
         }
 
         Err(keyforge_model::error::ForgeError::Serialization(format!(
@@ -108,7 +118,7 @@ impl AssetLoader for FsProvider {
             let part_dto = self
                 .load::<keyforge_protocol::CorpusDto>(&source.id)
                 .await?;
-            let part: keyforge_model::Corpus = (*part_dto).clone().into();
+            let part: keyforge_model::Corpus = part_dto.content.as_ref().clone().into();
             corpus.merge(&part, source.weight);
         }
         Ok(Arc::new(corpus))

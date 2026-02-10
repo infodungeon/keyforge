@@ -4,6 +4,7 @@
 mod builder_tests {
     use super::*;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+    use keyforge_adapter::model::Asset as AssetWrapper;
     use keyforge_compute::SessionBuilder;
     use keyforge_model::geometry::{KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
     use keyforge_model::keycodes::KeycodeRegistry;
@@ -21,14 +22,15 @@ mod builder_tests {
 
     #[async_trait::async_trait]
     impl AssetLoader for MockLoader {
-        async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        async fn load<T: Asset>(&self, id: &str) -> LoaderResult<AssetWrapper<T>> {
             let tid = std::any::TypeId::of::<T>();
 
             // Special handling for keycodes which are often requested by string literal
             if tid == std::any::TypeId::of::<keyforge_protocol::KeycodeRegistryDto>() {
                 let reg = keyforge_protocol::KeycodeRegistryDto::default();
                 let any_kc = Arc::new(reg) as Arc<dyn Any + Send + Sync>;
-                return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
+                let content = any_kc.downcast::<T>().expect("Downcast failed");
+                return Ok(AssetWrapper::new(content, [0u8; 32]));
             }
 
             // Special handling for cost model (DTO)
@@ -52,12 +54,13 @@ mod builder_tests {
 
                 model.models.insert("default".to_string(), model_def);
                 let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
-                return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+                let content = any_model.downcast::<T>().expect("Downcast failed");
+                return Ok(AssetWrapper::new(content, [0u8; 32]));
             }
 
             // Fallback to the generic injected asset (KeyboardDefinition in this test)
             if let Ok(arc) = self.assets.clone().downcast::<T>() {
-                return Ok(arc);
+                return Ok(AssetWrapper::new(arc, [0u8; 32]));
             }
 
             Err(keyforge_model::error::ForgeError::NotFound(format!(
