@@ -99,7 +99,7 @@ async fn main() -> Result<()> {
         config.cores = c;
     }
     if let Some(d) = args.data_dir {
-        config.data_dir = keyforge_model::types::path::SafePath::from_trusted_root_path(d);
+        config.data_dir = keyforge_boundary::SafePath::from_trusted_root_path(d);
     }
     if args.skip_calibration {
         config.calibration.duration_ms = 0;
@@ -136,7 +136,7 @@ async fn main() -> Result<()> {
             timeout: _,
         } => {
             let safe_job_path =
-                keyforge_model::types::path::SafePath::from_trusted_root_path(job_file.clone());
+                keyforge_boundary::SafePath::from_trusted_root_path(job_file.clone());
             let job_content =
                 keyforge_infra::fs::io::read_to_string_limited(&safe_job_path, 5 * 1024 * 1024)?;
             let job: JobConfig = serde_json::from_str(&job_content)?;
@@ -147,7 +147,7 @@ async fn main() -> Result<()> {
             iterations,
         } => {
             let safe_job_path =
-                keyforge_model::types::path::SafePath::from_trusted_root_path(job_file.clone());
+                keyforge_boundary::SafePath::from_trusted_root_path(job_file.clone());
             let job_content =
                 keyforge_infra::fs::io::read_to_string_limited(&safe_job_path, 5 * 1024 * 1024)?;
             let job: JobConfig = serde_json::from_str(&job_content)?;

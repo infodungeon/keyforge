@@ -2,8 +2,8 @@ use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
+use keyforge_boundary::SafePath;
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
-use keyforge_model::types::path::SafePath;
 use tauri::AppHandle;
 
 /// Returns the default global application configuration.

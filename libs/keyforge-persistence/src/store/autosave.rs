@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::error::PersistenceResult;
+use keyforge_boundary::SafePath;
 use keyforge_model::constants::MAX_SESSION_FILE_SIZE;
-use keyforge_model::types::path::SafePath;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Seek, SeekFrom, Write};

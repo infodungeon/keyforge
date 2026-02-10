@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_boundary::SafePath;
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
 use keyforge_physics::{EngineCompilationContext, EngineFactory};
 use serde::{Deserialize, Serialize};

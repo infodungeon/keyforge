@@ -7,9 +7,9 @@
 // - `UserRepo` layout/biometrics/keyboard persistence
 // - `AutoSaveService` session save/load/debounce
 
+use keyforge_boundary::SafePath;
 use keyforge_model::constants::MAX_SESSION_FILE_SIZE;
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::types::path::SafePath;
 use keyforge_persistence::store::autosave::{AutoSaveService, SessionSnapshot};
 use keyforge_persistence::UserRepo;
 use keyforge_protocol::BiometricSample;

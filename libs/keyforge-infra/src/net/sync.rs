@@ -3,7 +3,7 @@
 use crate::error::{InfraError, InfraResult};
 use crate::net::client::HiveClient;
 use crate::util::common::calculate_file_hash;
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, info, warn};

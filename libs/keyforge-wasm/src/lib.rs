@@ -59,6 +59,7 @@ impl From<keyforge_model::error::ForgeError> for WasmError {
             ForgeError::Config(s) => ("CONFIG_ERROR", s),
             ForgeError::Projection(s) => ("PROJECTION_ERROR", s),
             ForgeError::Model(me) => ("MODEL_ERROR", me.to_string()),
+            ForgeError::Boundary(be) => ("BOUNDARY_ERROR", be.to_string()),
             ForgeError::Infrastructure(s) => ("INFRASTRUCTURE_ERROR", s),
         };
 

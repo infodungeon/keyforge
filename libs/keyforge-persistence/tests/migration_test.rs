@@ -1,7 +1,7 @@
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
-    use keyforge_model::types::path::SafePath;
+    use keyforge_boundary::SafePath;
     use keyforge_persistence::UserRepo;
     use serde_json::json;
     use std::fs;

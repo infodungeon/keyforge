@@ -14,7 +14,7 @@
 
 use crate::error::InfraResult;
 use crate::net::client::HiveClient;
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use keyforge_protocol::JobConfig;
 use std::path::PathBuf;
 use tracing::info;

@@ -4,8 +4,8 @@
 use clap::{Parser, Subcommand};
 use keyforge_assetmgr::is_hidden;
 use keyforge_assetmgr::ops::upload_file;
+use keyforge_boundary::SafePath;
 use keyforge_infra::net::distributed::{DistributedCoordinator, ValkeyDistributedCoordinator};
-use keyforge_model::types::path::SafePath;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

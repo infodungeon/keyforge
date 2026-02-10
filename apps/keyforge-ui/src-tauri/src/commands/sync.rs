@@ -1,11 +1,11 @@
 // apps/keyforge-ui/src-tauri/src/commands/sync.rs
 use crate::error::CommandError;
 use crate::utils::get_data_dir;
+use keyforge_boundary::SafePath;
 use keyforge_infra::net::client::ClientConfig;
 use keyforge_infra::HiveClient;
 use keyforge_infra::SyncStats;
 use keyforge_infra::{bootstrap_essentials, run_sync};
-use keyforge_model::types::path::SafePath;
 use tauri::AppHandle;
 
 /// Synchronizes local application data.

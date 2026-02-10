@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::constants::MAX_CLI_CORPORA;
+use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::{MAX_FILENAME_LEN, MAX_KEYBOARD_NAME_LEN};
-use keyforge_model::types::path::SafePath;
 use keyforge_model::KeyConstraint;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;

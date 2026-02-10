@@ -62,6 +62,10 @@ pub enum InfraError {
     #[error("Model Error: {0}")]
     Model(#[from] keyforge_model::error::ForgeError),
 
+    /// Error originating from the boundary layer.
+    #[error("Boundary Error: {0}")]
+    Boundary(#[from] keyforge_boundary::BoundaryError),
+
     /// An internal or unexpected error occurred.
     #[error("Internal Error: {0}")]
     Internal(String),

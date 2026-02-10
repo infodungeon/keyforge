@@ -21,9 +21,9 @@
 
 pub use keyforge_testing_macros::kf_test;
 
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::init::{initialize_workspace_async, InitMode};
 use keyforge_infra::FsProvider;
-use keyforge_model::types::path::SafePath;
 use std::path::PathBuf;
 use tempfile::TempDir;
 

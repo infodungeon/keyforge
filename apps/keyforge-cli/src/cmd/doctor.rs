@@ -21,7 +21,7 @@ use sysinfo::System;
 #[derive(Args, Debug, Clone)]
 pub struct DoctorArgs {}
 
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 
 // [Fixed] Made async to avoid blocking reqwest
 pub async fn run(_args: DoctorArgs, root: &SafePath) -> Result<(), Box<dyn std::error::Error>> {

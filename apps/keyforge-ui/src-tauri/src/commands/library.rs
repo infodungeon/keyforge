@@ -3,8 +3,8 @@
 use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::listing;
-use keyforge_model::types::path::SafePath;
 use keyforge_protocol::KeyboardGeometryDto;
 use std::sync::Arc;
 use tauri::AppHandle;

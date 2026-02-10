@@ -13,13 +13,13 @@ mod runtime_tests {
 
     #[derive(Debug)]
     struct MockLoader {
-        root: keyforge_model::types::path::SafePath,
+        root: keyforge_boundary::SafePath,
     }
 
     impl MockLoader {
         fn new() -> Self {
             Self {
-                root: keyforge_model::types::path::SafePath::from_trusted_root_path(
+                root: keyforge_boundary::SafePath::from_trusted_root_path(
                     std::path::PathBuf::from("."),
                 ),
             }
@@ -72,7 +72,7 @@ mod runtime_tests {
             Ok(Arc::new(Corpus::default()))
         }
 
-        fn root(&self) -> &keyforge_model::types::path::SafePath {
+        fn root(&self) -> &keyforge_boundary::SafePath {
             &self.root
         }
 

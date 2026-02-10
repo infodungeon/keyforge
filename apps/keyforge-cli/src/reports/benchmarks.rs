@@ -14,9 +14,9 @@
 
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::AnalysisReport;
 use serde::Deserialize;
 

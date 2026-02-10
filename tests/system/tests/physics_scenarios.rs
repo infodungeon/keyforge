@@ -3,11 +3,11 @@
 // tests/system/tests/physics_scenarios.rs
 mod tests {
     use keyforge_adapter::conversion;
+    use keyforge_boundary::SafePath;
     use keyforge_compute::AssetLoader;
     use keyforge_infra::FsProvider;
     use keyforge_model::config::{CorpusSource, ScoringWeights};
     use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
-    use keyforge_model::types::path::SafePath;
     use keyforge_model::{Keyboard, KeyboardDefinition, KeycodeRegistry};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
     use keyforge_protocol::CostModelDto;

@@ -12,6 +12,7 @@ readme = "../../docs/design/keyforge-model/README.md"
 workspace = true
 
 [dependencies]
+keyforge-boundary.workspace = true
 keyforge-testing-macros.workspace = true
 thiserror.workspace = true
 smallvec.workspace = true

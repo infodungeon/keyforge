@@ -75,7 +75,7 @@ proptest! {
         let validated = ValidatedLayout::new(layout.keys(), layout.len()).unwrap();
 
         let mut scratch = PhysicsScratch::try_new().unwrap();
-        let (starts, counts, indices, offsets, used, _, _) = scratch.get_mut_scratch();
+        let (starts, counts, indices, offsets, used, _, _, _, _) = scratch.get_mut_scratch();
         let pm = PosMap::from_scratch(layout.keys(), layout.len(), starts, counts, indices, offsets, used);
 
         let delta = calculate_swap_delta(&ctx, &validated, &pm, 0, 1).unwrap();
@@ -106,7 +106,7 @@ mod manual_tests {
         let validated = ValidatedLayout::new(layout.keys(), 2).unwrap();
 
         let mut scratch = PhysicsScratch::try_new().unwrap();
-        let (starts, counts, indices, offsets, used, _, _) = scratch.get_mut_scratch();
+        let (starts, counts, indices, offsets, used, _, _, _, _) = scratch.get_mut_scratch();
         let pm = PosMap::from_scratch(layout.keys(), 2, starts, counts, indices, offsets, used);
 
         // Score before: a at 0, b at 1. cost(0,1) * freq(ab)

@@ -2,8 +2,8 @@
 
 use crate::is_hidden;
 use anyhow::Result;
+use keyforge_boundary::SafePath;
 use keyforge_infra::net::distributed::DistributedCoordinator;
-use keyforge_model::types::path::SafePath;
 use keyforge_protocol::AssetManifestEntry;
 use std::path::Path;
 use tracing::info;

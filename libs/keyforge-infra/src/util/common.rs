@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
+use keyforge_boundary::SafePath;
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::types::path::SafePath;
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -80,10 +80,7 @@ pub fn sanitize_filename(name: &str) -> String {
 /// Normalizes a path to prevent traversal and ensure consistent format (forward slashes).
 /// Returns None if the path attempts to step above its root.
 #[must_use]
-#[deprecated(
-    since = "0.9.0",
-    note = "Use keyforge_model::types::path::SafePath instead"
-)]
+#[deprecated(since = "0.9.0", note = "Use keyforge_boundary::SafePath instead")]
 pub fn normalize_path(raw: &str) -> Option<String> {
     let p = Path::new(raw);
     let mut stack = Vec::new();

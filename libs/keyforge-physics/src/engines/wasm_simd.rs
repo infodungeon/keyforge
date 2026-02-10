@@ -72,7 +72,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map, _, _) =
                 s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
@@ -108,7 +108,7 @@ impl ScoringEngine for WasmSimdScoringEngine {
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map, _, _) =
                 s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 validated.as_slice(),
@@ -157,7 +157,8 @@ unsafe fn score_layout_wasm(
     scratch: &mut PhysicsScratch,
 ) -> Result<i64, PhysicsError> {
     let layout_slice = layout.as_slice();
-    let (starts, counts, indices, offsets, used, _char_usage, flat_map) = scratch.get_mut_scratch();
+    let (starts, counts, indices, offsets, used, _char_usage, flat_map, _, _) =
+        scratch.get_mut_scratch();
 
     let pm = PosMap::from_scratch(
         layout_slice,

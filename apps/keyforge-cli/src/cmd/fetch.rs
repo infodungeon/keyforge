@@ -14,9 +14,9 @@
 
 use crate::error::CliError;
 use clap::{Args, Subcommand};
+use keyforge_boundary::SafePath;
 use keyforge_infra::net::client::ClientConfig;
 use keyforge_infra::AssetManager;
-use keyforge_model::types::path::SafePath;
 
 #[derive(Args, Debug, Clone)]
 pub struct FetchArgs {

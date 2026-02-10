@@ -80,6 +80,10 @@ pub enum ForgeError {
     #[error("Model Error: {0}")]
     Model(#[from] ModelError),
 
+    /// Error originating from the Boundary layer (`SafePath`, etc).
+    #[error("Boundary Error: {0}")]
+    Boundary(#[from] keyforge_boundary::BoundaryError),
+
     /// Infrastructure-layer error wrapped for domain propagation.
     /// Used at boundaries to preserve diagnostic context without coupling the nucleus.
     #[error("Infrastructure Failure: {0}")]
@@ -106,6 +110,10 @@ pub enum ModelError {
     /// An invariant of the domain model was violated.
     #[error("Invariant Violation: {0}")]
     Invariant(String),
+
+    /// Error originating from the boundary layer.
+    #[error("Boundary Error: {0}")]
+    Boundary(#[from] keyforge_boundary::BoundaryError),
 }
 
 /// Specific errors related to physical constraints and scoring.

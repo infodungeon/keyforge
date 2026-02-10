@@ -15,10 +15,10 @@
 
 use crate::constants::{DEFAULT_PERSONAL_COST_PATH, DEFAULT_USER_STATS_PATH};
 use clap::Args;
+use keyforge_boundary::SafePath;
 use keyforge_compute::biometrics::BiometricProfiler;
 use keyforge_infra::fs::io::{atomic_write, read_to_string_limited};
 use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::CostModel;
 use keyforge_protocol::BiometricSample;
 use std::fs::File;

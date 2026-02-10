@@ -14,6 +14,7 @@
 // limitations under the License.
 
 use clap::{Args, Subcommand, ValueEnum};
+use keyforge_boundary::SafePath;
 use keyforge_compute::AssetLoader;
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
@@ -21,7 +22,6 @@ use keyforge_infra::FsProvider;
 use keyforge_model::constants::{ASSET_KEYCODES, MAX_INPUT_FILE_SIZE};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::types::path::SafePath;
 use std::error::Error;
 
 #[derive(Args, Debug, Clone)]

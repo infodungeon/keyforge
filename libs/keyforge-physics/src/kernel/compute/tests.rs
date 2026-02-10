@@ -29,8 +29,8 @@ mod tests {
     use crate::EngineFactory;
 
     #[test]
-    #[should_panic]
-    fn test_math_boundaries_overflow() {
+    fn test_math_boundaries_no_panic() {
+        // In integer world, this just stores the value. We check for overflow at accumulation time.
         let _ = Rubric::builder().travel_lat(i64::MAX).build();
     }
 
@@ -48,8 +48,8 @@ mod tests {
         // Use codes 97 ('a') and 101 ('e') which are at indices 0 and 4 in the layout (dist = 4000)
         corpus.bigrams = Arc::from(vec![(97, 101, u32::MAX)]);
 
-        // Max possible weight in FixedWeight is ~2.1M
-        let rubric = Rubric::builder().travel_lat(2_000_000).build();
+        // Max possible raw value for travel_lat weight.
+        let rubric = Rubric::builder().travel_lat(i64::MAX / 1000).build();
 
         let cost_model = mock_cost_model();
         let res = EngineFactory::new_generic(&EngineCompilationContext {

@@ -1,6 +1,6 @@
 // apps/keyforge-agent/src/models.rs
 
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};

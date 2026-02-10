@@ -21,7 +21,7 @@ pub struct WalEntry {
 
 #[derive(Debug, Clone)]
 pub struct DeadLetterQueue {
-    path: keyforge_model::types::path::SafePath,
+    path: keyforge_boundary::SafePath,
 }
 
 impl DeadLetterQueue {
@@ -29,9 +29,7 @@ impl DeadLetterQueue {
     #[must_use]
     pub fn new(data_path: &Path) -> Self {
         Self {
-            path: keyforge_model::types::path::SafePath::from_trusted_root_path(
-                data_path.join("user/dlq"),
-            ),
+            path: keyforge_boundary::SafePath::from_trusted_root_path(data_path.join("user/dlq")),
         }
     }
 
@@ -41,7 +39,7 @@ impl DeadLetterQueue {
             .unwrap_or_default()
             .as_millis();
         let filename = format!("{}_{}.json", timestamp, Uuid::new_v4());
-        let rel = match keyforge_model::types::path::SafePath::try_from_str(&filename) {
+        let rel = match keyforge_boundary::SafePath::try_from_str(&filename) {
             Ok(r) => r,
             Err(e) => {
                 error!("Failed to create safe filename for DLQ: {}", e);

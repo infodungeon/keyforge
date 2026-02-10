@@ -3,11 +3,11 @@
 use crate::error::CommandError;
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
+use keyforge_boundary::SafePath;
 use keyforge_compute::biometrics::StreamingProfileBuilder;
 use keyforge_infra::FsProvider;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::ARENA_TOP_WORDS_LIMIT;
-use keyforge_model::types::path::SafePath;
 use keyforge_persistence::UserRepo;
 use keyforge_protocol::{BiometricSample, CorpusSourceDto};
 use tauri::AppHandle;

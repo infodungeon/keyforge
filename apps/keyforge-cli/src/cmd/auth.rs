@@ -16,8 +16,8 @@
 use crate::constants::{CLI_CONFIG_FILENAME, CONFIG_DIR_NAME};
 use crate::error::{CliError, CliResult as Result};
 use clap::{Args, Subcommand};
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::io::atomic_write;
-use keyforge_model::types::path::SafePath;
 use serde::{Deserialize, Serialize};
 
 #[derive(Args, Debug, Clone)]

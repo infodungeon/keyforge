@@ -14,9 +14,8 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
         std::fs::create_dir_all(&config_dir_path)
             .map_err(|e| AgentError::Identity(format!("failed to create config dir: {e}")))?;
     }
-    let safe_config_dir =
-        keyforge_model::types::path::SafePath::from_trusted_root_path(config_dir_path);
-    let key_rel = keyforge_model::types::path::SafePath::try_from_str(&config.key_file_name)
+    let safe_config_dir = keyforge_boundary::SafePath::from_trusted_root_path(config_dir_path);
+    let key_rel = keyforge_boundary::SafePath::try_from_str(&config.key_file_name)
         .map_err(|e| AgentError::Identity(e.to_string()))?;
     let safe_key_path = safe_config_dir.join_trusted(&key_rel);
 
@@ -29,7 +28,7 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
         if let Ok(id) = machine_uid::get() {
             id
         } else {
-            let uuid_rel = keyforge_model::types::path::SafePath::try_from_str("machine_id.uuid")
+            let uuid_rel = keyforge_boundary::SafePath::try_from_str("machine_id.uuid")
                 .map_err(|e| AgentError::Identity(e.to_string()))?;
             let safe_uuid_path = safe_config_dir.join_trusted(&uuid_rel);
 
@@ -117,7 +116,7 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
-    use keyforge_model::types::path::SafePath;
+    use keyforge_boundary::SafePath;
     use std::fs;
     use tempfile::tempdir;
 

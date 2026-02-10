@@ -1,9 +1,9 @@
 // libs/keyforge-adapter/src/loader.rs
 
 use async_trait::async_trait;
+use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, Corpus};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;

@@ -3,11 +3,11 @@
 use crate::utils::get_data_dir;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+use keyforge_boundary::SafePath;
 use keyforge_compute::ScoringSession;
 use keyforge_infra::AssetManager;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, Corpus};
 use sha2::Digest;
 use std::fmt;

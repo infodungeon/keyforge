@@ -15,12 +15,12 @@
 
 use crate::constants::DEFAULT_HIVE_URL;
 use clap::Args;
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_model::constants::{
     ASSET_DEFAULT_COST_MATRIX, DEFAULT_KEYBOARD_ID, MAX_INPUT_FILE_SIZE,
 };
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::CostMatrixSource;
 use std::convert::TryFrom;
 

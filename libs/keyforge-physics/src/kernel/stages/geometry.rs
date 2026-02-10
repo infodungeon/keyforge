@@ -117,8 +117,8 @@ mod tests {
         ];
         let kb = Keyboard::new(keys, RowIndex::new(0), "test".into())?;
         let rubric = Rubric::builder()
-            .travel_lat(1_000)
-            .travel_vert(1_000)
+            .travel_lat(1_000_000)
+            .travel_vert(1_000_000)
             .build();
         let stage = GeometryStage { rubric: &rubric };
         let out = stage.execute(&kb)?;

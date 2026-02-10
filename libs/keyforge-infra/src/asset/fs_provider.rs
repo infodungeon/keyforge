@@ -17,7 +17,7 @@ use crate::error::{InfraError, InfraResult};
 use crate::net::sync::ServerManifest;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use keyforge_model::{Asset, AssetCategory};
 use std::collections::HashMap;
 use std::sync::Arc;

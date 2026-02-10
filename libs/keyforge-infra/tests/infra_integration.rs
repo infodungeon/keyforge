@@ -4,8 +4,8 @@ mod integration_tests {
     // libs/keyforge-infra/tests/infra_integration.rs
 
     use keyforge_adapter::loader::AssetLoader;
+    use keyforge_boundary::SafePath;
     use keyforge_infra::FsProvider;
-    use keyforge_model::types::path::SafePath;
     use keyforge_model::KeyboardDefinition;
     use std::fs;
 

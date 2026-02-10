@@ -1,7 +1,7 @@
 // libs/keyforge-infra/src/asset/resolver.rs
 
 use crate::error::{InfraError, InfraResult};
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use std::path::Path;
 
 /// Utility for resolving asset IDs to filesystem paths within a workspace.

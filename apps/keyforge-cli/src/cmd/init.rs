@@ -14,7 +14,7 @@ pub struct InitArgs {
     #[arg(long)]
     pub asset_url: Option<String>,
 }
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 
 pub async fn run(args: InitArgs, root: &SafePath) -> Result<(), CliError> {
     eprintln!("🚀 Initializing KeyForge Workspace at {root}");

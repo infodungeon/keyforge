@@ -21,6 +21,7 @@ zeroize.workspace = true
 # Internal
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-boundary.workspace = true
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-security = { path = "../../libs/keyforge-security" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }

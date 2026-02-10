@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::config::CommonConfig;
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use std::path::PathBuf;
 
 /// Resolves the absolute path to the `KeyForge` workspace root.

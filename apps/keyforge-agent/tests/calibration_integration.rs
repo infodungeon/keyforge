@@ -5,9 +5,9 @@
 mod tests {
     use keyforge_agent::agent::calibration;
     use keyforge_agent::models::CalibrationConfig;
+    use keyforge_boundary::SafePath;
     use keyforge_infra::net::client::ClientConfig;
     use keyforge_infra::{AssetManager, HiveClient};
-    use keyforge_model::types::path::SafePath;
     use std::fs;
     use tempfile::tempdir;
 

@@ -1,7 +1,7 @@
 // libs/keyforge-infra/src/fs/listing.rs
 
 use crate::error::{InfraError, InfraResult};
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};

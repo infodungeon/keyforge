@@ -152,7 +152,7 @@ async fn main() {
             // Convert to SafePath for directory initialization
 
             let safe_data_path =
-                keyforge_model::types::path::SafePath::from_trusted_root_path(data_path.clone());
+                keyforge_boundary::SafePath::from_trusted_root_path(data_path.clone());
 
             for d in USER_RUNTIME_DIRS {
                 if let Err(e) = ensure_dir(&safe_data_path, d) {

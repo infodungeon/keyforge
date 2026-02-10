@@ -14,6 +14,7 @@ keyforge-testing-macros.workspace = true
 keyforge-compute = { path = "../keyforge-compute" }
 keyforge-infra = { path = "../keyforge-infra" }
 keyforge-model = { path = "../keyforge-model" }
+keyforge-boundary.workspace = true
 keyforge-protocol = { path = "../keyforge-protocol" }
 tempfile.workspace = true
 serde_json.workspace = true

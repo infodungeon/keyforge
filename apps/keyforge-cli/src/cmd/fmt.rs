@@ -15,9 +15,9 @@
 
 use crate::constants::DEFAULT_FMT_WIDTH;
 use clap::Args;
+use keyforge_boundary::SafePath;
 use keyforge_model::constants::MAX_KEYBOARD_KEYS;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::KeyCode;
 use std::fmt::Write;
 

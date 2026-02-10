@@ -1,7 +1,7 @@
 // apps/keyforge-agent/src/agent/network/outbox.rs
 
 use crate::agent::errors::{AgentError, AgentResult};
-use keyforge_model::types::path::SafePath;
+use keyforge_boundary::SafePath;
 use keyforge_protocol::ResultSubmission;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

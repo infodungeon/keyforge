@@ -15,11 +15,11 @@
 
 use crate::constants::DEFAULT_DEBUG_OUTPUT;
 use clap::{Args, Subcommand};
+use keyforge_boundary::SafePath;
 use keyforge_compute::AssetLoader;
 use keyforge_export::viz::physics::generate_physics_svg;
 use keyforge_infra::fs::io::atomic_write;
 use keyforge_infra::FsProvider;
-use keyforge_model::types::path::SafePath;
 use keyforge_model::KeyboardDefinition;
 
 #[derive(Args, Debug, Clone)]

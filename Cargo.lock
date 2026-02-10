@@ -4161,6 +4161,7 @@ version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "keyforge-boundary",
  "keyforge-model",
  "keyforge-protocol",
  "keyforge-testing",
@@ -4185,6 +4186,7 @@ dependencies = [
  "hex",
  "hostname",
  "keyforge-adapter",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
@@ -4229,6 +4231,7 @@ dependencies = [
  "chrono",
  "clap",
  "futures",
+ "keyforge-boundary",
  "keyforge-infra",
  "keyforge-model",
  "keyforge-protocol",
@@ -4263,6 +4266,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyforge-boundary"
+version = "0.9.0"
+dependencies = [
+ "keyforge-testing-macros",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "keyforge-cli"
 version = "0.9.0"
 dependencies = [
@@ -4275,6 +4287,7 @@ dependencies = [
  "fastrand",
  "indicatif 0.18.3",
  "keyforge-adapter",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-evolution",
  "keyforge-export",
@@ -4311,6 +4324,7 @@ version = "0.9.0"
 dependencies = [
  "async-trait",
  "keyforge-adapter",
+ "keyforge-boundary",
  "keyforge-evolution",
  "keyforge-infra",
  "keyforge-model",
@@ -4382,6 +4396,7 @@ dependencies = [
  "hex",
  "keyforge-adapter",
  "keyforge-assets",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
@@ -4450,6 +4465,7 @@ dependencies = [
  "futures-util",
  "hex",
  "keyforge-adapter",
+ "keyforge-boundary",
  "keyforge-model",
  "keyforge-protocol",
  "keyforge-testing-macros",
@@ -4481,6 +4497,7 @@ dependencies = [
  "async-trait",
  "clap",
  "hex",
+ "keyforge-boundary",
  "keyforge-testing",
  "keyforge-testing-macros",
  "proptest",
@@ -4502,6 +4519,7 @@ dependencies = [
  "fs2",
  "hex",
  "keyforge-adapter",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
@@ -4603,6 +4621,7 @@ dependencies = [
  "anyhow",
  "fastrand",
  "keyforge-adapter",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-evolution",
  "keyforge-infra",
@@ -4625,6 +4644,7 @@ name = "keyforge-testing"
 version = "0.9.0"
 dependencies = [
  "anyhow",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-infra",
  "keyforge-model",
@@ -4675,6 +4695,7 @@ dependencies = [
  "hex",
  "keyforge-adapter",
  "keyforge-assets",
+ "keyforge-boundary",
  "keyforge-compute",
  "keyforge-evolution",
  "keyforge-export",

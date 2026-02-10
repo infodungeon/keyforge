@@ -41,6 +41,9 @@
 - [READY] **#181**: useJobDispatch Hook Extraction
 - [READY] **#182**: App.tsx Integration
 
+### Track F: Boundary Architecture (ADR-014/ADR-027)
+- [DONE] **#208**: Relocate SafePath to keyforge-boundary
+
 ## Blocked Tracks (Too Large / Vague)
 - [BLOCKED] **#141**: Cross-crate Physics leak (Needs Decomposition).
 - [BLOCKED] **#138**: Serde severance (Manually Decomposed to ETS-100x-138-Px).
@@ -52,4 +55,4 @@
 -   **Conductor:** ACTIVE
 -   **Gemini-Guy:** ACTIVE
 -   **Architect:** ACTIVE (Decomposition Audit Complete)
--   **Coder:** STANDBY
+-   **Coder:** ACTIVE (Refactor #208 Complete)

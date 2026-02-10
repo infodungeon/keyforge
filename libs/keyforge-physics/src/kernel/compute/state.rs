@@ -174,6 +174,10 @@ pub struct PhysicsScratch {
     pub(crate) char_usage: Box<[u64; MAX_KEYCODE_SPACE]>,
     /// A flat mapping for SIMD kernels (`KeyCode` -> `KeyIndex`).
     pub(crate) flat_map: Box<[KeyIndex; MAX_KEYCODE_SPACE]>,
+    /// Accumulated heatmap (frequency per key position).
+    pub(crate) heatmap: Box<[u64; MAX_KEYBOARD_KEYS]>,
+    /// Accumulated penalty map (weighted score per key position).
+    pub(crate) penalty_map: Box<[i64; MAX_KEYBOARD_KEYS]>,
 }
 
 impl PhysicsScratch {
@@ -210,6 +214,14 @@ impl PhysicsScratch {
                 .into_boxed_slice()
                 .try_into()
                 .map_err(|_| err())?,
+            heatmap: vec![0u64; MAX_KEYBOARD_KEYS]
+                .into_boxed_slice()
+                .try_into()
+                .map_err(|_| err())?,
+            penalty_map: vec![0i64; MAX_KEYBOARD_KEYS]
+                .into_boxed_slice()
+                .try_into()
+                .map_err(|_| err())?,
         })
     }
 }
@@ -223,6 +235,9 @@ impl PhysicsScratch {
             self.char_usage[c] = 0;
             self.flat_map[c] = KeyIndex::new(u16::MAX);
         }
+        // Always reset analysis buffers
+        self.heatmap.fill(0);
+        self.penalty_map.fill(0);
     }
 
     /// Returns mutable references to the individual scratch buffers.
@@ -238,6 +253,8 @@ impl PhysicsScratch {
         &mut Vec<KeyCode>,
         &mut [u64; MAX_KEYCODE_SPACE],
         &mut [KeyIndex; MAX_KEYCODE_SPACE],
+        &mut [u64; MAX_KEYBOARD_KEYS],
+        &mut [i64; MAX_KEYBOARD_KEYS],
     ) {
         (
             self.starts.as_mut(),
@@ -247,6 +264,8 @@ impl PhysicsScratch {
             &mut self.used_keys,
             self.char_usage.as_mut(),
             self.flat_map.as_mut(),
+            self.heatmap.as_mut(),
+            self.penalty_map.as_mut(),
         )
     }
 }

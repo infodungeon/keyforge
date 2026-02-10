@@ -4,10 +4,10 @@
 mod integration_tests {
     use super::*;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+    use keyforge_boundary::SafePath;
     use keyforge_model::cost_model::CostModel;
     use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
     use keyforge_model::keycodes::KeycodeRegistry;
-    use keyforge_model::types::path::SafePath;
     use keyforge_model::types::{KeyCode, KeyIndex};
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;

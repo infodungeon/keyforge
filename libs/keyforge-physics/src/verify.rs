@@ -32,7 +32,11 @@ impl DeterministicScorer {
         layout: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let (mono, bigram, trigram) = self.score_detailed(keyboard, corpus, layout)?;
-        Ok(mono.saturating_add(bigram).saturating_add(trigram))
+        mono.checked_add(bigram)
+            .and_then(|sum| sum.checked_add(trigram))
+            .ok_or_else(|| PhysicsError::ScoreOverflow {
+                context: "Oracle total score accumulation".to_string(),
+            })
     }
 
     /// Scores a layout and returns detailed components (monograms, bigrams, trigrams).
@@ -40,6 +44,7 @@ impl DeterministicScorer {
     /// # Errors
     ///
     /// Returns an error if the layout is invalid for the keyboard.
+    #[allow(clippy::too_many_lines)]
     pub fn score_detailed(
         &self,
         keyboard: &Keyboard,
@@ -71,9 +76,16 @@ impl DeterministicScorer {
             }
 
             if min_cost != i64::MAX {
-                monogram_score = monogram_score.saturating_add(
-                    min_cost.saturating_mul(i64::try_from(freq).unwrap_or(i64::MAX)),
-                );
+                let term = min_cost
+                    .checked_mul(i64::try_from(freq).unwrap_or(i64::MAX))
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("Oracle monogram freq scale for code {code_val}"),
+                    })?;
+                monogram_score = monogram_score.checked_add(term).ok_or_else(|| {
+                    PhysicsError::ScoreOverflow {
+                        context: format!("Oracle monogram total accumulation at code {code_val}"),
+                    }
+                })?;
             }
         }
 
@@ -105,7 +117,17 @@ impl DeterministicScorer {
                 }
 
                 if min_cost != i64::MAX {
-                    bigram_score = bigram_score.saturating_add(min_cost.saturating_mul(freq));
+                    let term =
+                        min_cost
+                            .checked_mul(freq)
+                            .ok_or_else(|| PhysicsError::ScoreOverflow {
+                                context: format!("Oracle bigram freq scale for ({c1}, {c2})"),
+                            })?;
+                    bigram_score = bigram_score.checked_add(term).ok_or_else(|| {
+                        PhysicsError::ScoreOverflow {
+                            context: format!("Oracle bigram total accumulation at ({c1}, {c2})"),
+                        }
+                    })?;
                 }
             }
         }
@@ -144,8 +166,18 @@ impl DeterministicScorer {
                 }
 
                 if min_total_path_cost != i64::MAX {
-                    trigram_score =
-                        trigram_score.saturating_add(best_flow_cost.saturating_mul(freq));
+                    let term = best_flow_cost.checked_mul(freq).ok_or_else(|| {
+                        PhysicsError::ScoreOverflow {
+                            context: format!("Oracle trigram freq scale for ({c1}, {c2}, {c3})"),
+                        }
+                    })?;
+                    trigram_score = trigram_score.checked_add(term).ok_or_else(|| {
+                        PhysicsError::ScoreOverflow {
+                            context: format!(
+                                "Oracle trigram total accumulation at ({c1}, {c2}, {c3})"
+                            ),
+                        }
+                    })?;
                 }
             }
         }

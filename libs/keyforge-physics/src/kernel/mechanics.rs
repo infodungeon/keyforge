@@ -327,8 +327,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn test_calculate_pair_cost_invalid_math_panic() {
+    fn test_calculate_pair_cost_invalid_math_no_panic() {
+        // Rubric builder now just stores the value. Real errors are caught at scoring time.
         let _ = Rubric::builder().travel_lat(i64::MAX).build();
     }
 

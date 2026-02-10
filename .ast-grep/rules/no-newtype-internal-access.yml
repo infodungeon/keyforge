@@ -16,6 +16,7 @@ rule:
 ignores:
   - "**/tests.rs"
   - "**/tests/**"
+  - "libs/keyforge-boundary/src/**/*.rs"
   - "libs/keyforge-model/src/types/**/*.rs"
   - "libs/keyforge-protocol/src/types/**/*.rs"
   - "libs/keyforge-persistence/src/**/*.rs"

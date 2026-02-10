@@ -68,9 +68,9 @@ pub fn deterministic_normalize(
     )
 }
 
-struct MetricsAccumulator {
-    heatmap: Vec<u64>,
-    penalty_map: Vec<Score>,
+struct MetricsAccumulator<'a> {
+    heatmap: &'a mut [u64],
+    penalty_map: &'a mut [i64],
     total_load: u64,
     left_hand_load: u64,
     total_bigrams: u64,
@@ -91,11 +91,11 @@ struct MetricsAccumulator {
     trigram_accum: Score,
 }
 
-impl MetricsAccumulator {
-    fn new(key_count: usize) -> Self {
+impl<'a> MetricsAccumulator<'a> {
+    fn new(heatmap: &'a mut [u64], penalty_map: &'a mut [i64]) -> Self {
         Self {
-            heatmap: vec![0u64; key_count],
-            penalty_map: vec![Score::ZERO; key_count],
+            heatmap,
+            penalty_map,
             total_load: 0,
             left_hand_load: 0,
             total_bigrams: 0,
@@ -132,7 +132,7 @@ pub fn analyze_layout(
 
     super::state::with_scratch(|scratch| {
         let key_count = ctx.key_count;
-        let (starts, counts, indices, offsets, used, char_usage, _flat_map) =
+        let (starts, counts, indices, offsets, used, char_usage, _flat_map, heatmap, penalty_map) =
             scratch.get_mut_scratch();
 
         let pm = PosMap::from_scratch(
@@ -145,35 +145,42 @@ pub fn analyze_layout(
             used,
         );
 
-        let mut acc = MetricsAccumulator::new(key_count);
+        let mut acc = MetricsAccumulator::new(heatmap, penalty_map);
 
         // 1. Pass 1: Trigrams (Flow ONLY)
-        process_trigrams(ctx, &pm, &mut acc);
+        process_trigrams(ctx, &pm, &mut acc)?;
 
         // 2. Pass 2: Bigrams (ALL TRANSITIONS, DISTANCE, USAGE)
-        process_bigrams(ctx, &pm, &mut acc, char_usage);
+        process_bigrams(ctx, &pm, &mut acc, char_usage)?;
 
         // 3. Pass 3: Monograms (Base Usage & Remaining Characters)
-        process_monograms(ctx, &pm, &mut acc);
+        process_monograms(ctx, &pm, &mut acc)?;
 
         // Pass 4: Finalize Load Metrics
-        for (i, &val) in acc.heatmap.iter().enumerate() {
+        for i in 0..key_count {
+            let val = acc.heatmap[i];
             acc.total_load += val;
             if ctx.geometry.hands[i].is_left() {
                 acc.left_hand_load += val;
             }
         }
 
-        finalize_report(ctx, acc, &mut report);
+        finalize_report(ctx, acc, &mut report)?;
 
         // Clean up
         scratch.clear_used();
-    })?;
+        Ok::<(), crate::error::PhysicsError>(())
+    })??;
 
     Ok(report)
 }
 
-fn process_trigrams(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccumulator) {
+#[allow(clippy::too_many_lines)]
+fn process_trigrams(
+    ctx: &EngineContext,
+    pm: &PosMap<'_>,
+    acc: &mut MetricsAccumulator<'_>,
+) -> Result<(), crate::error::PhysicsError> {
     let key_count = ctx.key_count;
     for &(c1, c2, c3, freq) in ctx.all_trigrams.iter() {
         let candidates1 = pm.get(KeyCode::new(c1));
@@ -194,7 +201,12 @@ fn process_trigrams(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccum
                         calculate_flow_cost(ctx, p1.as_usize(), p2.as_usize(), p3.as_usize());
                     let idx12 = p1.as_usize() * key_count + p2.as_usize();
                     let idx23 = p2.as_usize() * key_count + p3.as_usize();
-                    cost = cost + ctx.geometry.cost_matrix[idx12] + ctx.geometry.cost_matrix[idx23];
+                    cost = cost
+                        .checked_add(ctx.geometry.cost_matrix[idx12])
+                        .and_then(|c| c.checked_add(ctx.geometry.cost_matrix[idx23]))
+                        .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                            context: format!("Trigram cost accumulation for ({c1}, {c2}, {c3})"),
+                        })?;
 
                     if cost < min_cost_val {
                         min_cost_val = cost;
@@ -207,19 +219,61 @@ fn process_trigrams(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccum
         if min_cost_val.raw() != i64::MAX {
             let (idx1, idx2, idx3) = best_triplet;
             let flow_cost = calculate_flow_cost(ctx, idx1, idx2, idx3);
-            let contribution = flow_cost * freq_i;
+            let contribution = flow_cost.checked_mul(freq_i).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: format!("Trigram contribution for ({c1}, {c2}, {c3})"),
+                }
+            })?;
 
-            let part = Score::from_raw(contribution.raw() / 3);
-            let rem = Score::from_raw(contribution.raw() % 3);
+            // Refactor scaling logic to use i128 intermediate arithmetic
+            let contrib_raw = i128::from(contribution.raw());
+            let part_raw = i64::try_from(contrib_raw / 3).map_err(|_| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Trigram part overflow".to_string(),
+                }
+            })?;
+            let rem_raw = i64::try_from(contrib_raw % 3).map_err(|_| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Trigram remainder overflow".to_string(),
+                }
+            })?;
 
-            acc.penalty_map[idx1] = acc.penalty_map[idx1] + part;
-            acc.penalty_map[idx2] = acc.penalty_map[idx2] + part + rem;
-            acc.penalty_map[idx3] = acc.penalty_map[idx3] + part;
-            acc.trigram_accum = acc.trigram_accum + contribution;
+            let part = Score::from_raw(part_raw);
+            let rem = Score::from_raw(rem_raw);
+
+            acc.penalty_map[idx1] = Score::from_raw(acc.penalty_map[idx1])
+                .checked_add(part)
+                .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                    context: "Penalty map update idx1".to_string(),
+                })?
+                .raw();
+            acc.penalty_map[idx2] = Score::from_raw(acc.penalty_map[idx2])
+                .checked_add(part)
+                .and_then(|p| p.checked_add(rem))
+                .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                    context: "Penalty map update idx2".to_string(),
+                })?
+                .raw();
+            acc.penalty_map[idx3] = Score::from_raw(acc.penalty_map[idx3])
+                .checked_add(part)
+                .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                    context: "Penalty map update idx3".to_string(),
+                })?
+                .raw();
+            acc.trigram_accum = acc.trigram_accum.checked_add(contribution).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Trigram total accumulation".to_string(),
+                }
+            })?;
 
             if flow_cost == ctx.penalty_redirect {
                 acc.redirect_freq += u64::from(freq);
-                acc.redir_penalty_accum = acc.redir_penalty_accum + contribution;
+                acc.redir_penalty_accum = acc
+                    .redir_penalty_accum
+                    .checked_add(contribution)
+                    .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                        context: "Redirect penalty accumulation".to_string(),
+                    })?;
 
                 acc.redirs.push(MetricViolation {
                     keys: format!("{}{}{}", u16_to_char(c1), u16_to_char(c2), u16_to_char(c3)),
@@ -228,18 +282,25 @@ fn process_trigrams(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccum
                 });
             } else if flow_cost < Score::ZERO {
                 acc.roll_freq += u64::from(freq);
-                acc.roll_penalty_accum = acc.roll_penalty_accum + contribution;
+                acc.roll_penalty_accum = acc
+                    .roll_penalty_accum
+                    .checked_add(contribution)
+                    .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                        context: "Roll penalty accumulation".to_string(),
+                    })?;
             }
         }
     }
+    Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn process_bigrams(
     ctx: &EngineContext,
     pm: &PosMap<'_>,
-    acc: &mut MetricsAccumulator,
+    acc: &mut MetricsAccumulator<'_>,
     char_usage: &mut [u64; 65536],
-) {
+) -> Result<(), crate::error::PhysicsError> {
     let key_count = ctx.key_count;
     for &(c1, c2, freq) in ctx.all_bigrams.iter() {
         let candidates1 = pm.get(KeyCode::new(c1));
@@ -262,7 +323,11 @@ fn process_bigrams(
                     let mut cost =
                         ctx.geometry.cost_matrix[p1.as_usize() * key_count + p2.as_usize()];
                     if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
-                        cost = cost + mod_val;
+                        cost = cost.checked_add(mod_val).ok_or_else(|| {
+                            crate::error::PhysicsError::ScoreOverflow {
+                                context: format!("Bigram modifier for ({c1}, {c2})"),
+                            }
+                        })?;
                     }
                     if cost < min_score {
                         min_score = cost;
@@ -277,13 +342,32 @@ fn process_bigrams(
         char_usage[usize::from(c2)] += u64::from(freq);
 
         if idx1 != idx2 && ctx.geometry.hands[idx1] == ctx.geometry.hands[idx2] {
-            acc.dist_accum =
-                acc.dist_accum + ctx.geometry.dist_matrix[idx1 * key_count + idx2] * freq_i;
+            let dist = ctx.geometry.dist_matrix[idx1 * key_count + idx2];
+            let contrib = dist.checked_mul(freq_i).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Bigram distance contribution".to_string(),
+                }
+            })?;
+            acc.dist_accum = acc.dist_accum.checked_add(contrib).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Bigram distance accumulation".to_string(),
+                }
+            })?;
+
             if ctx.geometry.fingers[idx1] == ctx.geometry.fingers[idx2] {
                 acc.sfb_total_freq += u64::from(freq);
                 let sfb_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
-                let contribution = sfb_cost * freq_i;
-                acc.sfb_penalty_accum = acc.sfb_penalty_accum + contribution;
+                let contribution = sfb_cost.checked_mul(freq_i).ok_or_else(|| {
+                    crate::error::PhysicsError::ScoreOverflow {
+                        context: "SFB contribution".to_string(),
+                    }
+                })?;
+                acc.sfb_penalty_accum = acc
+                    .sfb_penalty_accum
+                    .checked_add(contribution)
+                    .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                        context: "SFB penalty accumulation".to_string(),
+                    })?;
                 acc.sfbs.push(MetricViolation {
                     keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
                     score: contribution,
@@ -291,7 +375,17 @@ fn process_bigrams(
                 });
             }
         } else if idx1 != idx2 {
-            acc.dist_accum = acc.dist_accum + ctx.geometry.key_home_distances[idx2] * freq_i;
+            let dist = ctx.geometry.key_home_distances[idx2];
+            let contrib = dist.checked_mul(freq_i).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Bigram home distance contribution".to_string(),
+                }
+            })?;
+            acc.dist_accum = acc.dist_accum.checked_add(contrib).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Bigram home distance accumulation".to_string(),
+                }
+            })?;
         }
 
         let r1 = ctx.geometry.rows[idx1];
@@ -306,8 +400,17 @@ fn process_bigrams(
         {
             acc.scissor_freq += u64::from(freq);
             let scissor_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
-            let contribution = scissor_cost * freq_i;
-            acc.scissor_penalty_accum = acc.scissor_penalty_accum + contribution;
+            let contribution = scissor_cost.checked_mul(freq_i).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Scissor contribution".to_string(),
+                }
+            })?;
+            acc.scissor_penalty_accum = acc
+                .scissor_penalty_accum
+                .checked_add(contribution)
+                .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                    context: "Scissor penalty accumulation".to_string(),
+                })?;
             acc.scissors.push(MetricViolation {
                 keys: format!("{}{}", u16_to_char(c1), u16_to_char(c2)),
                 score: contribution,
@@ -317,19 +420,60 @@ fn process_bigrams(
 
         let mut trans_cost = ctx.geometry.cost_matrix[idx1 * key_count + idx2];
         if let Some(&mod_val) = ctx.sequence_modifiers.get(&(c1, c2)) {
-            trans_cost = trans_cost + mod_val;
+            trans_cost = trans_cost.checked_add(mod_val).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: "Bigram transition modifier".to_string(),
+                }
+            })?;
         }
-        let trans_contrib = trans_cost * freq_i;
-        acc.bigram_accum = acc.bigram_accum + trans_contrib;
-        let part = Score::from_raw(trans_contrib.raw() / 2);
-        let rem = Score::from_raw(trans_contrib.raw() % 2);
-        acc.penalty_map[idx1] = acc.penalty_map[idx1] + part;
-        acc.penalty_map[idx2] = acc.penalty_map[idx2] + part + rem;
+        let trans_contrib = trans_cost.checked_mul(freq_i).ok_or_else(|| {
+            crate::error::PhysicsError::ScoreOverflow {
+                context: "Bigram transition contribution".to_string(),
+            }
+        })?;
+        acc.bigram_accum = acc.bigram_accum.checked_add(trans_contrib).ok_or_else(|| {
+            crate::error::PhysicsError::ScoreOverflow {
+                context: "Bigram transition accumulation".to_string(),
+            }
+        })?;
+
+        // Refactor scaling logic to use i128 intermediate arithmetic
+        let tc_128 = i128::from(trans_contrib.raw());
+        let part_raw =
+            i64::try_from(tc_128 / 2).map_err(|_| crate::error::PhysicsError::ScoreOverflow {
+                context: "Bigram part overflow".to_string(),
+            })?;
+        let rem_raw =
+            i64::try_from(tc_128 % 2).map_err(|_| crate::error::PhysicsError::ScoreOverflow {
+                context: "Bigram remainder overflow".to_string(),
+            })?;
+
+        let part = Score::from_raw(part_raw);
+        let rem = Score::from_raw(rem_raw);
+
+        acc.penalty_map[idx1] = Score::from_raw(acc.penalty_map[idx1])
+            .checked_add(part)
+            .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                context: "Bigram penalty map update idx1".to_string(),
+            })?
+            .raw();
+        acc.penalty_map[idx2] = Score::from_raw(acc.penalty_map[idx2])
+            .checked_add(part)
+            .and_then(|p| p.checked_add(rem))
+            .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                context: "Bigram penalty map update idx2".to_string(),
+            })?
+            .raw();
     }
+    Ok(())
 }
 
 #[allow(clippy::cast_possible_truncation)]
-fn process_monograms(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccumulator) {
+fn process_monograms(
+    ctx: &EngineContext,
+    pm: &PosMap<'_>,
+    acc: &mut MetricsAccumulator<'_>,
+) -> Result<(), crate::error::PhysicsError> {
     for &code in pm.used_keys() {
         let freq = ctx.corpus.char_freqs[code.as_usize()];
         if freq == 0 {
@@ -350,15 +494,34 @@ fn process_monograms(ctx: &EngineContext, pm: &PosMap<'_>, acc: &mut MetricsAccu
         }
 
         if min_c.raw() != i64::MAX {
-            let contrib = min_c * freq_i;
-            acc.mono_accum = acc.mono_accum + contrib;
+            let contrib = min_c.checked_mul(freq_i).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: format!("Monogram freq scale for code {code:?}"),
+                }
+            })?;
+            acc.mono_accum = acc.mono_accum.checked_add(contrib).ok_or_else(|| {
+                crate::error::PhysicsError::ScoreOverflow {
+                    context: format!("Monogram accumulation at code {code:?}"),
+                }
+            })?;
             acc.heatmap[bp] += freq;
-            acc.penalty_map[bp] = acc.penalty_map[bp] + contrib;
+            acc.penalty_map[bp] = Score::from_raw(acc.penalty_map[bp])
+                .checked_add(contrib)
+                .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                    context: "Monogram penalty map update".to_string(),
+                })?
+                .raw();
         }
     }
+    Ok(())
 }
 
-fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mut AnalysisReport) {
+#[allow(clippy::too_many_lines)]
+fn finalize_report(
+    ctx: &EngineContext,
+    mut acc: MetricsAccumulator<'_>,
+    report: &mut AnalysisReport,
+) -> Result<(), crate::error::PhysicsError> {
     let sort_violations = |v: &mut Vec<MetricViolation>| {
         v.sort_by(|a, b| b.freq.cmp(&a.freq));
         v.truncate(MAX_REPORTED_VIOLATIONS);
@@ -395,8 +558,14 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
         report.redir_penalty = norm_100k(acc.redir_penalty_accum);
         report.roll_penalty = norm_100k(acc.roll_penalty_accum);
 
-        report.heatmap = acc.heatmap.iter().map(|&h| norm_pct(h)).collect();
-        report.penalty_map = acc.penalty_map.iter().map(|&p| norm_100k(p)).collect();
+        report.heatmap = acc.heatmap[..ctx.key_count]
+            .iter()
+            .map(|&h| norm_pct(h))
+            .collect();
+        report.penalty_map = acc.penalty_map[..ctx.key_count]
+            .iter()
+            .map(|&p| norm_100k(Score::from_raw(p)))
+            .collect();
 
         if acc.total_bigrams > 0 {
             report.sfb_ratio = deterministic_normalize(
@@ -411,7 +580,13 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
                 ScalingFactor::new(score_scale),
                 IterationCount::new(usize::try_from(acc.total_load).unwrap_or(0)),
             );
-            let balance = (left_share.raw() - 500_000) * -2;
+            let balance = left_share
+                .raw()
+                .checked_sub(500_000)
+                .and_then(|d| d.checked_mul(-2))
+                .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                    context: "Hand balance calculation overflow".to_string(),
+                })?;
             report.hand_balance = Score::from_raw(balance);
         }
 
@@ -429,7 +604,13 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
         }
 
         // Final Score: Sum components for bit-perfect parity with Oracle
-        let raw_total = acc.mono_accum + acc.bigram_accum + acc.trigram_accum;
+        let raw_total = acc
+            .mono_accum
+            .checked_add(acc.bigram_accum)
+            .and_then(|sum| sum.checked_add(acc.trigram_accum))
+            .ok_or_else(|| crate::error::PhysicsError::ScoreOverflow {
+                context: "Final report total score accumulation".to_string(),
+            })?;
         report.raw_score = raw_total;
         report.score = norm_100k(raw_total);
     }
@@ -457,6 +638,8 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
     report
         .metrics
         .set(MetricId::HandBalance, report.hand_balance);
+
+    Ok(())
 }
 
 #[keyforge_testing_macros::kf_test]

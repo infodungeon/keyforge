@@ -6,12 +6,12 @@ mod integration_tests {
     // Integration tests for filesystem utilities (io, listing, lock).
     // These tests require tempfile/filesystem access and validate contract/wiring.
 
+    use keyforge_boundary::SafePath;
     use keyforge_infra::fs::io::{atomic_write, read_to_string_limited};
     use keyforge_infra::fs::listing::{
         list_corpora, list_cost_matrices, list_keyboards, list_keymap_extras,
     };
     use keyforge_infra::fs::lock::WorkspaceLock;
-    use keyforge_model::types::path::SafePath;
     use std::fs;
 
     // ============================================================================
