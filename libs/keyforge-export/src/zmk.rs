@@ -160,7 +160,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_zmk_generate_all_actions() {
+    fn test_zmk_generate_all_actions() -> anyhow::Result<()> {
         let exporter = ZmkExporter;
         let layers = vec![vec![
             "A".to_string(),
@@ -175,7 +175,7 @@ mod tests {
             "CAPS_WORD".to_string(),
             "UNKNOWN(TOKEN)".to_string(),
         ]];
-        let result = exporter.generate("Test", &layers, None).unwrap();
+        let result = exporter.generate("Test", &layers, None)?;
 
         assert!(result.contains("&kp A"));
         assert!(result.contains("&trans"));
@@ -188,36 +188,40 @@ mod tests {
         assert!(result.contains("&sk LCTRL"));
         assert!(result.contains("&caps_word"));
         assert!(result.contains("UNKNOWNTOKEN")); // Sanitize removes brackets
+        Ok(())
     }
 
     #[test]
-    fn test_zmk_recursion_failure() {
+    fn test_zmk_recursion_failure() -> anyhow::Result<()> {
         let exporter = ZmkExporter;
         // MT with a nested MT
         let layers = vec![vec!["MT(MOD_LSFT, MT(MOD_LCTL, Z))".into()]];
-        let result = exporter.generate("RecursionFail", &layers, None).unwrap();
+        let result = exporter.generate("RecursionFail", &layers, None)?;
         assert!(result.contains("failed_recursion"));
 
         // LT with a nested LT
         let layers = vec![vec!["LT(1, LT(2, Z))".into()]];
-        let result = exporter.generate("RecursionFail", &layers, None).unwrap();
+        let result = exporter.generate("RecursionFail", &layers, None)?;
         assert!(result.contains("failed_recursion"));
+        Ok(())
     }
 
     #[test]
-    fn test_zmk_multi_layer() {
+    fn test_zmk_multi_layer() -> anyhow::Result<()> {
         let exporter = ZmkExporter;
         let layers = vec![vec!["A".into()], vec!["B".into()]];
-        let result = exporter.generate("Multi", &layers, None).unwrap();
+        let result = exporter.generate("Multi", &layers, None)?;
         assert!(result.contains("default_layer"));
         assert!(result.contains("layer_1"));
+        Ok(())
     }
 
     #[test]
-    fn test_zmk_generate_long_lines() {
+    fn test_zmk_generate_long_lines() -> anyhow::Result<()> {
         let exporter = ZmkExporter;
         let layers = vec![vec!["A".to_string(); 20]];
-        let result = exporter.generate("Long", &layers, None).unwrap();
+        let result = exporter.generate("Long", &layers, None)?;
         assert!(result.contains("\n                ")); // Newline after 12 keys
+        Ok(())
     }
 }

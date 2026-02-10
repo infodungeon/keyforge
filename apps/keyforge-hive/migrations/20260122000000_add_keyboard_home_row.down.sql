@@ -1,0 +1,1 @@
+ALTER TABLE keyboards DROP COLUMN IF EXISTS home_row;

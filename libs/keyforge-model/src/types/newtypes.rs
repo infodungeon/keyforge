@@ -1,15 +1,9 @@
 // libs/keyforge-model/src/types/newtypes.rs
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 // --- Domain-Specific Newtypes (Anti-Primitive Obsession) ---
 
 /// A security-bounded duration in milliseconds.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct DurationMs(u64);
 
@@ -27,8 +21,7 @@ impl DurationMs {
 }
 
 /// High-precision latency measurement in milliseconds.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 #[repr(transparent)]
 pub struct LatencyMs(f64);
 
@@ -46,10 +39,7 @@ impl LatencyMs {
 }
 
 /// Number of iterations for an optimization step.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct IterationCount(usize);
 
@@ -73,8 +63,7 @@ impl From<usize> for IterationCount {
 }
 
 /// Simulated annealing temperature.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 #[repr(transparent)]
 pub struct Temperature(f32);
 
@@ -104,6 +93,14 @@ impl std::ops::Mul<f32> for Temperature {
     }
 }
 
+impl std::ops::Mul<ScalingFactor> for Temperature {
+    type Output = Self;
+    #[allow(clippy::cast_precision_loss)]
+    fn mul(self, rhs: ScalingFactor) -> Self {
+        Self(self.0 * (rhs.raw() as f32))
+    }
+}
+
 impl From<f32> for Temperature {
     fn from(val: f32) -> Self {
         Self(val)
@@ -111,10 +108,7 @@ impl From<f32> for Temperature {
 }
 
 /// Patience limit for stagnant optimization runs.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct PatienceCount(usize);
 
@@ -138,10 +132,7 @@ impl From<usize> for PatienceCount {
 }
 
 /// Number of reheating cycles.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct ReheatCount(usize);
 
@@ -164,36 +155,49 @@ impl From<usize> for ReheatCount {
     }
 }
 
-/// Generic scaling or adjustment factor.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
-#[serde(transparent)]
+/// Generic scaling or adjustment factor for bit-perfect deterministic math.
+///
+/// Use `raw()`/`from_raw()` for integer-only arithmetic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
-pub struct ScalingFactor(f32);
+pub struct ScalingFactor(i64);
 
 impl ScalingFactor {
     /// Creates a new `ScalingFactor`.
     #[must_use]
-    pub const fn new(val: f32) -> Self {
+    pub const fn new(val: i64) -> Self {
         Self(val)
     }
-    /// Returns the raw `f32` value.
+
+    /// Deterministically converts an f32 multiplier to a `ScalingFactor`.
+    /// This is used solely at the boundary between float-based evolution and integer physics.
     #[must_use]
-    pub const fn raw(self) -> f32 {
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn from_f32(val: f32) -> Self {
+        // Use rounding to ensure deterministic behavior across platforms
+        Self(f64::from(val).round() as i64) // sg-ignore: mandated boundary conversion
+    }
+    /// Returns the raw `i64` value.
+    #[must_use]
+    pub const fn raw(self) -> i64 {
         self.0
+    }
+    /// Converts to f32 for compatibility with legacy float-based logic.
+    #[allow(clippy::cast_precision_loss)]
+    #[must_use]
+    pub fn to_f32(self) -> f32 {
+        self.0 as f32
     }
 }
 
-impl From<f32> for ScalingFactor {
-    fn from(val: f32) -> Self {
+impl From<i64> for ScalingFactor {
+    fn from(val: i64) -> Self {
         Self(val)
     }
 }
 
 /// A deterministic seed for PRNGs.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct Seed(u64);
 

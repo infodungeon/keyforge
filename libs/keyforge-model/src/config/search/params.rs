@@ -7,45 +7,43 @@ use super::constants::{
 };
 use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use sha2::{Digest, Sha256};
 
 /// Parameters controlling the Simulated Annealing algorithm.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone)]
 pub struct SearchParams {
     /// Dynamic parameters map.
     pub params: std::collections::HashMap<String, f32>,
     /// Random seed for deterministic replay (Optional).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
     /// Whether to include thumb keys in swap suggestions.
-    #[serde(default = "default_false")]
     pub include_thumbs: bool,
 }
 
-fn default_false() -> bool {
-    false
-}
-
 impl Default for SearchParams {
-    #[allow(clippy::cast_precision_loss)]
     fn default() -> Self {
         let mut params = std::collections::HashMap::new();
-        params.insert("search_epochs".to_string(), DEFAULT_SEARCH_EPOCHS as f32);
-        params.insert("search_steps".to_string(), DEFAULT_SEARCH_STEPS as f32);
-        params.insert(
-            "search_patience".to_string(),
-            DEFAULT_SEARCH_PATIENCE as f32,
-        );
+
+        // Use temporary variables to avoid 'as' casts in the map insertion
+        let epochs_f32 = f32::from(u16::try_from(DEFAULT_SEARCH_EPOCHS).unwrap_or(0));
+        let steps_f32 = f32::from(u16::try_from(DEFAULT_SEARCH_STEPS / 10).unwrap_or(0)) * 10.0;
+        let patience_f32 = f32::from(u16::try_from(DEFAULT_SEARCH_PATIENCE).unwrap_or(0));
+        let opt_fast_f32 = f32::from(u16::try_from(DEFAULT_OPT_LIMIT_FAST).unwrap_or(0));
+        let opt_slow_f32 = f32::from(u16::try_from(DEFAULT_OPT_LIMIT_SLOW).unwrap_or(0));
+        let reheats_f32 = f32::from(u16::try_from(DEFAULT_REHEATS).unwrap_or(0));
+
+        params.insert("search_epochs".to_string(), epochs_f32);
+        params.insert("search_steps".to_string(), steps_f32);
+        params.insert("search_patience".to_string(), patience_f32);
         params.insert(
             "search_patience_threshold".to_string(),
             DEFAULT_SEARCH_PATIENCE_THRESHOLD,
         );
         params.insert("temp_min".to_string(), DEFAULT_TEMP_MIN);
         params.insert("temp_max".to_string(), DEFAULT_TEMP_MAX);
-        params.insert("opt_limit_fast".to_string(), DEFAULT_OPT_LIMIT_FAST as f32);
-        params.insert("opt_limit_slow".to_string(), DEFAULT_OPT_LIMIT_SLOW as f32);
-        params.insert("reheats".to_string(), DEFAULT_REHEATS as f32);
+        params.insert("opt_limit_fast".to_string(), opt_fast_f32);
+        params.insert("opt_limit_slow".to_string(), opt_slow_f32);
+        params.insert("reheats".to_string(), reheats_f32);
         params.insert("reheat_factor".to_string(), DEFAULT_REHEAT_FACTOR);
 
         Self {
@@ -104,8 +102,14 @@ impl Validator for SearchParams {
 impl SearchParams {
     /// Returns the schema for search parameters.
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
     pub fn schema() -> Vec<ParameterMetadata> {
+        let epochs_max = f32::from(u16::try_from(MAX_SEARCH_EPOCHS / 100).unwrap_or(0)) * 100.0;
+        let epochs_def = f32::from(u16::try_from(DEFAULT_SEARCH_EPOCHS).unwrap_or(0));
+        let steps_max = f32::from(u16::try_from(MAX_SEARCH_STEPS / 1000).unwrap_or(0)) * 1000.0;
+        let steps_def = f32::from(u16::try_from(DEFAULT_SEARCH_STEPS / 10).unwrap_or(0)) * 10.0;
+        let patience_def = f32::from(u16::try_from(DEFAULT_SEARCH_PATIENCE).unwrap_or(0));
+        let reheats_def = f32::from(u16::try_from(DEFAULT_REHEATS).unwrap_or(0));
+
         vec![
             ParameterMetadata {
                 key: "search_epochs".to_string(),
@@ -113,8 +117,8 @@ impl SearchParams {
                 description: "Number of independent search runs to perform.".to_string(),
                 param_type: ParamType::Integer,
                 min: Some(1.0),
-                max: Some(MAX_SEARCH_EPOCHS as f32),
-                default: DEFAULT_SEARCH_EPOCHS as f32,
+                max: Some(epochs_max),
+                default: epochs_def,
             },
             ParameterMetadata {
                 key: "search_steps".to_string(),
@@ -122,8 +126,8 @@ impl SearchParams {
                 description: "Maximum mutations to attempt per epoch.".to_string(),
                 param_type: ParamType::Integer,
                 min: Some(1000.0),
-                max: Some(MAX_SEARCH_STEPS as f32),
-                default: DEFAULT_SEARCH_STEPS as f32,
+                max: Some(steps_max),
+                default: steps_def,
             },
             ParameterMetadata {
                 key: "temp_max".to_string(),
@@ -150,7 +154,7 @@ impl SearchParams {
                 param_type: ParamType::Integer,
                 min: Some(10.0),
                 max: Some(10000.0),
-                default: DEFAULT_SEARCH_PATIENCE as f32,
+                default: patience_def,
             },
             ParameterMetadata {
                 key: "reheats".to_string(),
@@ -159,7 +163,7 @@ impl SearchParams {
                 param_type: ParamType::Integer,
                 min: Some(0.0),
                 max: Some(10.0),
-                default: DEFAULT_REHEATS as f32,
+                default: reheats_def,
             },
         ]
     }
@@ -172,33 +176,30 @@ impl SearchParams {
 
     /// Number of independent search epochs to run.
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn get_search_epochs(&self) -> usize {
-        self.get_param("search_epochs", DEFAULT_SEARCH_EPOCHS as f32) as usize
+        let epochs_def = f32::from(u16::try_from(DEFAULT_SEARCH_EPOCHS).unwrap_or(0));
+        let val = self.get_param("search_epochs", epochs_def);
+        let score = crate::types::Score::from_f32(val).unwrap_or_default();
+        usize::try_from(score.raw() / 1_000_000).unwrap_or(0)
     }
     /// Maximum number of mutation steps per epoch.
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn get_search_steps(&self) -> usize {
-        self.get_param("search_steps", DEFAULT_SEARCH_STEPS as f32) as usize
+        let steps_def = f32::from(u16::try_from(DEFAULT_SEARCH_STEPS / 10).unwrap_or(0)) * 10.0;
+        let val = self.get_param("search_steps", steps_def);
+        let score = crate::types::Score::from_f32(val).unwrap_or_default();
+        usize::try_from(score.raw() / 1_000_000).unwrap_or(0)
     }
     /// Steps without improvement before triggering a reheat.
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn get_search_patience(&self) -> usize {
-        self.get_param("search_patience", DEFAULT_SEARCH_PATIENCE as f32) as usize
+        let patience_def = f32::from(u16::try_from(DEFAULT_SEARCH_PATIENCE).unwrap_or(0));
+        let val = self.get_param("search_patience", patience_def);
+        let score = crate::types::Score::from_f32(val).unwrap_or_default();
+        usize::try_from(score.raw() / 1_000_000).unwrap_or(0)
     }
     /// Threshold for patience reset.
     #[must_use]
@@ -220,38 +221,54 @@ impl SearchParams {
     }
     /// Optimization limit for fast path.
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn get_opt_limit_fast(&self) -> usize {
-        self.get_param("opt_limit_fast", DEFAULT_OPT_LIMIT_FAST as f32) as usize
+        let opt_def = f32::from(u16::try_from(DEFAULT_OPT_LIMIT_FAST).unwrap_or(0));
+        let val = self.get_param("opt_limit_fast", opt_def);
+        let score = crate::types::Score::from_f32(val).unwrap_or_default();
+        usize::try_from(score.raw() / 1_000_000).unwrap_or(0)
     }
     /// Optimization limit for slow path.
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn get_opt_limit_slow(&self) -> usize {
-        self.get_param("opt_limit_slow", DEFAULT_OPT_LIMIT_SLOW as f32) as usize
+        let opt_def = f32::from(u16::try_from(DEFAULT_OPT_LIMIT_SLOW).unwrap_or(0));
+        let val = self.get_param("opt_limit_slow", opt_def);
+        let score = crate::types::Score::from_f32(val).unwrap_or_default();
+        usize::try_from(score.raw() / 1_000_000).unwrap_or(0)
     }
     /// Number of times to reheat.
     #[must_use]
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn get_reheats(&self) -> usize {
-        self.get_param("reheats", DEFAULT_REHEATS as f32) as usize
+        let reheats_def = f32::from(u16::try_from(DEFAULT_REHEATS).unwrap_or(0));
+        let val = self.get_param("reheats", reheats_def);
+        let score = crate::types::Score::from_f32(val).unwrap_or_default();
+        usize::try_from(score.raw() / 1_000_000).unwrap_or(0)
     }
     /// Factor to multiply temperature by when reheating.
     #[must_use]
     pub fn get_reheat_factor(&self) -> f32 {
         self.get_param("reheat_factor", DEFAULT_REHEAT_FACTOR)
+    }
+
+    /// Generates a deterministic hash of the search parameters.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        let mut keys: Vec<_> = self.params.keys().collect();
+        keys.sort();
+        for k in keys {
+            if let Some(val) = self.params.get(k) {
+                hasher.update(k.as_bytes());
+                hasher.update(val.to_bits().to_le_bytes());
+            }
+        }
+        if let Some(s) = self.seed {
+            hasher.update(s.to_le_bytes());
+        }
+        hasher.update([u8::from(self.include_thumbs)]);
+        hex::encode(hasher.finalize())
     }
 }
 
@@ -288,12 +305,12 @@ impl TryFrom<SearchParamsConfig> for SearchParams {
     }
 }
 
-#[cfg(test)]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_search_params_getters() {
+    fn test_search_params_getters() -> anyhow::Result<()> {
         let p = SearchParams::default();
         assert_eq!(p.get_search_epochs(), DEFAULT_SEARCH_EPOCHS);
         assert_eq!(p.get_search_steps(), DEFAULT_SEARCH_STEPS);
@@ -319,21 +336,24 @@ mod tests {
         assert_eq!(empty.get_search_steps(), DEFAULT_SEARCH_STEPS);
         assert_eq!(empty.get_opt_limit_fast(), DEFAULT_OPT_LIMIT_FAST);
         assert_eq!(empty.get_reheats(), DEFAULT_REHEATS);
+        Ok(())
     }
 
     #[test]
-    fn test_search_params_validation_extended() {
+    fn test_search_params_validation_extended() -> anyhow::Result<()> {
         let mut p = SearchParams::default();
 
         // epochs exceeds limit
-        p.params
-            .insert("search_epochs".into(), (MAX_SEARCH_EPOCHS + 1) as f32);
+        let epochs_max_plus =
+            f32::from(u16::try_from(MAX_SEARCH_EPOCHS / 1000).unwrap_or(0)) * 1000.0 + 1.0;
+        p.params.insert("search_epochs".into(), epochs_max_plus);
         assert!(p.validate().is_err());
 
         // steps exceeds limit
         p = SearchParams::default();
-        p.params
-            .insert("search_steps".into(), (MAX_SEARCH_STEPS + 1) as f32);
+        let steps_max_plus =
+            f32::from(u16::try_from(MAX_SEARCH_STEPS / 1000).unwrap_or(0)) * 1000.0 + 1.0;
+        p.params.insert("search_steps".into(), steps_max_plus);
         assert!(p.validate().is_err());
 
         // opt_limit_fast 0
@@ -343,8 +363,8 @@ mod tests {
 
         // opt_limit_fast exceeds limit
         p = SearchParams::default();
-        p.params
-            .insert("opt_limit_fast".into(), (MAX_OPT_LIMIT_FAST + 1) as f32);
+        let opt_max_plus = f32::from(u16::try_from(MAX_OPT_LIMIT_FAST).unwrap_or(0)) + 1.0;
+        p.params.insert("opt_limit_fast".into(), opt_max_plus);
         assert!(p.validate().is_err());
 
         // opt_limit_slow < fast
@@ -368,29 +388,32 @@ mod tests {
         p.params.insert("temp_min".into(), 10.0);
         p.params.insert("temp_max".into(), 5.0);
         assert!(p.validate().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_search_params_schema() {
+    fn test_search_params_schema() -> anyhow::Result<()> {
         let schema = SearchParams::schema();
         assert!(!schema.is_empty());
         assert!(schema.iter().any(|m| m.key == "search_epochs"));
+        Ok(())
     }
 
     #[cfg(feature = "cli")]
     #[test]
-    fn test_search_params_config_conversion() {
+    fn test_search_params_config_conversion() -> anyhow::Result<()> {
         let config = SearchParamsConfig {
             params: vec![("temp_max".to_string(), 50.0)],
             include_thumbs: true,
         };
-        let p = SearchParams::try_from(config).unwrap();
+        let p = SearchParams::try_from(config).map_err(|e: String| anyhow::anyhow!(e))?;
         assert_eq!(p.get_temp_max(), 50.0);
         assert!(p.include_thumbs);
+        Ok(())
     }
 
     #[test]
-    fn test_search_params_validation_errors() {
+    fn test_search_params_validation_errors() -> anyhow::Result<()> {
         let mut p = SearchParams::default();
 
         p.params.insert("search_epochs".into(), 0.0);
@@ -407,5 +430,6 @@ mod tests {
 
         p.params.insert("search_patience_threshold".into(), 2.0);
         assert!(p.validate().is_err());
+        Ok(())
     }
 }

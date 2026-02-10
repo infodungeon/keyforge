@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::error::PersistenceResult;
+use keyforge_boundary::SafePath;
 use keyforge_model::constants::MAX_SESSION_FILE_SIZE;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Seek, SeekFrom, Write};
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tempfile::NamedTempFile;
@@ -47,20 +47,22 @@ struct PersistedSession {
 }
 
 impl PersistedSession {
-    fn new(snapshot: SessionSnapshot) -> Self {
-        let checksum = Self::calculate_checksum(&snapshot);
-        Self { snapshot, checksum }
+    fn new(snapshot: SessionSnapshot) -> PersistenceResult<Self> {
+        let checksum = Self::calculate_checksum(&snapshot)?;
+        Ok(Self { snapshot, checksum })
     }
 
-    fn calculate_checksum(snapshot: &SessionSnapshot) -> String {
+    fn calculate_checksum(snapshot: &SessionSnapshot) -> PersistenceResult<String> {
         // Task-persist-rev-059: Use postcard for deterministic canonicalization.
         // postcard is designed for deterministic binary serialization.
-        let data = postcard::to_stdvec(snapshot).unwrap_or_default();
-        hex::encode(Sha256::digest(data))
+        let data = postcard::to_stdvec(snapshot)?;
+        Ok(hex::encode(Sha256::digest(data)))
     }
 
     fn verify(&self) -> bool {
-        let calculated = Self::calculate_checksum(&self.snapshot);
+        let Ok(calculated) = Self::calculate_checksum(&self.snapshot) else {
+            return false;
+        };
         if calculated != self.checksum {
             warn!(
                 "Checksum mismatch! Stored: {}, Calculated: {}",
@@ -85,7 +87,7 @@ pub struct AutoSaveState {
 /// A service that handles automated background saving of the user session.
 #[derive(Debug)]
 pub struct AutoSaveService {
-    path: PathBuf,
+    path: SafePath,
     /// Internal state for debounce tracking.
     /// Public for integration testing; do not access in production code.
     pub state: Arc<Mutex<AutoSaveState>>,
@@ -94,9 +96,12 @@ pub struct AutoSaveService {
 impl AutoSaveService {
     /// Creates a new `AutoSaveService` instance with a session file located in the provided root path.
     #[must_use]
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn new(root_path: PathBuf) -> Self {
-        let path = root_path.join("session.json");
+    #[allow(clippy::panic, clippy::expect_used, clippy::missing_panics_doc)]
+    pub fn new(root_path: &std::path::Path) -> Self {
+        let Ok(rel) = SafePath::try_from_str("session.json") else {
+            panic!("Critical invariant: 'session.json' is a valid SafePath");
+        };
+        let path = SafePath::from_trusted_root(root_path, &rel);
 
         Self {
             path,
@@ -113,7 +118,7 @@ impl AutoSaveService {
     /// Returns [`crate::error::PersistenceError::Io`] if reading the file fails.
     /// Returns [`crate::error::PersistenceError::Serde`] if parsing JSON fails.
     pub async fn load(&self) -> PersistenceResult<Option<SessionSnapshot>> {
-        if !self.path.exists() {
+        if !self.path.as_path().exists() {
             return Ok(None);
         }
 
@@ -132,11 +137,14 @@ impl AutoSaveService {
 
         let path = self.path.clone();
         tokio::task::spawn_blocking(move || {
+            // SAFETY: ARCH-005 Exception: AutoSaveService is an Adapter for session persistence.
+            // IO is necessary to load the persisted session state from disk.
             let file = std::fs::File::open(path)?;
             let reader = std::io::BufReader::new(file);
 
             // Peak at content or just try parsing.
             // Since we need to support two formats, we'll read to a value first.
+            #[allow(clippy::manual_let_else)]
             let v: serde_json::Value = match serde_json::from_reader(reader) {
                 Ok(v) => v,
                 Err(e) if e.is_io() => return Err(e.into()),
@@ -211,13 +219,17 @@ impl AutoSaveService {
         if let Some(snap) = snapshot_to_save {
             let path = self.path.clone();
 
-            let result = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
-                let persisted = PersistedSession::new(snap);
+            let result = tokio::task::spawn_blocking(move || -> PersistenceResult<()> {
+                let persisted = PersistedSession::new(snap)?;
                 let json = serde_json::to_string_pretty(&persisted)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-                let dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+                let dir = path.as_path().parent().ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::NotFound, "No parent directory")
+                })?;
 
+                // SAFETY: ARCH-005 Exception: AutoSaveService is an Adapter for session persistence.
+                // IO is necessary to persist the session state to disk.
                 // Create temp file in the same directory to attempt atomic rename
                 let mut temp_file = NamedTempFile::new_in(dir)?;
                 temp_file.write_all(json.as_bytes())?;
@@ -225,7 +237,7 @@ impl AutoSaveService {
 
                 // Atomic persist
                 // NamedTempFile::persist tries atomic rename, and errors if it fails (e.g. cross-filesystem).
-                match temp_file.persist(&path) {
+                match temp_file.persist(path.as_path()) {
                     Ok(_) => Ok(()),
                     Err(e) => {
                         warn!(
@@ -237,7 +249,8 @@ impl AutoSaveService {
 
                         // Fallback: Create a secondary temp file to ensure the copy is as complete as possible
                         // before the final move (which might still be cross-fs but we're trying our best).
-                        let mut dest = std::fs::File::create(&path)?;
+                        // SAFETY: ARCH-005 Exception (Fallback)
+                        let mut dest = std::fs::File::create(path.as_path())?;
                         std::io::copy(&mut source, &mut dest)?;
                         Ok(())
                     }

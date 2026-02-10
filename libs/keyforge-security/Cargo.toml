@@ -18,6 +18,9 @@ rand.workspace = true
 hex.workspace = true
 sha2.workspace = true
 pasetors.workspace = true
+rsa.workspace = true
 thiserror.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 chrono.workspace = true
+[dev-dependencies]
+anyhow.workspace = true

@@ -4,12 +4,14 @@
 mod integration_tests {
     use super::*;
     use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+    use keyforge_boundary::SafePath;
     use keyforge_model::cost_model::CostModel;
     use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
     use keyforge_model::keycodes::KeycodeRegistry;
     use keyforge_model::types::KeyIndex;
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;
+    use keyforge_protocol::CostModelDto;
     use std::any::Any;
     use std::collections::HashMap;
     use std::path::Path;
@@ -18,6 +20,7 @@ mod integration_tests {
     #[derive(Debug)]
     struct MockLoader {
         assets: Arc<dyn Any + Send + Sync>,
+        root: SafePath,
     }
 
     #[async_trait::async_trait]
@@ -29,7 +32,10 @@ mod integration_tests {
                 }
             }
 
-            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
+            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModelDto>() {
+                if let Ok(arc) = self.assets.clone().downcast::<T>() {
+                    return Ok(arc);
+                }
                 let json = r#"{
                     "meta": { "version": "2.0", "description": "T", "unit": "pts" },
                     "models": { 
@@ -37,7 +43,7 @@ mod integration_tests {
                             "description": "t", 
                             "static_costs": {
                                 "universal_hand": {
-                                    "thumb": {"base": {"r0": 1.0}},
+                                    "thumb": {"pos_1": 1.0},
                                     "index": {"base": {"r0": 1.0}},
                                     "middle": {"base": {"r0": 1.0}},
                                     "ring": {"base": {"r0": 1.0}},
@@ -48,9 +54,16 @@ mod integration_tests {
                     },
                     "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                 }"#;
+<<<<<<< HEAD
                 let model: CostModel = serde_json::from_str(json).unwrap();
                 let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
                 return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+=======
+                let dto: CostModelDto = serde_json::from_str(json)
+                    .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))?;
+                let any_dto = Arc::new(dto) as Arc<dyn Any + Send + Sync>;
+                return Ok(any_dto.downcast::<T>().expect("Downcast failed"));
+>>>>>>> master
             }
 
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeycodeRegistry>() {
@@ -66,8 +79,16 @@ mod integration_tests {
             Ok(Arc::new(Corpus::default()))
         }
 
-        fn root(&self) -> &Path {
-            Path::new(".")
+        fn root(&self) -> &SafePath {
+            &self.root
+        }
+
+        async fn get_hash(
+            &self,
+            _category: keyforge_model::asset::AssetCategory,
+            _id: &str,
+        ) -> LoaderResult<String> {
+            Ok("mock".to_string())
         }
     }
 
@@ -87,6 +108,7 @@ mod integration_tests {
 
         let loader = MockLoader {
             assets: Arc::new(kb_def),
+            root: SafePath::try_from_str(".").unwrap(),
         };
 
         let config = Config::default();
@@ -97,7 +119,9 @@ mod integration_tests {
     #[tokio::test]
     async fn test_compile_request_qwerty() {
         #[derive(Debug)]
-        struct QwertyLoader;
+        struct QwertyLoader {
+            root: SafePath,
+        }
         #[async_trait::async_trait]
         impl AssetLoader for QwertyLoader {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
@@ -114,7 +138,7 @@ mod integration_tests {
                     return Ok(any_kb.downcast::<T>().expect("Downcast failed"));
                 }
 
-                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
+                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModelDto>() {
                     let json = r#"{
                         "meta": { "version": "2.0", "description": "T", "unit": "pts" },
                         "models": { 
@@ -122,7 +146,7 @@ mod integration_tests {
                                 "description": "t", 
                                 "static_costs": {
                                     "universal_hand": {
-                                        "thumb": {"base": {"0": 1.0}},
+                                        "thumb": {"pos_1": 1.0},
                                         "index": {"base": {"0": 1.0}},
                                         "middle": {"base": {"0": 1.0}},
                                         "ring": {"base": {"0": 1.0}},
@@ -133,9 +157,16 @@ mod integration_tests {
                         },
                         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                     }"#;
+<<<<<<< HEAD
                     let model: CostModel = serde_json::from_str(json).unwrap();
                     let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
                     return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+=======
+                    let dto: CostModelDto = serde_json::from_str(json)
+                        .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))?;
+                    let any_dto = Arc::new(dto) as Arc<dyn Any + Send + Sync>;
+                    return Ok(any_dto.downcast::<T>().expect("Downcast failed"));
+>>>>>>> master
                 }
 
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeycodeRegistry>() {
@@ -157,12 +188,21 @@ mod integration_tests {
             async fn load_corpus(&self, _sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
                 Ok(Arc::new(Corpus::default()))
             }
-            fn root(&self) -> &Path {
-                Path::new(".")
+            fn root(&self) -> &SafePath {
+                &self.root
+            }
+            async fn get_hash(
+                &self,
+                _category: keyforge_model::asset::AssetCategory,
+                _id: &str,
+            ) -> LoaderResult<String> {
+                Ok("qwerty".to_string())
             }
         }
 
-        let loader = QwertyLoader;
+        let loader = QwertyLoader {
+            root: SafePath::try_from_str(".").unwrap(),
+        };
         let mut config = Config::default();
         config.keyboard = "kb".into();
 
@@ -173,7 +213,9 @@ mod integration_tests {
     #[tokio::test]
     async fn test_compile_request_failures() {
         #[derive(Debug)]
-        struct FailingLoader;
+        struct FailingLoader {
+            root: SafePath,
+        }
         #[async_trait::async_trait]
         impl AssetLoader for FailingLoader {
             async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
@@ -184,12 +226,23 @@ mod integration_tests {
                     "corpus".to_string(),
                 ))
             }
-            fn root(&self) -> &Path {
-                Path::new(".")
+            fn root(&self) -> &SafePath {
+                &self.root
+            }
+            async fn get_hash(
+                &self,
+                _category: keyforge_model::asset::AssetCategory,
+                _id: &str,
+            ) -> LoaderResult<String> {
+                Err(keyforge_model::error::ForgeError::NotFound(
+                    "hash".to_string(),
+                ))
             }
         }
 
-        let loader = FailingLoader;
+        let loader = FailingLoader {
+            root: SafePath::try_from_str(".").unwrap(),
+        };
         let mut config = Config::default();
         config.keyboard = "kb".into();
 

@@ -17,16 +17,20 @@ async fn test_full_orchestration_flow() {
 
     // 2. Mock Hive Request (Simulating CLI upload)
     let mut req = JobRequest::default();
-    req.config.definition.geometry.keys().push(
+    req.config.definition.geometry.keys.push(
         KeyNode {
+<<<<<<< HEAD
             hand: HandIndex::new(0),
+=======
+            hand: keyforge_model::types::HandIndex::new(0),
+>>>>>>> master
             w: 1.0,
             h: 1.0,
             ..Default::default()
         }
         .into(),
     );
-    req.config.definition.geometry.home_row() = 0;
+    req.config.definition.geometry.home_row = 0;
     req.config
         .definition
         .geometry
@@ -55,7 +59,9 @@ async fn test_full_orchestration_flow() {
         .await
         .expect("Failed to load keycodes")
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &config_payload.to_domain_weights(),
+            &config_payload
+                .to_domain_weights()
+                .expect("Failed to convert weights"),
         ))
         .build()
         .expect("Failed to prepare session");
@@ -87,5 +93,10 @@ async fn test_full_orchestration_flow() {
     )
     .expect("Optimization failed");
 
+<<<<<<< HEAD
     assert!(result.score >= 0.0);
 }
+=======
+    assert!(result.score >= keyforge_model::types::Score::ZERO);
+}
+>>>>>>> master

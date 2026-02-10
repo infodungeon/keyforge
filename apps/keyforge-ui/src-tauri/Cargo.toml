@@ -19,6 +19,7 @@ tauri-build.workspace = true
 [dependencies]
 keyforge-testing-macros.workspace = true
 tauri.workspace = true
+glib.workspace = true
 sysinfo.workspace = true
 tauri-plugin-opener.workspace = true
 tauri-plugin-shell.workspace = true
@@ -33,11 +34,14 @@ tokio.workspace = true
 fastrand.workspace = true
 zstd.workspace = true
 rmp-serde.workspace = true
+sha2.workspace = true
+hex.workspace = true
 keyforge-protocol = { path = "../../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../../libs/keyforge-adapter" }
 keyforge-persistence = { path = "../../../libs/keyforge-persistence" }
 keyforge-export = { path = "../../../libs/keyforge-export" }
 keyforge-model = { path = "../../../libs/keyforge-model" }
+keyforge-boundary.workspace = true
 keyforge-infra = { path = "../../../libs/keyforge-infra" }
 keyforge-compute = { path = "../../../libs/keyforge-compute" }
 keyforge-evolution = { path = "../../../libs/keyforge-evolution" }

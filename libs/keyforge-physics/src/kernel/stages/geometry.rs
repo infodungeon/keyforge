@@ -1,5 +1,6 @@
 use super::CompilationStage;
 use crate::error::PhysicsError;
+use crate::kernel::mechanics::integer_sqrt_i128;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, Movement, Point, RowIndex, Score};
 use keyforge_model::{Keyboard, Rubric};
 
@@ -31,8 +32,9 @@ impl<'a> CompilationStage for GeometryStage<'a> {
     )]
     fn execute(&self, kb: Self::Input) -> Result<Self::Output, PhysicsError> {
         let key_count = kb.count();
-        let t_lat = f64::from(self.rubric.travel_lat());
-        let t_vert = f64::from(self.rubric.travel_vert());
+        let t_lat_i = i128::from(self.rubric.travel_lat().raw());
+        let t_vert_i = i128::from(self.rubric.travel_vert().raw());
+
         let mut hands = Vec::with_capacity(key_count);
         let mut fingers = Vec::with_capacity(key_count);
         let mut rows = Vec::with_capacity(key_count);
@@ -55,9 +57,8 @@ impl<'a> CompilationStage for GeometryStage<'a> {
                 let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
                 let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-                let d_val = (dx2 as f64 * t_lat + dy2 as f64 * t_vert).sqrt();
-                dist_from_home = Score::from_f32(d_val as f32)
-                    .map_err(|e| PhysicsError::InvalidInput { message: e })?;
+                let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
+                dist_from_home = Score::from_scaled_i64(integer_sqrt_i128(dist_sq_weighted));
             }
             key_home_distances.push(dist_from_home);
         }
@@ -70,9 +71,9 @@ impl<'a> CompilationStage for GeometryStage<'a> {
                     let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
                     let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
-                    let d_val = (dx2 as f64 * t_lat + dy2 as f64 * t_vert).sqrt();
-                    dist_matrix[i * key_count + j] = Score::from_f32(d_val as f32)
-                        .map_err(|e| PhysicsError::InvalidInput { message: e })?;
+                    let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
+                    dist_matrix[i * key_count + j] =
+                        Score::from_scaled_i64(integer_sqrt_i128(dist_sq_weighted));
                 }
             }
         }
@@ -91,13 +92,14 @@ impl<'a> CompilationStage for GeometryStage<'a> {
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
+    use keyforge_model::types::{HandIndex, KeyIndex};
     use keyforge_model::KeyNode;
 
     #[test]
-    fn test_geometry_stage_execution() {
+    fn test_geometry_stage_execution() -> anyhow::Result<()> {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 x: keyforge_model::types::SpatialUnit::from_f32(0.0),
                 y: keyforge_model::types::SpatialUnit::from_f32(0.0),
                 hand: HandIndex::new(0),
@@ -105,7 +107,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 x: keyforge_model::types::SpatialUnit::from_f32(3.0),
                 y: keyforge_model::types::SpatialUnit::from_f32(4.0),
                 hand: HandIndex::new(0),
@@ -113,14 +115,18 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
-        let rubric = Rubric::builder().travel_lat(1.0).travel_vert(1.0).build();
+        let kb = Keyboard::new(keys, RowIndex::new(0), "test".into())?;
+        let rubric = Rubric::builder()
+            .travel_lat(1_000_000)
+            .travel_vert(1_000_000)
+            .build();
         let stage = GeometryStage { rubric: &rubric };
-        let out = stage.execute(&kb).unwrap();
+        let out = stage.execute(&kb)?;
 
         assert_eq!(out.hands.len(), 2);
         // dist = sqrt((3*1000)^2 + (4*1000)^2) = sqrt(9M + 16M) = 5000 units = 5.0 KU.
-        // Score::from_f32(5.0) -> 5,000,000 raw.
-        assert_eq!(out.dist_matrix[1].to_f32(), 5.0);
+        // Score::raw() should be 5_000_000.
+        assert_eq!(out.dist_matrix[1].raw(), 5_000_000);
+        Ok(())
     }
 }

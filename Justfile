@@ -2,6 +2,9 @@
 default:
 	@just --list
 
+# Load environment variables
+set dotenv-load := true
+
 # Global Compose File Variable
 COMPOSE := "docker-compose -f ops/docker-compose.yml"
 COMPOSE_DEV := "docker-compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml"
@@ -10,7 +13,7 @@ COMPOSE_DEV := "docker-compose -f ops/docker-compose.yml -f ops/docker-compose.d
 
 build: infra-up
 	@echo "Checking database readiness..."
-	@until {{COMPOSE}} exec -T db pg_isready -U keyforge -d keyforge_hive > /dev/null 2>&1; do \
+	@until {{COMPOSE}} exec -T db pg_isready -U {{POSTGRES_USER}} -d {{POSTGRES_DB}} > /dev/null 2>&1; do \
 		echo "Waiting for PostgreSQL to boot..."; \
 		sleep 1; \
 	done
@@ -112,6 +115,22 @@ web-down:
 
 # --- TEST ---
 
+# Mandatory Physical Verification Gate (INFRA-P10)
+# Runs formatting, linting, architectural audits, and all tests.
+verify: fmt lint verify-laws verify-arch test-all
+	@echo "🚀 GRID READY: All architectural and logic gates passed."
+
+# Physically enforces ARCH-001..006 via ast-grep and the 100x Bouncer.
+verify-laws:
+	@echo "🔍 Verifying Architectural Invariants (ARCH-00x)..."
+	sg scan
+	python3 ops/scripts/bouncer_100x.py
+
+# Verifies Hexagonal Purity and Layer Boundaries (ARCH-005).
+verify-arch:
+	@echo "🏗️ Checking Layer Integrity..."
+	python3 ops/scripts/check_arch.py
+
 build-image-hive-e2e:
 	just docker-build keyforge-hive ops/Dockerfile.hive.e2e keyforge-hive-e2e:latest
 
@@ -131,13 +150,16 @@ test-compute:
 test-cli:
 	cargo test --manifest-path apps/keyforge-cli/Cargo.toml
 
+test-infra:
+	cargo test -p keyforge-infra
+
 verify-parity:
-	cargo test -p keyforge-physics --lib verify::tests::test_oracle_parity
+	cargo test -p keyforge-physics --test parity_oracle
 
 test-ui:
 	cd apps/keyforge-ui && npx vitest run
 
-test-all: test-compute test-cli verify-parity test-ui
+test-all: test-infra test-compute test-cli verify-parity test-ui
 
 cover package:
 	mkdir -p target/coverage
@@ -209,7 +231,11 @@ docker-down:
 	-docker stop keyforge_valkey keyforge_db keyforge_hive keyforge_assets keyforge_assetmgr keyforge_web keyforge_hive_proxy keyforge_assets_proxy 2>/dev/null || true
 	-docker rm keyforge_valkey keyforge_db keyforge_hive keyforge_assets keyforge_assetmgr keyforge_web keyforge_hive_proxy keyforge_assets_proxy 2>/dev/null || true
 
-DATABASE_URL := "postgres://keyforge:forge_password@localhost:5432/keyforge_hive"
+POSTGRES_USER := env_var_or_default("POSTGRES_USER", "keyforge")
+POSTGRES_PASSWORD := env_var_or_default("POSTGRES_PASSWORD", "forge_password")
+POSTGRES_DB := env_var_or_default("POSTGRES_DB", "keyforge_hive")
+
+DATABASE_URL := "postgres://" + POSTGRES_USER + ":" + POSTGRES_PASSWORD + "@localhost:5432/" + POSTGRES_DB
 
 db-reset:
 	./ops/scripts/reset_db.sh
@@ -221,21 +247,39 @@ db-reset-prepare:
 
 # --- INTELLIGENCE TOOLCHAIN ---
 
-# Starts the Arbor/Narsil MCP Bridge for deep code intelligence
+# Starts the Arbor/Narsil MCP for deep code intelligence
 mcp-up:
-	@echo "MCP Bridge is managed automatically by the client configuration."
-	@echo "To test manually: ./ops/scripts/mcp_bridge.py narsil-mcp --repos . --call-graph --persist --git"
+	@echo "MCP servers are managed automatically by the client configuration."
+	@echo "To test manually: narsil-mcp --repos . --call-graph --persist --git"
 
 # Performs the unified 100x Structural and Intelligence Audit
 audit-deep:
 	@echo "🚀 Initiating Autonomous 100x Master Audit..."
 	@python3 ops/scripts/audit_master.py
 
+# Triages compiler/test failures by extracting context around errors.
+# Usage: cargo build 2>&1 | just analyze-failure
+analyze-failure:
+	@python3 ops/scripts/analyze_failure.py
+
+# Generates a symbol map (functions, structs, enums) for a file.
+# Usage: just map libs/keyforge-physics/src/mechanics.rs
+map file:
+	@echo "📍 Symbol Map for {{file}}:"
+	@sg scan -r .ast-grep/rules/no-newtype-internal-access.yml {{file}} --json | jq -r '.[].text' || true
+	@# Fallback: use grep to find signatures if ast-grep rules aren't generic enough
+	@grep -nE "^(pub )?(fn|struct|enum|trait|type|impl)" {{file}} | head -n 50
+
 # --- MAINTENANCE ---
 prune:
 	docker system prune -af --filter "until=24h"
 
 # --- LLM DEVELOPMENT (LID) ---
+
+# Delegates a complex task to the Aider autonomous worker.
+# Usage: just delegate "Refactor the physics Score type"
+delegate task:
+	aider --no-auto-commits --message "{{task}}"
 
 context FILE:
 	python3 ops/scripts/minify_context.py {{FILE}}

@@ -14,8 +14,9 @@
 
 use crate::error::InfraResult;
 use crate::net::client::HiveClient;
+use keyforge_boundary::SafePath;
 use keyforge_protocol::JobConfig;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::info;
 
 /// Orchestrates asset management, ensuring required files are present and synchronized.
@@ -25,19 +26,19 @@ use tracing::info;
 #[derive(Debug)]
 pub struct AssetManager {
     client: HiveClient,
-    root: PathBuf,
+    root: SafePath,
 }
 
 impl AssetManager {
     /// Creates a new `AssetManager` with the given client and root directory.
     #[must_use]
-    pub fn new(client: HiveClient, root: PathBuf) -> Self {
+    pub fn new(client: HiveClient, root: SafePath) -> Self {
         Self { client, root }
     }
 
     /// Returns the root directory managed by this `AssetManager`.
     #[must_use]
-    pub fn root(&self) -> &Path {
+    pub fn root(&self) -> &SafePath {
         &self.root
     }
 
@@ -77,6 +78,7 @@ impl AssetManager {
     pub async fn ensure_keyboard(&self, id: &str) -> InfraResult<PathBuf> {
         let path = self
             .root
+            .as_path()
             .join("system/keyboards")
             .join(format!("{id}.json"));
         if !path.exists() {
@@ -92,7 +94,7 @@ impl AssetManager {
     ///
     /// Returns an error if the corpus cannot be retrieved.
     pub async fn ensure_corpus(&self, id: &str, _hash: Option<&str>) -> InfraResult<()> {
-        let path = self.root.join("system/corpora").join(id);
+        let path = self.root.as_path().join("system/corpora").join(id);
         if !path.exists() {
             info!("📥 Downloading missing corpus: {}", id);
             self.client.download_asset("corpora", id, &path).await?;
@@ -108,6 +110,7 @@ impl AssetManager {
     pub async fn ensure_cost_matrix(&self, id: &str) -> InfraResult<()> {
         let path = self
             .root
+            .as_path()
             .join("system/cost_matrices")
             .join(format!("{id}.json"));
         if !path.exists() {

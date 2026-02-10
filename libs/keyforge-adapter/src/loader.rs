@@ -1,13 +1,13 @@
 // libs/keyforge-adapter/src/loader.rs
 
 use async_trait::async_trait;
+use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, Corpus};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 /// A specialized result type for asset loading operations.
@@ -17,25 +17,77 @@ pub type LoaderResult<T> = Result<T, ForgeError>;
 #[async_trait]
 pub trait AssetLoader: Send + Sync + Debug {
     /// Generic asset loader.
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>>;
+    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>>;
 
     /// Loads one or more corpora and merges them into a single bundle.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
 
+    /// Returns the content hash of an asset without loading the full object.
+    async fn get_hash(
+        &self,
+        category: keyforge_model::AssetCategory,
+        id: &str,
+    ) -> LoaderResult<String>;
+
     /// Returns the root directory of the asset source.
-    fn root(&self) -> &Path;
+    fn root(&self) -> &SafePath;
 }
 
 /// An in-memory implementation of `AssetLoader`.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InMemoryLoader {
     #[allow(clippy::type_complexity)]
     assets: RwLock<HashMap<TypeId, HashMap<String, Arc<dyn Any + Send + Sync>>>>,
+    root: SafePath,
+}
+
+impl Default for InMemoryLoader {
+    fn default() -> Self {
+        Self {
+            assets: RwLock::new(HashMap::new()),
+            root: SafePath::from_trusted_root_path(std::path::PathBuf::from(".")),
+        }
+    }
 }
 
 #[async_trait]
 impl AssetLoader for InMemoryLoader {
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        self.load_any::<T>(id)
+    }
+
+    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
+        let mut blended = Corpus::default();
+        let mut found_any = false;
+        for src in sources {
+            if let Ok(corpus) = self.load_any::<Corpus>(&src.id) {
+                blended.merge(&corpus, src.weight);
+                found_any = true;
+            } else {
+                return Err(ForgeError::NotFound(src.id.clone()));
+            }
+        }
+        if !found_any {
+            return Err(ForgeError::NotFound("Empty corpus source list".into()));
+        }
+        Ok(Arc::new(blended))
+    }
+
+    async fn get_hash(
+        &self,
+        _category: keyforge_model::AssetCategory,
+        _id: &str,
+    ) -> LoaderResult<String> {
+        Ok("in-memory-hash".to_string())
+    }
+
+    fn root(&self) -> &SafePath {
+        &self.root
+    }
+}
+
+impl InMemoryLoader {
+    fn load_any<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
         let tid = TypeId::of::<T>();
         let type_name = std::any::type_name::<T>();
         let maps = self
@@ -53,29 +105,6 @@ impl AssetLoader for InMemoryLoader {
             .map_err(|_| ForgeError::Internal(format!("Downcast failed for {type_name}")))
     }
 
-    async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
-        let mut blended = Corpus::default();
-        let mut found_any = false;
-        for src in sources {
-            if let Ok(corpus) = self.load::<Corpus>(&src.id).await {
-                blended.merge(&corpus, src.weight);
-                found_any = true;
-            } else {
-                return Err(ForgeError::NotFound(src.id.clone()));
-            }
-        }
-        if !found_any {
-            return Err(ForgeError::NotFound("Empty corpus source list".into()));
-        }
-        Ok(Arc::new(blended))
-    }
-
-    fn root(&self) -> &Path {
-        Path::new(".")
-    }
-}
-
-impl InMemoryLoader {
     /// Creates a new `InMemoryLoader`.
     #[must_use]
     pub fn new() -> Self {
@@ -83,7 +112,7 @@ impl InMemoryLoader {
     }
 
     /// Generic injection of an asset into the in-memory loader.
-    pub fn inject<T: Asset>(&self, id: &str, asset: T) {
+    pub fn inject<T: Asset + serde::de::DeserializeOwned>(&self, id: &str, asset: T) {
         let tid = TypeId::of::<T>();
         if let Ok(mut maps) = self.assets.write() {
             maps.entry(tid)

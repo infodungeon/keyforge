@@ -36,7 +36,7 @@ impl ProgressCallback for WorkerLogger {
     fn on_progress(
         &self,
         step: usize,
-        score: f32,
+        score: keyforge_model::Score,
         _layout: &[KeyCode],
         ips: f32,
     ) -> OptimizationControl {
@@ -44,7 +44,8 @@ impl ProgressCallback for WorkerLogger {
 
         // Update shared telemetry (Lock-free)
         // Agent UI expects MOPS, so we scale back for now until UI is updated.
-        self.telemetry.update(ips / 1_000_000.0, 0.0, score);
+        self.telemetry
+            .update(ips / 1_000_000.0, 0.0, score.to_f32());
 
         if stopped {
             return OptimizationControl::Abort;
@@ -54,7 +55,7 @@ impl ProgressCallback for WorkerLogger {
             info!(
                 job_id = %self.job_id,
                 step = step,
-                score = score,
+                score = %score,
                 ips = ips,
                 "optimization progress"
             );

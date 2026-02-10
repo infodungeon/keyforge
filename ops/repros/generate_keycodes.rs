@@ -31,7 +31,8 @@ fn main() {
         std::process::exit(1);
     }
 
-    let json = serde_json::to_string_pretty(&registry).expect("Failed to serialize");
+    let registry_dto = keyforge_protocol::KeycodeRegistryDto::from(registry);
+    let json = serde_json::to_string_pretty(&registry_dto).expect("Failed to serialize");
     println!("{}", json);
 }
 

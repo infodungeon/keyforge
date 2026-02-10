@@ -110,15 +110,22 @@ mod tests {
     use tokio::sync::Semaphore;
 
     #[tokio::test]
-    async fn test_compute_optimization_run() {
+    async fn test_compute_optimization_run() -> anyhow::Result<()> {
         let kb_def = keyforge_model::KeyboardDefinition {
+<<<<<<< HEAD
             geometry: keyforge_model::KeyboardGeometry {
                 keys: vec![KeyNode {
                     index: 0,
+=======
+            geometry: keyforge_model::KeyboardGeometry::new(
+                vec![KeyNode {
+                    index: KeyIndex(0),
+>>>>>>> master
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
                     ..Default::default()
                 }],
+<<<<<<< HEAD
                 prime_slots: vec![KeyIndex::new(0)],
                 med_slots: vec![],
                 low_slots: vec![],
@@ -135,6 +142,21 @@ mod tests {
             )
             .unwrap(),
         );
+=======
+                vec![KeyIndex(0)],
+                vec![],
+                vec![],
+                keyforge_model::types::RowIndex::new(0),
+            ),
+            ..Default::default()
+        };
+
+        let kb = Arc::new(Keyboard::new(
+            kb_def.geometry.keys().to_vec(),
+            kb_def.geometry.home_row(),
+            "test".into(),
+        )?);
+>>>>>>> master
 
         let cost_json = r#"{
             "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
@@ -154,7 +176,8 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
-        let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json).unwrap());
+        let cost_model_dto: keyforge_protocol::CostModelDto = serde_json::from_str(cost_json)?;
+        let cost_model: Arc<CostModel> = Arc::new(cost_model_dto.into());
 
         let engine: Arc<dyn keyforge_physics::ScoringEngine> =
             keyforge_physics::EngineFactory::new_generic(
@@ -165,8 +188,7 @@ mod tests {
                     cost_model,
                     engine_config: keyforge_model::config::EngineConfig::default(),
                 },
-            )
-            .unwrap()
+            )?
             .into();
 
         let search_config = keyforge_model::SearchConfig::Annealing {
@@ -180,8 +202,12 @@ mod tests {
             include_thumbs: false,
         };
 
-        let session =
-            ScoringSession::new(engine, Arc::new(KeycodeRegistry::default()), search_config);
+        let session = ScoringSession::new(
+            engine,
+            Arc::new(kb_def.clone()),
+            Arc::new(KeycodeRegistry::default()),
+            search_config,
+        );
 
         let job_config = JobConfig {
             definition: kb_def.into(),
@@ -210,9 +236,9 @@ mod tests {
             100,
             &job_config,
         )
-        .await
-        .expect("Optimization should complete successfully");
+        .await?;
 
-        assert!(result.score >= 0.0);
+        assert!(result.score >= keyforge_model::types::Score::ZERO);
+        Ok(())
     }
 }

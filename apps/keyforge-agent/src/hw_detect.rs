@@ -247,9 +247,10 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_topology_detection() {
-        let topo = detect_topology().await.unwrap();
+    async fn test_topology_detection() -> anyhow::Result<()> {
+        let topo = detect_topology().await?;
         assert!(!topo.model.is_empty());
         assert!(topo.cores >= 1);
+        Ok(())
     }
 }

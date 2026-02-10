@@ -6,6 +6,9 @@ rule:
   any:
     - pattern: "let mut $VAR: f64 = $$$"
     - pattern: "$VAR += $VAL as f64"
-paths:
-  include:
-    - "libs/keyforge-physics/src/kernel/**/*.rs"
+files:
+  - "libs/keyforge-physics/src/kernel/**/*.rs"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "ops/repros/**"

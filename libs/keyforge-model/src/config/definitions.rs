@@ -2,8 +2,6 @@
 
 // use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 // --- Default Values (Strings) ---
 
@@ -20,8 +18,7 @@ pub const DEFAULT_CRITICAL_BIGRAMS: &str = "th,he,in,er,an,re,nd,ou";
 pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5];
 
 /// Definitions for character tiers and critical bigrams.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct LayoutDefinitions {
     /// Characters considered high priority (Home row candidates).
     pub tier_high_chars: String,
@@ -131,7 +128,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_layout_definitions_validation() {
+    fn test_layout_definitions_validation() -> anyhow::Result<()> {
         let mut def = LayoutDefinitions::default();
         assert!(def.validate().is_ok());
 
@@ -143,24 +140,26 @@ mod tests {
         def.tier_high_chars = "abc".into();
         def.finger_repeat_scale[0] = -1.0;
         assert!(def.validate().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_layout_definitions_get_critical_bigrams() {
+    fn test_layout_definitions_get_critical_bigrams() -> anyhow::Result<()> {
         let def = LayoutDefinitions {
             critical_bigrams: "th,he,in, invalid, x".into(),
             ..Default::default()
         };
-        let bigrams = def.get_critical_bigrams().unwrap();
+        let bigrams = def.get_critical_bigrams()?;
         assert_eq!(bigrams.len(), 3);
         assert_eq!(bigrams[0], ("th".to_string(), 1.0));
         assert_eq!(bigrams[1], ("he".to_string(), 1.0));
         assert_eq!(bigrams[2], ("in".to_string(), 1.0));
+        Ok(())
     }
 
     #[cfg(feature = "cli")]
     #[test]
-    fn test_layout_definitions_config_conversion() {
+    fn test_layout_definitions_config_conversion() -> anyhow::Result<()> {
         let config = LayoutDefinitionsConfig {
             tier_high_chars: "abc".into(),
             tier_med_chars: "def".into(),
@@ -168,8 +167,9 @@ mod tests {
             critical_bigrams: "ab,cd".into(),
             finger_repeat_scale: vec![1.0, 1.0, 1.0, 1.0, 1.0],
         };
-        let def = LayoutDefinitions::try_from(config).unwrap();
+        let def = LayoutDefinitions::try_from(config).map_err(|e: String| anyhow::anyhow!(e))?;
         assert_eq!(def.tier_high_chars, "abc");
         assert_eq!(def.finger_repeat_scale, [1.0, 1.0, 1.0, 1.0, 1.0]);
+        Ok(())
     }
 }

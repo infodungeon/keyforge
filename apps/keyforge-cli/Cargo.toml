@@ -17,6 +17,7 @@ keyforge-persistence = { path = "../../libs/keyforge-persistence" }
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model", features = ["cli"] }
+keyforge-boundary.workspace = true
 keyforge-compute = { path = "../../libs/keyforge-compute" }
 keyforge-export = { path = "../../libs/keyforge-export" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }

@@ -10,21 +10,18 @@ pub fn calculate_trigram_delta(
     ctx: &EngineContext,
     layout: &ValidatedLayout<'_>,
     pm: &PosMap<'_>,
-    idx_a: usize,
-    idx_b: usize,
+    pos_a: KeyIndex,
+    pos_b: KeyIndex,
 ) -> i64 {
     let mut delta = 0i64;
 
     let keys = layout.as_slice();
-    let code_a = keys[idx_a];
-    let code_b = keys[idx_b];
+    let code_a = keys[pos_a.as_usize()];
+    let code_b = keys[pos_b.as_usize()];
 
     if code_a == KeyCode::EMPTY && code_b == KeyCode::EMPTY {
         return 0;
     }
-
-    let pos_a = KeyIndex::new(u16::try_from(idx_a).unwrap_or(0));
-    let pos_b = KeyIndex::new(u16::try_from(idx_b).unwrap_or(0));
 
     let ca = code_a.as_usize();
     let cb = code_b.as_usize();

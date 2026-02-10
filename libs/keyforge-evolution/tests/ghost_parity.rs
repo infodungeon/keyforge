@@ -31,13 +31,14 @@ mod integration_tests {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-        serde_json::from_str(json).unwrap()
+        let dto: keyforge_protocol::CostModelDto = serde_json::from_str(json).unwrap();
+        dto.into()
     }
 
     fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig, Layout) {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: keyforge_model::types::KeyIndex::new(0),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 row: RowIndex::new(0),
@@ -46,7 +47,7 @@ mod integration_tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: keyforge_model::types::KeyIndex::new(1),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(2),
                 row: RowIndex::new(0),
@@ -63,7 +64,7 @@ mod integration_tests {
         corpus_val.char_freqs = Arc::from(char_freqs);
         corpus_val.bigrams = Arc::from(vec![(0, 1, 100)]);
 
-        let rubric = Arc::new(Rubric::builder().travel_lat(1.0).build());
+        let rubric = Arc::new(Rubric::builder().travel_lat(1_000_000).build());
 
         let cm = Arc::new(mock_cost_model());
 
@@ -100,11 +101,25 @@ mod integration_tests {
 
         // Run Ghost Optimizer (Hill Climber)
         let ghost = GhostHillClimber;
+<<<<<<< HEAD
         let ghost_res_layout = ghost.run(engine.as_ref(), layout, 100, &NoOpCallback).unwrap();
         let ghost_score = engine.score(&ghost_res_layout).unwrap();
 
         // Verify parity
         let score_diff = (prod_res.score - ghost_score.to_f32()).abs();
         assert!(score_diff < 100.0, "Scores should be reasonably close for limited steps");
+=======
+        let ghost_layout = ghost
+            .run(engine.as_ref(), layout, 100.into(), &NoOpCallback)
+            .unwrap();
+        let ghost_score = engine.score(&ghost_layout).unwrap();
+
+        // Verify parity
+        let score_diff = (prod_res.score.raw() - ghost_score.raw()).abs();
+        assert!(
+            score_diff < 100_000_000,
+            "Scores should be within reasonable bounds"
+        );
+>>>>>>> master
     }
 }

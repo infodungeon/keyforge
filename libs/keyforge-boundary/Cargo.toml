@@ -1,0 +1,20 @@
+[package]
+name = "keyforge-boundary"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+description = "Cross-cutting boundary types and validation logic for the KeyForge workspace."
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+keyforge-testing-macros.workspace = true
+thiserror.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

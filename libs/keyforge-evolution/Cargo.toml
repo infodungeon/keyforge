@@ -18,12 +18,15 @@ keyforge-model = { path = "../keyforge-model" }
 keyforge-physics = { path = "../keyforge-physics" }
 tracing.workspace = true
 thiserror.workspace = true
+keyforge-protocol = { path = "../keyforge-protocol" }
 
 [features]
 default = []
 single_threaded = []
 
 [dev-dependencies]
+keyforge-protocol = { path = "../keyforge-protocol" }
 proptest.workspace = true
 serde_json.workspace = true
+anyhow.workspace = true
 keyforge-model = { path = "../keyforge-model", features = ["testing"] }

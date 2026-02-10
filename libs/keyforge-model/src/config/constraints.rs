@@ -2,12 +2,16 @@
 
 use crate::types::{KeyIndex, KeyCode};
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::str::FromStr;
-use utoipa::ToSchema;
 
+<<<<<<< HEAD
 /// A physical constraint forcing a specific keycode to a specific physical key index.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+=======
+/// Constraint forcing a key to a specific physical index.
+#[derive(Clone, Debug)]
+>>>>>>> master
 pub struct KeyConstraint {
     /// The physical index on the keyboard.
     pub index: KeyIndex,
@@ -20,6 +24,17 @@ impl KeyConstraint {
     #[must_use]
     pub const fn new(index: KeyIndex, key: String) -> Self {
         Self { index, key }
+    }
+}
+
+impl KeyConstraint {
+    /// Generates a deterministic hash of the key constraint.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.index.raw().to_le_bytes());
+        hasher.update(self.key.as_bytes());
+        hex::encode(hasher.finalize())
     }
 }
 
@@ -61,6 +76,7 @@ mod tests {
     }
 
     #[test]
+<<<<<<< HEAD
     fn test_key_constraint_parsing() {
         let c: KeyConstraint = "10:KC_B".parse().unwrap();
         assert_eq!(c.index.raw(), 10);
@@ -68,5 +84,25 @@ mod tests {
         
         assert!("invalid".parse::<KeyConstraint>().is_err());
         assert!("abc:KC_A".parse::<KeyConstraint>().is_err());
+=======
+    fn test_key_constraint_from_str() -> anyhow::Result<()> {
+        // Valid
+        let c: KeyConstraint = "0:KC_A".parse().map_err(anyhow::Error::msg)?;
+        assert_eq!(c.index.raw(), 0);
+        assert_eq!(c.key, "KC_A");
+
+        // Invalid: Empty
+        assert!(" ".parse::<KeyConstraint>().is_err());
+
+        // Invalid: Format
+        assert!("0".parse::<KeyConstraint>().is_err());
+
+        // Invalid: Index
+        assert!("abc:KC_A".parse::<KeyConstraint>().is_err());
+
+        // Invalid: Empty Key
+        assert!("0:".parse::<KeyConstraint>().is_err());
+        Ok(())
+>>>>>>> master
     }
 }

@@ -19,6 +19,12 @@ impl<T> LimitedVec<T> {
         Self(v)
     }
 
+    /// Converts the `LimitedVec` into its inner `Vec`.
+    #[must_use]
+    pub fn into_inner(self) -> Vec<T> {
+        self.0
+    }
+
     /// Converts the `LimitedVec` into a standard `Vec`.
     #[must_use]
     pub fn to_vec(&self) -> Vec<T>

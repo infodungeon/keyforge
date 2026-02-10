@@ -1,7 +1,9 @@
 // libs/keyforge-model/src/constants/physics.rs
 
 /// Scaling factor for fixed-point score arithmetic.
-pub const SCORE_SCALE: f32 = 1_000_000.0;
+pub const SCORE_SCALE: i64 = 1_000_000;
+/// Scaling factor for fixed-point weight arithmetic.
+pub const WEIGHT_SCALE: i32 = 1_000;
 /// Tolerance ratio for score verification.
 pub const VERIFICATION_TOLERANCE_RATIO: f32 = 0.0001;
 /// Minimum absolute tolerance for score verification.

@@ -12,7 +12,9 @@ fn main() {
 
     let file = File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
-    let kb: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
+    let kb_dto: keyforge_protocol::KeyboardDefinitionDto =
+        rmp_serde::from_read(decoder).expect("Failed to deserialize");
+    let kb: KeyboardDefinition = kb_dto.into();
 
     println!("Keyboard: {}", kb.meta.name);
     println!("Keys: {}", kb.geometry.keys().len());

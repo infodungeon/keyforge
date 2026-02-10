@@ -6,7 +6,6 @@ use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
 use keyforge_infra::fs::listing;
-use keyforge_model::KeyboardDefinition;
 use keyforge_protocol::{CorpusSourceDto, CostMatrixSourceDto, JobConfig};
 use serde::Serialize;
 use tauri::AppHandle;
@@ -150,15 +149,15 @@ pub async fn validate_layout_string(
     corpus_filename: String,
 ) -> Result<ValidationResultDto, CommandError> {
     // 1. Resolve Keyboard Definition
-    let definition = state
+    let definition_dto = state
         .assets
-        .load::<KeyboardDefinition>(&keyboard_filename)
+        .load::<keyforge_protocol::KeyboardDefinitionDto>(&keyboard_filename)
         .await
         .map_err(|_| CommandError::NotFound)?;
 
     // 2. Prepare analysis request
     let job_config = JobConfig {
-        definition: (*definition).clone().into(),
+        definition: (*definition_dto).clone(),
         weights: keyforge_model::config::ScoringWeights::default().into(),
         params: keyforge_model::config::SearchParams::default().into(),
         pinned_keys: vec![].into(),
@@ -194,10 +193,12 @@ pub async fn validate_layout_string(
             let mut write_guard = state.scoring_session.write().await;
             if write_guard.is_none() {
                 let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
-                    .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
-                        job_config.to_domain_geometry(),
-                        "ui",
-                    )))
+                    .with_keyboard_def(std::sync::Arc::new(
+                        keyforge_model::geometry::KeyboardDefinition::from_geometry(
+                            job_config.to_domain_geometry(),
+                            "ui",
+                        ),
+                    ))
                     .with_corpus(&job_config.to_domain_corpus_sources())
                     .await?
                     .with_cost_matrix(&job_config.to_domain_cost_matrix())
@@ -205,7 +206,9 @@ pub async fn validate_layout_string(
                     .with_keycodes("default")
                     .await?
                     .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-                        &job_config.to_domain_weights(),
+                        &job_config
+                            .to_domain_weights()
+                            .map_err(|e| CommandError::Internal(format!("Invalid weights: {e}")))?,
                     ));
 
                 let session = builder.build()?;
@@ -236,8 +239,8 @@ pub async fn validate_layout_string(
             .into_iter()
             .map(Into::into)
             .collect(),
-        heatmap: report.heatmap,
-        penalty_map: report.penalty_map,
+        heatmap: report.heatmap.iter().map(|v| v.to_f32()).collect(),
+        penalty_map: report.penalty_map.iter().map(|v| v.to_f32()).collect(),
     })
 }
 
@@ -264,6 +267,6 @@ pub async fn get_derived_stats(
         .map_err(|e| CommandError::Internal(e.to_string()))?;
 
     Ok(DerivedStatsDto {
-        hand_balance: report.hand_balance,
+        hand_balance: report.hand_balance.to_f32(),
     })
 }

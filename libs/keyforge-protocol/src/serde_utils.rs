@@ -40,10 +40,10 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_deserialize_limited_vec() {
+    fn test_deserialize_limited_vec() -> anyhow::Result<()> {
         // Valid small vec
         let data = json!([1, 2, 3]);
-        let res: Vec<i32> = deserialize_limited_vec(data).unwrap();
+        let res: Vec<i32> = deserialize_limited_vec(data)?;
         assert_eq!(res.len(), 3);
 
         // Exceed limit
@@ -54,5 +54,6 @@ mod tests {
         let data = json!(large_data);
         let res: Result<Vec<i32>, serde_json::Error> = deserialize_limited_vec(data);
         assert!(res.is_err());
+        Ok(())
     }
 }

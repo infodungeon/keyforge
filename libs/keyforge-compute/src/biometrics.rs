@@ -93,7 +93,10 @@ impl StreamingProfileBuilder {
         for (bigram, s) in &self.stats {
             if s.count >= Self::MIN_SAMPLES {
                 let ratio = s.mean / global_avg;
-                modifiers.insert(format!("{}_{}", bigram.0, bigram.1), ratio as f32);
+                modifiers.insert(
+                    format!("{}_{}", bigram.0, bigram.1),
+                    keyforge_model::types::Score::from_f32(ratio as f32).unwrap_or_default(),
+                );
             }
         }
 

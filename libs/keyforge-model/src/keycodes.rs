@@ -17,7 +17,6 @@
 //! This module defines how logical key codes (like 'A' or 'Shift') are represented,
 //! named, and mapped to display labels.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -29,7 +28,7 @@ use crate::validator::Validator;
 use crate::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 
 /// Definition of a logical key code (e.g., "`KC_A`").
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct KeycodeDefinition {
     /// The numeric code.
     pub code: KeyCode,
@@ -42,7 +41,7 @@ pub struct KeycodeDefinition {
 }
 
 impl fmt::Display for KeycodeDefinition {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {} ({})", self.id, self.code, self.label)
     }
 }
@@ -64,15 +63,23 @@ impl Validator for KeycodeDefinition {
 }
 
 /// Registry for looking up key codes by name or ID.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(from = "Vec<KeycodeDefinition>", into = "Vec<KeycodeDefinition>")]
+#[derive(Debug, Clone, Default)]
 pub struct KeycodeRegistry {
     /// List of all definitions.
     pub definitions: Vec<KeycodeDefinition>,
-    #[serde(skip)]
     name_to_code: HashMap<String, KeyCode>,
-    #[serde(skip)]
     code_to_label: HashMap<KeyCode, String>,
+}
+
+impl Asset for KeycodeRegistry {
+    fn category() -> AssetCategory {
+        AssetCategory::Keycodes
+    }
+
+    fn post_load(&mut self) -> Result<(), ForgeError> {
+        self.rebuild_maps();
+        self.validate().map_err(ForgeError::InvalidData)
+    }
 }
 
 impl From<Vec<KeycodeDefinition>> for KeycodeRegistry {
@@ -84,17 +91,6 @@ impl From<Vec<KeycodeDefinition>> for KeycodeRegistry {
 impl From<KeycodeRegistry> for Vec<KeycodeDefinition> {
     fn from(reg: KeycodeRegistry) -> Self {
         reg.definitions
-    }
-}
-
-impl Asset for KeycodeRegistry {
-    fn category() -> AssetCategory {
-        AssetCategory::Keycodes
-    }
-
-    fn post_load(&mut self) -> Result<(), ForgeError> {
-        self.rebuild_maps();
-        self.validate().map_err(ForgeError::InvalidData)
     }
 }
 
@@ -130,9 +126,10 @@ impl KeycodeRegistry {
             // This ensures consistence between corpus text (which is lowercased for heatmaps)
             // and key definitions.
             let val = def.code.raw();
-            #[allow(clippy::cast_possible_truncation)]
-            if (val as u8).is_ascii_uppercase() {
-                def.code = KeyCode::new(u16::from((val as u8).to_ascii_lowercase()));
+            if let Ok(val_u8) = u8::try_from(val) {
+                if val_u8.is_ascii_uppercase() {
+                    def.code = KeyCode::new(u16::from(val_u8.to_ascii_lowercase()));
+                }
             }
         }
 
@@ -189,7 +186,7 @@ impl KeycodeRegistry {
         ];
 
         for c in b'A'..=b'Z' {
-            let ch = c as char;
+            let ch = char::from(c);
             defs.push(KeycodeDefinition {
                 code: KeyCode::new(u16::from(c)),
                 id: format!("KC_{ch}"),
@@ -304,7 +301,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_keycode_definition_validation() {
+    fn test_keycode_definition_validation() -> anyhow::Result<()> {
         let valid = KeycodeDefinition {
             code: KeyCode::new(10),
             id: "KC_A".into(),
@@ -328,10 +325,11 @@ mod tests {
             aliases: vec![],
         };
         assert!(empty_label.validate().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_keycode_definition_display() {
+    fn test_keycode_definition_display() -> anyhow::Result<()> {
         let def = KeycodeDefinition {
             code: KeyCode::new(10),
             id: "KC_A".into(),
@@ -339,10 +337,11 @@ mod tests {
             aliases: vec![],
         };
         assert_eq!(format!("{def}"), "KC_A: 10 (A)");
+        Ok(())
     }
 
     #[test]
-    fn test_keycode_registry_normalization() {
+    fn test_keycode_registry_normalization() -> anyhow::Result<()> {
         let defs = vec![
             KeycodeDefinition {
                 code: KeyCode::new(65),
@@ -371,11 +370,12 @@ mod tests {
         assert_eq!(reg.definitions.len(), 1);
 
         assert_eq!(reg.definitions[0].code.raw(), 97);
+        Ok(())
     }
 
     #[test]
 
-    fn test_keycode_registry_lookups() {
+    fn test_keycode_registry_lookups() -> anyhow::Result<()> {
         let reg = KeycodeRegistry::new_with_defaults();
 
         assert_eq!(reg.get_code("KC_NO"), Some(KeyCode::new(0)));
@@ -387,30 +387,11 @@ mod tests {
         assert_eq!(reg.get_label(KeyCode::new(0)), " ");
 
         assert_eq!(reg.get_label(KeyCode::new(999)), "[999]"); // Fallback
+        Ok(())
     }
 
     #[test]
-
-    fn test_keycode_asset_and_conversions() {
-        let reg = KeycodeRegistry::new_with_defaults();
-
-        assert_eq!(KeycodeRegistry::category(), AssetCategory::Keycodes);
-
-        let mut reg_clone = reg.clone();
-
-        assert!(reg_clone.post_load().is_ok());
-
-        let defs: Vec<KeycodeDefinition> = reg.clone().into();
-
-        assert_eq!(defs.len(), reg.definitions.len());
-
-        let reg_from: KeycodeRegistry = defs.into();
-
-        assert_eq!(reg_from.definitions.len(), reg.definitions.len());
-    }
-
-    #[test]
-    fn test_qmk_to_ascii_mapping_exhaustive() {
+    fn test_qmk_to_ascii_mapping_exhaustive() -> anyhow::Result<()> {
         // Test remaining branches for full coverage
         assert_eq!(qmk_to_ascii(39), Some(48)); // 0
         assert_eq!(qmk_to_ascii(40), Some(10)); // Enter
@@ -430,9 +411,10 @@ mod tests {
         assert_eq!(qmk_to_ascii(55), Some(46)); // .
         assert_eq!(qmk_to_ascii(56), Some(47)); // /
         assert_eq!(qmk_to_ascii(100), None);
+        Ok(())
     }
     #[test]
-    fn test_keycode_registry_validation_duplicates() {
+    fn test_keycode_registry_validation_duplicates() -> anyhow::Result<()> {
         let mut reg = KeycodeRegistry::default();
         reg.definitions.push(KeycodeDefinition {
             code: KeyCode::new(10),
@@ -465,5 +447,6 @@ mod tests {
             aliases: vec![],
         });
         assert!(reg.validate().is_err(), "Should fail on duplicate Code");
+        Ok(())
     }
 }

@@ -13,13 +13,15 @@ pub struct ScoringWeightsConfig {
     pub overrides: Vec<(String, f32)>,
 
     /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
-    #[arg(long, value_delimiter = ',', num_args = 5, default_values_t = super::constants::DEFAULT_FINGER_PENALTY_SCALE_ARRAY)]
+    #[arg(long, value_delimiter = ',', num_args = 5, default_values_t = super::constants::DEFAULT_FINGER_PENALTY_SCALE_ARRAY_F32)]
     pub finger_penalty_scale: Vec<f32>,
 
     /// Comma-separated list of comfortable scissor pairs.
     #[arg(long, default_value = super::constants::DEFAULT_COMFORTABLE_SCISSORS)]
     pub comfortable_scissors: String,
 }
+
+use crate::types::Score;
 
 impl TryFrom<ScoringWeightsConfig> for ScoringWeights {
     type Error = String;
@@ -28,7 +30,7 @@ impl TryFrom<ScoringWeightsConfig> for ScoringWeights {
 
         // Overlay dynamic CLI overrides
         for (key, value) in args.overrides {
-            w.weights.insert(key, value);
+            w.weights.insert(key, Score::from_f32(value)?);
         }
 
         w.finger_penalty_scale = vec_to_array_5(&args.finger_penalty_scale)?;
@@ -39,13 +41,13 @@ impl TryFrom<ScoringWeightsConfig> for ScoringWeights {
     }
 }
 
-fn vec_to_array_5(v: &[f32]) -> Result<[f32; 5], String> {
+fn vec_to_array_5(v: &[f32]) -> Result<[Score; 5], String> {
     if v.len() != 5 {
         return Err(format!("Expected 5 values, got {}", v.len()));
     }
-    let mut arr = [0.0; 5];
+    let mut arr = [Score::default(); 5];
     for (i, &val) in v.iter().enumerate() {
-        arr[i] = val;
+        arr[i] = Score::from_f32(val)?;
     }
     Ok(arr)
 }

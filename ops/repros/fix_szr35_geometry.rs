@@ -16,8 +16,9 @@ fn main() {
     // 1. Read and Decompress
     let file = File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
-    let mut kb_def: KeyboardDefinition =
+    let kb_dto: keyforge_protocol::KeyboardDefinitionDto =
         rmp_serde::from_read(decoder).expect("Failed to deserialize");
+    let mut kb_def: KeyboardDefinition = kb_dto.into();
 
     // 2. Identify and Set Home Keys
     // Based on user request and standard Colemak-DH home row (Row 1)
@@ -55,7 +56,8 @@ fn main() {
     }
 
     // 3. Re-serialize and Re-compress
-    let mpk_data = rmp_serde::to_vec(&kb_def).expect("Failed to serialize");
+    let kb_dto_out = keyforge_protocol::KeyboardDefinitionDto::from(kb_def);
+    let mpk_data = rmp_serde::to_vec(&kb_dto_out).expect("Failed to serialize");
     let mut compressed = Vec::new();
     let mut encoder = zstd::Encoder::new(&mut compressed, 3).expect("Failed to create encoder");
     encoder.write_all(&mpk_data).expect("Failed to compress");

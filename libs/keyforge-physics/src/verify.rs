@@ -32,7 +32,11 @@ impl DeterministicScorer {
         layout: &[KeyCode],
     ) -> Result<i64, PhysicsError> {
         let (mono, bigram, trigram) = self.score_detailed(keyboard, corpus, layout)?;
-        Ok(mono + bigram + trigram)
+        mono.checked_add(bigram)
+            .and_then(|sum| sum.checked_add(trigram))
+            .ok_or_else(|| PhysicsError::ScoreOverflow {
+                context: "Oracle total score accumulation".to_string(),
+            })
     }
 
     /// Scores a layout and returns detailed components (monograms, bigrams, trigrams).
@@ -40,6 +44,7 @@ impl DeterministicScorer {
     /// # Errors
     ///
     /// Returns an error if the layout is invalid for the keyboard.
+    #[allow(clippy::too_many_lines)]
     pub fn score_detailed(
         &self,
         keyboard: &Keyboard,
@@ -64,14 +69,23 @@ impl DeterministicScorer {
             // Find minimum usage cost across all duplicate keys
             let mut min_cost = i64::MAX;
             for &idx in &indices {
-                let cost = self.ctx.geometry.key_costs[idx.raw() as usize].raw();
+                let cost = self.ctx.geometry.key_costs[idx.as_usize()].raw();
                 if cost < min_cost {
                     min_cost = cost;
                 }
             }
 
             if min_cost != i64::MAX {
-                monogram_score += min_cost * (i64::try_from(freq).unwrap_or(0));
+                let term = min_cost
+                    .checked_mul(i64::try_from(freq).unwrap_or(i64::MAX))
+                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+                        context: format!("Oracle monogram freq scale for code {code_val}"),
+                    })?;
+                monogram_score = monogram_score.checked_add(term).ok_or_else(|| {
+                    PhysicsError::ScoreOverflow {
+                        context: format!("Oracle monogram total accumulation at code {code_val}"),
+                    }
+                })?;
             }
         }
 
@@ -87,8 +101,8 @@ impl DeterministicScorer {
                 for &idx1 in &indices1 {
                     for &idx2 in &indices2 {
                         let base_cost = self.ctx.geometry.cost_matrix
-                            [(idx1.raw() as usize) * key_count + (idx2.raw() as usize)]
-                            .raw();
+                            [idx1.as_usize() * key_count + idx2.as_usize()]
+                        .raw();
 
                         // Apply sequence modifier if any
                         let mut final_cost = base_cost;
@@ -103,7 +117,17 @@ impl DeterministicScorer {
                 }
 
                 if min_cost != i64::MAX {
-                    bigram_score += min_cost * freq;
+                    let term =
+                        min_cost
+                            .checked_mul(freq)
+                            .ok_or_else(|| PhysicsError::ScoreOverflow {
+                                context: format!("Oracle bigram freq scale for ({c1}, {c2})"),
+                            })?;
+                    bigram_score = bigram_score.checked_add(term).ok_or_else(|| {
+                        PhysicsError::ScoreOverflow {
+                            context: format!("Oracle bigram total accumulation at ({c1}, {c2})"),
+                        }
+                    })?;
                 }
             }
         }
@@ -117,20 +141,43 @@ impl DeterministicScorer {
             let indices3 = find_indices(layout, KeyCode::new(*c3));
 
             if !indices1.is_empty() && !indices2.is_empty() && !indices3.is_empty() {
-                let mut min_cost = i64::MAX;
+                let mut min_total_path_cost = i64::MAX;
+                let mut best_flow_cost = 0i64;
+
                 for &idx1 in &indices1 {
                     for &idx2 in &indices2 {
                         for &idx3 in &indices3 {
-                            let cost = calculate_trigram_cost(&self.ctx, idx1, idx2, idx3);
-                            if cost < min_cost {
-                                min_cost = cost;
+                            let flow_cost = calculate_trigram_cost(&self.ctx, idx1, idx2, idx3);
+                            let idx12_raw = idx1.as_usize() * key_count + idx2.as_usize();
+                            let idx23_raw = idx2.as_usize() * key_count + idx3.as_usize();
+
+                            let segment_cost = self.ctx.geometry.cost_matrix[idx12_raw]
+                                .raw()
+                                .saturating_add(self.ctx.geometry.cost_matrix[idx23_raw].raw());
+
+                            let total_path_cost = flow_cost.saturating_add(segment_cost);
+
+                            if total_path_cost < min_total_path_cost {
+                                min_total_path_cost = total_path_cost;
+                                best_flow_cost = flow_cost;
                             }
                         }
                     }
                 }
 
-                if min_cost != i64::MAX {
-                    trigram_score += min_cost * freq;
+                if min_total_path_cost != i64::MAX {
+                    let term = best_flow_cost.checked_mul(freq).ok_or_else(|| {
+                        PhysicsError::ScoreOverflow {
+                            context: format!("Oracle trigram freq scale for ({c1}, {c2}, {c3})"),
+                        }
+                    })?;
+                    trigram_score = trigram_score.checked_add(term).ok_or_else(|| {
+                        PhysicsError::ScoreOverflow {
+                            context: format!(
+                                "Oracle trigram total accumulation at ({c1}, {c2}, {c3})"
+                            ),
+                        }
+                    })?;
                 }
             }
         }
@@ -154,37 +201,26 @@ fn calculate_trigram_cost(
     idx2: KeyIndex,
     idx3: KeyIndex,
 ) -> i64 {
-    let h1 = ctx.geometry.hands[idx1.raw() as usize];
-    let h2 = ctx.geometry.hands[idx2.raw() as usize];
-    let h3 = ctx.geometry.hands[idx3.raw() as usize];
+    let h1 = ctx.geometry.hands[idx1.as_usize()];
+    let h2 = ctx.geometry.hands[idx2.as_usize()];
+    let h3 = ctx.geometry.hands[idx3.as_usize()];
 
-    let f1 = ctx.geometry.fingers[idx1.raw() as usize];
-    let f2 = ctx.geometry.fingers[idx2.raw() as usize];
-    let f3 = ctx.geometry.fingers[idx3.raw() as usize];
+    let f1 = ctx.geometry.fingers[idx1.as_usize()];
+    let f2 = ctx.geometry.fingers[idx2.as_usize()];
+    let f3 = ctx.geometry.fingers[idx3.as_usize()];
 
-    // Simple reference trigram logic (Redirects)
-    if h1 == h3 && h1 != h2 {
-        // Change hand and back (Redirect)
-        return ctx.penalty_redirect.raw();
-    }
-
-    // Rolls
-    if h1 == h2 && h2 == h3 {
-        let d1 = i16::from(f2.raw()) - i16::from(f1.raw());
-        let d2 = i16::from(f3.raw()) - i16::from(f2.raw());
-
-        if d1.signum() == d2.signum() && d1 != 0 && d2 != 0 {
-            // All same direction
-            if d1 > 0 {
-                // Inward
-                return -ctx.bonus_roll.raw();
-            }
-            // Outward
-            return -ctx.bonus_roll_out.raw();
-        }
-    }
-
-    0
+    crate::kernel::mechanics::calculate_flow_cost(
+        h1,
+        h2,
+        h3,
+        f1,
+        f2,
+        f3,
+        ctx.penalty_redirect,
+        ctx.bonus_roll,
+        ctx.bonus_roll_out,
+    )
+    .raw()
 }
 
 /// Verification result for a single layout.

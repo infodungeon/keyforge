@@ -35,11 +35,8 @@ async fn test_load_resilience() -> anyhow::Result<()> {
     let kb_data = std::fs::read("../../data/system/keyboards/models/corne.mpk.zst")?;
     let kb_def: keyforge_model::geometry::KeyboardDefinition =
         rmp_serde::from_slice(&zstd::decode_all(&kb_data[..])?)?;
-    let kb = Keyboard::new(
-        kb_def.geometry.keys,
-        kb_def.geometry.home_row(),
-        "corne".into(),
-    )?;
+    let home_row = kb_def.geometry.home_row();
+    let kb = Keyboard::new(kb_def.geometry.keys, home_row, "corne".into())?;
     let kb = Arc::new(kb);
 
     let corpus = Arc::new(Corpus::default()); // en_small empty by default but matches Hive if not seeded

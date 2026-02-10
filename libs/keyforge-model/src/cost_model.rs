@@ -15,13 +15,12 @@
 //! physics engine to load static costs and dynamic rules from data
 //! rather than hardcoded logic.
 
-use crate::asset::{Asset, AssetCategory};
+use crate::types::Score;
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Metadata for the cost model.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct CostModelMeta {
     /// Schema version.
     pub version: String,
@@ -42,7 +41,7 @@ impl Default for CostModelMeta {
 }
 
 /// Validated and performance-optimized Cost Model (Domain Model).
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CostModel {
     /// Metadata about the model version.
     pub meta: CostModelMeta,
@@ -50,17 +49,6 @@ pub struct CostModel {
     pub models: HashMap<String, ModelDefinition>,
     /// Global dynamic rules and penalties.
     pub dynamic_rules: DynamicRules,
-}
-
-impl Asset for CostModel {
-    fn category() -> AssetCategory {
-        AssetCategory::CostModel
-    }
-
-    fn post_load(&mut self) -> Result<(), crate::error::ForgeError> {
-        self.validate()
-            .map_err(crate::error::ForgeError::InvalidData)
-    }
 }
 
 impl Validator for CostModel {
@@ -119,7 +107,7 @@ impl CostModel {
 }
 
 /// Definition of a specific physical model (e.g., "`model_a_row_staggered`").
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ModelDefinition {
     /// Description of the hardware geometry this model applies to.
     pub description: String,
@@ -137,61 +125,52 @@ impl Validator for ModelDefinition {
 }
 
 /// Costs for a specific hand (e.g., "`left_hand`", "`universal_hand`").
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct HandDefinition {
     /// Map of finger names to their cost definitions.
-    #[serde(flatten)]
     pub fingers: HashMap<String, FingerDefinition>,
 }
 
 /// A map of `RowIndex` to cost.
-pub type RowCosts = HashMap<crate::types::RowIndex, f32>;
+pub type RowCosts = HashMap<crate::types::RowIndex, Score>;
 
 /// Definition of costs within a finger's reach.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FingerReach {
     /// Costs for keys in the base column.
-    #[serde(default)]
     pub base: RowCosts,
     /// Costs for keys in the inner column (closer to center).
-    #[serde(default)]
     pub inner: RowCosts,
     /// Costs for keys in the outer column (closer to edge).
-    #[serde(default)]
     pub outer: RowCosts,
 }
 
 /// Polymorphic definition for finger costs.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone)]
 pub enum FingerDefinition {
     /// Standard finger with Reach zones.
     Standard(FingerReach),
     /// Thumb with named positions (backward compatible).
-    Thumb(HashMap<String, f32>),
+    Thumb(HashMap<String, Score>),
     /// Fallback for unknown or complex finger definitions.
-    Fallback(serde_json::Value),
+    Fallback,
 }
 
 /// Dynamic scoring rules and global constraints.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct DynamicRules {
     /// Modifiers for key sequences (e.g., rolls).
-    pub sequence_modifiers: HashMap<String, f32>,
+    pub sequence_modifiers: HashMap<String, Score>,
     /// Penalties for biomechanical violations (e.g., scissors).
-    pub penalties: HashMap<String, f32>,
+    pub penalties: HashMap<String, Score>,
     /// Global constraints (e.g., hand balance).
-    pub constraints: HashMap<String, f32>,
+    pub constraints: HashMap<String, Score>,
 }
 
 impl Validator for DynamicRules {
     fn validate(&self) -> Result<(), String> {
         // Basic check to ensure no infinite/NaN values
-        for (k, v) in &self.sequence_modifiers {
-            if !v.is_finite() {
-                return Err(format!("Sequence modifier '{k}' is not finite"));
-            }
-        }
+        // FixedWeight ensures bit-perfect determinism and cannot be NaN.
         Ok(())
     }
 }
@@ -204,13 +183,7 @@ mod tests {
     fn test_cost_model_defaults() {
         let meta = CostModelMeta::default();
         assert_eq!(meta.version, "2.0");
-
         let cm = CostModel::default();
         assert!(cm.models().is_empty());
-    }
-
-    #[test]
-    fn test_asset_trait() {
-        assert_eq!(CostModel::category(), AssetCategory::CostModel);
     }
 }

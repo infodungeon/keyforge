@@ -56,7 +56,7 @@ impl ScoringEngine for GenericScoringEngine {
 
         crate::kernel::compute::state::with_scratch(|scratch| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map, _, _) =
                 scratch.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,

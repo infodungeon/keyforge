@@ -1,0 +1,19 @@
+id: safe-path-io
+message: "ARCH-027: Use keyforge_infra::fs::io utilities (atomic_write, read_to_string_limited) instead of direct std::fs calls for better security and durability."
+severity: error
+language: rust
+rule:
+  any:
+    - pattern: "std::fs::write($$$)"
+    - pattern: "std::fs::read_to_string($$$)"
+    - pattern: "fs::write($$$)"
+    - pattern: "fs::read_to_string($$$)"
+    - pattern: "File::create($$$)"
+    - pattern: "std::fs::File::create($$$)"
+
+files:
+  - "apps/**/*.rs"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "**/testing.rs"

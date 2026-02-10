@@ -24,11 +24,19 @@ async fn test_agent_job_orchestration() {
                 name: "AgentTest".into(),
                 ..Default::default()
             },
+<<<<<<< HEAD
             geometry: KeyboardGeometry {
                 keys: vec![KeyNode {
                     index: 0,
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
+=======
+            geometry: KeyboardGeometry::new(
+                vec![KeyNode {
+                    index: KeyIndex(0),
+                    x: keyforge_model::types::SpatialUnit::from_f32(0.0),
+                    y: keyforge_model::types::SpatialUnit::from_f32(0.0),
+>>>>>>> master
                     hand: HandIndex::new(0),
                     finger: FingerIndex::INDEX,
                     row: RowIndex::new(0),
@@ -76,7 +84,9 @@ async fn test_agent_job_orchestration() {
         .await
         .unwrap()
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &config.to_domain_weights(),
+            &config
+                .to_domain_weights()
+                .expect("Failed to convert weights"),
         ))
         .with_config(keyforge_adapter::conversion::to_domain_config(
             &config.to_domain_params(),

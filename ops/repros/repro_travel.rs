@@ -1,17 +1,18 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+// ops/repros/repro_travel.rs
+
 use keyforge_model::{Corpus, Keyboard, Rubric, layout::Layout};
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_physics::ScoringEngine;
-use std::fs::File;
-use std::path::Path;
 
 fn main() {
-    let path = Path::new("data/system/keyboards/models/szr35.mpk.zst");
-    let file = File::open(path).expect("Failed to open file");
+    // SAFETY: ARCH-005 Exception: Reproduction script requires loading system keyboard models
+    // for analysis. This falls outside the pure physics/evolution kernel boundary.
+    let path = std::path::Path::new("data/system/keyboards/models/szr35.mpk.zst");
+    // SAFETY: TYPE-003 Exception: Reproduction script.
+    let file = std::fs::File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
     let kb_def: KeyboardDefinition = rmp_serde::from_read(decoder).expect("Failed to deserialize");
     
-    let kb = Keyboard::new(kb_def.geometry.keys().clone(), kb_def.geometry.home_row(), "test".into()).unwrap();
+    let kb = Keyboard::new(kb_def.geometry.keys().clone(), kb_def.geometry.home_row(), "test".into()).expect("Failed to create keyboard");
 
     // Simple corpus: 
     // 'q' (idx 0), 'a' (idx 5), Space (idx 16/34)
@@ -20,9 +21,9 @@ fn main() {
     let a = 97u16;
     let space = 32u16;
 
-    corpus.char_freqs[q as usize] = 1000;
-    corpus.char_freqs[a as usize] = 1000;
-    corpus.char_freqs[space as usize] = 1000;
+    corpus.char_freqs[usize::from(q)] = 1000;
+    corpus.char_freqs[usize::from(a)] = 1000;
+    corpus.char_freqs[usize::from(space)] = 1000;
     
     // Q -> A transition (SFB: Pinky)
     corpus.bigrams.push((q, a, 500)); 
@@ -32,30 +33,30 @@ fn main() {
     let rubric = Rubric::default();
 
     // Layout: SZR35 (CoDH style-ish)
-    let mut layout_codes = vec![keyforge_model::types::KeyCode(0); 36];
-    layout_codes[0] = keyforge_model::types::KeyCode(q);
-    layout_codes[5] = keyforge_model::types::KeyCode(a);
-    layout_codes[16] = keyforge_model::types::KeyCode(32); // SpaceL
-    layout_codes[34] = keyforge_model::types::KeyCode(32); // SpaceR
+    let mut layout_codes = vec![keyforge_model::types::KeyCode::new(0); 36];
+    layout_codes[0] = keyforge_model::types::KeyCode::new(q);
+    layout_codes[5] = keyforge_model::types::KeyCode::new(a);
+    layout_codes[16] = keyforge_model::types::KeyCode::new(32); // SpaceL
+    layout_codes[34] = keyforge_model::types::KeyCode::new(32); // SpaceR
     
     let layout = Layout::new_unchecked(layout_codes);
 
-    let engine = keyforge_physics::ScoringEngine::new(&kb, &corpus, &rubric, &[]).unwrap();
+    let engine = keyforge_physics::ScoringEngine::new(&kb, &corpus, &rubric, &[]).expect("Failed to create engine");
 
     // 1. Both (Bilateral)
-    let report_both = engine.analyze(&layout).unwrap();
+    let report_both = engine.analyze(&layout).expect("Failed to analyze bilateral");
     
     // 2. Left Only
     let mut layout_left_codes = layout.keys().clone();
-    layout_left_codes[34] = keyforge_model::types::KeyCode(0); // Mask right space
+    layout_left_codes[34] = keyforge_model::types::KeyCode::new(0); // Mask right space
     let layout_left = Layout::new_unchecked(layout_left_codes);
-    let report_left = engine.analyze(&layout_left).unwrap();
+    let report_left = engine.analyze(&layout_left).expect("Failed to analyze left only");
 
     // 3. Right Only
     let mut layout_right_codes = layout.keys().clone();
-    layout_right_codes[16] = keyforge_model::types::KeyCode(0); // Mask left space
+    layout_right_codes[16] = keyforge_model::types::KeyCode::new(0); // Mask left space
     let layout_right = Layout::new_unchecked(layout_right_codes);
-    let report_right = engine.analyze(&layout_right).unwrap();
+    let report_right = engine.analyze(&layout_right).expect("Failed to analyze right only");
     
     println!("--- Analytical Results ---");
     println!("Bilateral Distance: {:.4}", report_both.distance);

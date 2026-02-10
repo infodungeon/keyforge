@@ -14,13 +14,11 @@
 
 //! Central registry for biomechanical metrics.
 
-use serde::{Deserialize, Serialize};
+use crate::types::Score;
 use std::collections::HashMap;
-use utoipa::ToSchema;
 
 /// Unique identifier for a biomechanical metric (e.g. "sfb", "`travel_dist`").
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, strum::EnumString)]
 pub enum MetricId {
     /// Total finger travel distance.
     TravelDistance,
@@ -57,11 +55,10 @@ pub enum MetricId {
 }
 
 /// A collection of metric values.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[derive(Debug, Clone, Default)]
 pub struct MetricSet {
     /// Map of metric ID to its calculated value.
-    #[serde(default)]
-    values: HashMap<MetricId, f32>,
+    values: HashMap<MetricId, Score>,
 }
 
 impl MetricSet {
@@ -71,27 +68,27 @@ impl MetricSet {
         Self::default()
     }
 
-    /// Returns the value for a specific metric, or 0.0 if not found.
+    /// Returns the value for a specific metric, or `Score::ZERO` if not found.
     #[must_use]
-    pub fn get(&self, id: MetricId) -> f32 {
-        self.values.get(&id).copied().unwrap_or(0.0)
+    pub fn get(&self, id: MetricId) -> Score {
+        self.values.get(&id).copied().unwrap_or(Score::ZERO)
     }
 
     /// Sets the value for a specific metric.
-    pub fn set(&mut self, id: MetricId, value: f32) {
+    pub fn set(&mut self, id: MetricId, value: Score) {
         self.values.insert(id, value);
     }
 
     /// Adds the values from another metric set to this one.
     pub fn accumulate(&mut self, other: &MetricSet) {
         for (id, val) in &other.values {
-            let current = self.values.entry(*id).or_insert(0.0);
-            *current += val;
+            let current = self.values.entry(*id).or_insert(Score::ZERO);
+            *current = *current + *val;
         }
     }
 
     /// Returns an iterator over the metric values.
-    pub fn iter(&self) -> impl Iterator<Item = (&MetricId, &f32)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&MetricId, &Score)> {
         self.values.iter()
     }
 

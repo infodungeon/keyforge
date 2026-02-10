@@ -3,12 +3,23 @@ message: "ARCH-005: Physics and Evolution kernels must be pure and are forbidden
 severity: error
 language: rust
 rule:
-  any:
-    - pattern: "std::fs::$$$"
-    - pattern: "std::net::$$$"
-    - pattern: "use std::fs::$$$"
-    - pattern: "use std::net::$$$"
-paths:
-  include:
-    - "libs/keyforge-physics/src/**/*.rs"
-    - "libs/keyforge-evolution/src/**/*.rs"
+  all:
+    - any:
+        - pattern: "std::fs::$$$"
+        - pattern: "std::net::$$$"
+        - pattern: "use std::fs::$$$"
+        - pattern: "use std::net::$$$"
+    - not:
+        inside:
+          kind: mod_item
+          has:
+            kind: attribute
+            pattern: "#[cfg(test)]"
+files:
+  - "libs/keyforge-physics/src/**/*.rs"
+  - "libs/keyforge-evolution/src/**/*.rs"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "ops/repros/**"
+  - "**/testing.rs"

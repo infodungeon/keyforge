@@ -12,31 +12,43 @@ mod runtime_tests {
     use std::sync::Arc;
 
     #[derive(Debug)]
-    struct MockLoader;
+    struct MockLoader {
+        root: keyforge_boundary::SafePath,
+    }
+
+    impl MockLoader {
+        fn new() -> Self {
+            Self {
+                root: keyforge_boundary::SafePath::from_trusted_root_path(
+                    std::path::PathBuf::from("."),
+                ),
+            }
+        }
+    }
 
     #[async_trait]
     impl AssetLoader for MockLoader {
         async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
             let tid = std::any::TypeId::of::<T>();
 
-            if tid == std::any::TypeId::of::<keyforge_model::keycodes::KeycodeRegistry>() {
-                let reg = keyforge_model::keycodes::KeycodeRegistry::new_with_defaults();
+            if tid == std::any::TypeId::of::<keyforge_protocol::KeycodeRegistryDto>() {
+                let reg = keyforge_protocol::KeycodeRegistryDto::default();
                 let any_kc = Arc::new(reg) as Arc<dyn std::any::Any + Send + Sync>;
                 return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
             }
 
-            if tid == std::any::TypeId::of::<keyforge_model::CostModel>() {
-                let mut model = keyforge_model::cost_model::CostModel::default();
-                let mut hand_def = keyforge_model::cost_model::HandDefinition::default();
+            if tid == std::any::TypeId::of::<keyforge_protocol::CostModelDto>() {
+                let mut model = keyforge_protocol::CostModelDto::default();
+                let mut hand_def = keyforge_protocol::HandDefinitionDto::default();
                 for finger in &["thumb", "index", "middle", "ring", "pinky"] {
                     hand_def.fingers.insert(
                         (*finger).to_string(),
-                        keyforge_model::cost_model::FingerDefinition::Standard(
-                            keyforge_model::cost_model::FingerReach::default(),
+                        keyforge_protocol::FingerDefinitionDto::Standard(
+                            keyforge_protocol::FingerReachDto::default(),
                         ),
                     );
                 }
-                let mut model_def = keyforge_model::cost_model::ModelDefinition::default();
+                let mut model_def = keyforge_protocol::ModelDefinitionDto::default();
                 model_def
                     .static_costs
                     .insert("universal_hand".to_string(), hand_def);
@@ -60,14 +72,22 @@ mod runtime_tests {
             Ok(Arc::new(Corpus::default()))
         }
 
-        fn root(&self) -> &Path {
-            Path::new(".")
+        fn root(&self) -> &keyforge_boundary::SafePath {
+            &self.root
+        }
+
+        async fn get_hash(
+            &self,
+            _category: keyforge_model::asset::AssetCategory,
+            _id: &str,
+        ) -> LoaderResult<String> {
+            Ok("mock".to_string())
         }
     }
 
     #[tokio::test]
     async fn test_runtime_execution() {
-        let loader = MockLoader;
+        let loader = MockLoader::new();
         let mut kb_def = KeyboardDefinition::default();
         kb_def
             .geometry

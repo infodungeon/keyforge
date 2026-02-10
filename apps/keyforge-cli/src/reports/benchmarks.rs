@@ -14,9 +14,11 @@
 
 use comfy_table::presets::ASCII_FULL;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
+use keyforge_boundary::SafePath;
+use keyforge_infra::fs::io::read_to_string_limited;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
 use keyforge_model::AnalysisReport;
 use serde::Deserialize;
-use std::fs;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -47,14 +49,14 @@ impl Default for BenchmarkEntry {
     }
 }
 
-pub fn load(root: &std::path::Path) -> Option<Vec<BenchmarkEntry>> {
+pub fn load(root: &SafePath) -> Option<Vec<BenchmarkEntry>> {
     let input = crate::constants::DEFAULT_BENCHMARK_PATH;
 
-    let Ok(path) = crate::cli_parsers::resolve_path(input, None, root) else {
+    let Ok(path) = crate::cli_parsers::resolve_path(input, None, root.as_path()) else {
         return None;
     };
 
-    match fs::read_to_string(path) {
+    match read_to_string_limited(&path, MAX_INPUT_FILE_SIZE) {
         Ok(content) => match serde_json::from_str(&content) {
             Ok(data) => Some(data),
             Err(e) => {
@@ -84,7 +86,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
         ]);
 
     // SFB%
-    let current_sfb = report.sfb_ratio * 100.0;
+    let current_sfb = report.sfb_ratio.to_f32() * 100.0;
     let min_baseline_sfb = baselines
         .iter()
         .map(|b| b.sfb_ratio)
@@ -104,7 +106,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
     ]);
 
     // Distance
-    let current_dist = report.travel_per_key;
+    let current_dist = report.travel_per_key.to_f32();
     let min_baseline_dist = baselines
         .iter()
         .map(|b| b.travel_per_key)
@@ -123,7 +125,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
     ]);
 
     // Scissors
-    let current_scissors = report.scissors;
+    let current_scissors = report.scissors.to_f32();
     let min_baseline_scissors = baselines
         .iter()
         .map(|b| b.scissors)
@@ -142,7 +144,7 @@ pub fn display(current_name: &str, report: &AnalysisReport, baselines: &[Benchma
     ]);
 
     // Redirects
-    let current_redirs = report.redirects;
+    let current_redirs = report.redirects.to_f32();
     let min_baseline_redirs = baselines
         .iter()
         .map(|b| b.redirects)

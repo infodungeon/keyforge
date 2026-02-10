@@ -17,20 +17,20 @@ use super::constants::{
     DEFAULT_WEIGHT_VERTICAL_TRAVEL, DEFAULT_WEIGHT_WEAK_FINGER_SFB, MAX_LOADER_TRIGRAM_LIMIT,
     MAX_SAFE_WEIGHT,
 };
+
 use crate::config::metadata::{ParamType, ParameterMetadata};
+use crate::types::Score;
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use sha2::{Digest, Sha256};
 
 /// Weights and penalties defining the "personality" of the scoring engine.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct ScoringWeights {
     /// Dynamic weights map.
-    pub weights: std::collections::HashMap<String, f32>,
+    pub weights: std::collections::HashMap<String, Score>,
 
     /// Finger penalty multipliers (Thumb, Index, Middle, Ring, Pinky).
-    pub finger_penalty_scale: [f32; 5],
+    pub finger_penalty_scale: [Score; 5],
     /// Comma-separated list of comfortable scissor pairs.
     pub comfortable_scissors: String,
 }
@@ -52,7 +52,7 @@ impl Default for ScoringWeights {
 }
 
 impl ScoringWeights {
-    fn insert_sfb_penalties(weights: &mut std::collections::HashMap<String, f32>) {
+    fn insert_sfb_penalties(weights: &mut std::collections::HashMap<String, Score>) {
         weights.insert(
             "penalty_sfr_weak_finger".to_string(),
             DEFAULT_PENALTY_SFR_WEAK_FINGER,
@@ -87,14 +87,14 @@ impl ScoringWeights {
         );
         weights.insert(
             "threshold_sfb_long_row_diff".to_string(),
-            f32::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF),
+            Score::from_scaled_i64(i64::from(DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF) * 1_000_000),
         );
     }
 
-    fn insert_movement_penalties(weights: &mut std::collections::HashMap<String, f32>) {
+    fn insert_movement_penalties(weights: &mut std::collections::HashMap<String, Score>) {
         weights.insert(
             "threshold_scissor_row_diff".to_string(),
-            f32::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF),
+            Score::from_scaled_i64(i64::from(DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF) * 1_000_000),
         );
         weights.insert(
             "threshold_reach_stretch".to_string(),
@@ -122,7 +122,7 @@ impl ScoringWeights {
         );
     }
 
-    fn insert_dynamic_rules(weights: &mut std::collections::HashMap<String, f32>) {
+    fn insert_dynamic_rules(weights: &mut std::collections::HashMap<String, Score>) {
         weights.insert("penalty_redirect".to_string(), DEFAULT_PENALTY_REDIRECT);
         weights.insert("penalty_hand_run".to_string(), DEFAULT_PENALTY_HAND_RUN);
         weights.insert("bonus_inward_roll".to_string(), DEFAULT_BONUS_INWARD_ROLL);
@@ -156,22 +156,42 @@ impl ScoringWeights {
         weights.insert("max_hand_imbalance".to_string(), DEFAULT_MAX_HAND_IMBALANCE);
     }
 
-    fn insert_loader_defaults(weights: &mut std::collections::HashMap<String, f32>) {
+    fn insert_loader_defaults(weights: &mut std::collections::HashMap<String, Score>) {
         weights.insert("default_cost_ms".to_string(), DEFAULT_COST_MS);
-        #[allow(clippy::cast_precision_loss)]
         weights.insert(
             "loader_trigram_limit".to_string(),
-            DEFAULT_LOADER_TRIGRAM_LIMIT as f32,
+            Score::from_scaled_i64(
+                i64::from(u32::try_from(DEFAULT_LOADER_TRIGRAM_LIMIT).unwrap_or(0)) * 1_000_000,
+            ),
         );
         weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
+    }
+
+    /// Generates a deterministic hash of the scoring weights.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        let mut keys: Vec<_> = self.weights.keys().collect();
+        keys.sort();
+        for k in keys {
+            if let Some(val) = self.weights.get(k) {
+                hasher.update(k.as_bytes());
+                hasher.update(val.raw().to_le_bytes());
+            }
+        }
+        for w in &self.finger_penalty_scale {
+            hasher.update(w.raw().to_le_bytes());
+        }
+        hasher.update(self.comfortable_scissors.as_bytes());
+        hex::encode(hasher.finalize())
     }
 }
 
 impl Validator for ScoringWeights {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn validate(&self) -> Result<(), String> {
         if let Some(&limit) = self.weights.get("loader_trigram_limit") {
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            if limit as usize > MAX_LOADER_TRIGRAM_LIMIT {
+            if usize::try_from(limit.raw() / 1_000_000).unwrap_or(0) > MAX_LOADER_TRIGRAM_LIMIT {
                 return Err(format!(
                     "loader_trigram_limit exceeds safety maximum ({MAX_LOADER_TRIGRAM_LIMIT})"
                 ));
@@ -179,18 +199,18 @@ impl Validator for ScoringWeights {
         }
 
         for (key, &val) in &self.weights {
-            if val < 0.0 && !key.contains("bonus") {
+            if val < Score::ZERO && !key.contains("bonus") {
                 return Err(format!("Penalty weight '{key}' cannot be negative"));
             }
             if val > MAX_SAFE_WEIGHT {
                 return Err(format!(
-                    "Weight '{key}' exceeds safety maximum ({MAX_SAFE_WEIGHT:.0})"
+                    "Weight '{key}' exceeds safety maximum ({MAX_SAFE_WEIGHT})"
                 ));
             }
         }
 
         for (i, &w) in self.finger_penalty_scale.iter().enumerate() {
-            if w < 0.0 {
+            if w < Score::ZERO {
                 return Err(format!("finger_penalty_scale[{i}] cannot be negative"));
             }
         }
@@ -209,8 +229,8 @@ impl ScoringWeights {
                 description: "Basic cost for any Same Finger Bigram.".to_string(),
                 param_type: ParamType::Float,
                 min: Some(0.0),
-                max: Some(MAX_SAFE_WEIGHT),
-                default: DEFAULT_PENALTY_SFB_BASE,
+                max: Some(MAX_SAFE_WEIGHT.to_f32()),
+                default: DEFAULT_PENALTY_SFB_BASE.to_f32(),
             },
             ParameterMetadata {
                 key: "penalty_scissor".to_string(),
@@ -218,8 +238,8 @@ impl ScoringWeights {
                 description: "Penalty for adjacent finger stretches.".to_string(),
                 param_type: ParamType::Float,
                 min: Some(0.0),
-                max: Some(MAX_SAFE_WEIGHT),
-                default: DEFAULT_PENALTY_SCISSOR,
+                max: Some(MAX_SAFE_WEIGHT.to_f32()),
+                default: DEFAULT_PENALTY_SCISSOR.to_f32(),
             },
             ParameterMetadata {
                 key: "weight_vertical_travel".to_string(),
@@ -228,7 +248,7 @@ impl ScoringWeights {
                 param_type: ParamType::Float,
                 min: Some(0.0),
                 max: Some(10.0),
-                default: DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+                default: DEFAULT_WEIGHT_VERTICAL_TRAVEL.to_f32(),
             },
         ]
     }

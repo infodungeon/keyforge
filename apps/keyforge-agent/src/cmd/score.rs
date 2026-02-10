@@ -17,7 +17,7 @@ pub async fn run(
 ) -> Result<()> {
     let (_cost_name, _corpus_id) = prepare_assets(assets, job, config).await?;
 
-    let loader = keyforge_infra::FsProvider::new(assets.root().to_path_buf());
+    let loader = keyforge_infra::FsProvider::new(assets.root().clone());
     let mut builder = keyforge_compute::SessionBuilder::new(&loader);
 
     builder = builder.with_keyboard_def(Arc::new(KeyboardDefinition::from_geometry(
@@ -32,7 +32,7 @@ pub async fn run(
 
     let builder = builder
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights().map_err(|e| anyhow::anyhow!(e))?,
         ))
         .with_config(keyforge_adapter::conversion::to_domain_config(
             &job.to_domain_params(),

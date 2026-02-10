@@ -6,9 +6,9 @@ rule:
   any:
     - pattern: "#[derive(Serialize)]"
     - pattern: "#[derive(serde::Serialize)]"
-paths:
-  include:
-    - "libs/keyforge-model/src/**/*.rs"
-  exclude:
-    - "**/tests.rs"
-    - "**/tests/**"
+files:
+  - "libs/keyforge-model/src/**/*.rs"
+ignores:
+  - "**/tests.rs"
+  - "**/tests/**"
+  - "libs/keyforge-model/src/types/**/*.rs" # Many core types MUST be serializable

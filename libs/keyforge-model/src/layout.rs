@@ -18,14 +18,12 @@
 //! `KeyIndex` positions on a keyboard.
 
 use crate::types::{KeyCode, KeyIndex};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use thiserror::Error;
-use utoipa::ToSchema;
 
 /// Errors related to Layout construction and validation.
-#[derive(Error, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Error, Debug)]
 pub enum LayoutError {
     /// Layout contains the same key code multiple times.
     #[error("Layout contains duplicate keys")]
@@ -39,7 +37,7 @@ pub enum LayoutError {
 }
 
 /// A raw, unvalidated representation of a layout, used for I/O and serialization.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawLayout {
     /// The list of keys.
     /// The index corresponds to the `KeyIndex`.
@@ -48,8 +46,7 @@ pub struct RawLayout {
 
 /// A rich domain model for a keyboard layout.
 /// Invariants are enforced upon construction and mutation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(try_from = "RawLayout", into = "RawLayout")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layout {
     /// The list of keys.
     /// Private to ensure invariants (like non-emptiness or size consistency) are maintained.
@@ -152,7 +149,7 @@ impl From<Vec<KeyCode>> for RawLayout {
 }
 
 /// Represents the identity of a layout based on its similarity to standard layouts.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone)]
 pub struct LayoutIdentity {
     /// The name of the standard layout (e.g., "Qwerty", "Colemak").
     pub name: String,
@@ -198,7 +195,8 @@ impl LayoutIdentity {
                 }
             }
 
-            let similarity = (matches as f32) / (len as f32);
+            let similarity = f32::from(u16::try_from(matches).unwrap_or(u16::MAX))
+                / f32::from(u16::try_from(len).unwrap_or(u16::MAX));
             let distance = len - matches;
 
             if best.as_ref().is_none_or(|b| similarity > b.similarity) {
@@ -220,7 +218,9 @@ impl LayoutIdentity {
 }
 
 fn to_codes(s: &str) -> Vec<KeyCode> {
-    s.chars().map(|c| KeyCode::new(c as u16)).collect()
+    s.chars()
+        .map(|c| KeyCode::new(u16::try_from(u32::from(c)).unwrap_or(0)))
+        .collect()
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -242,34 +242,54 @@ mod tests {
     }
 
     #[test]
-    fn test_layout_mutations() {
+    fn test_layout_mutations() -> anyhow::Result<()> {
         let mut layout = Layout::new_unchecked(vec![KeyCode::new(65), KeyCode::new(66)]);
 
         // Swap
-        layout.swap(KeyIndex::new(0), KeyIndex::new(1)).unwrap();
-        assert_eq!(layout.get(KeyIndex::new(0)).unwrap(), KeyCode::new(66));
-        assert_eq!(layout.get(KeyIndex::new(1)).unwrap(), KeyCode::new(65));
+        layout.swap(KeyIndex::new(0), KeyIndex::new(1))?;
+        assert_eq!(
+            layout
+                .get(KeyIndex::new(0))
+                .ok_or_else(|| anyhow::anyhow!("Missing key"))?,
+            KeyCode::new(66)
+        );
+        assert_eq!(
+            layout
+                .get(KeyIndex::new(1))
+                .ok_or_else(|| anyhow::anyhow!("Missing key"))?,
+            KeyCode::new(65)
+        );
 
         // Set
-        layout.set(KeyIndex::new(0), KeyCode::new(67)).unwrap();
-        assert_eq!(layout.get(KeyIndex::new(0)).unwrap(), KeyCode::new(67));
+        layout.set(KeyIndex::new(0), KeyCode::new(67))?;
+        assert_eq!(
+            layout
+                .get(KeyIndex::new(0))
+                .ok_or_else(|| anyhow::anyhow!("Missing key"))?,
+            KeyCode::new(67)
+        );
 
         // Bounds check
         assert!(layout.swap(KeyIndex::new(0), KeyIndex::new(2)).is_err());
         assert!(layout.set(KeyIndex::new(2), KeyCode::new(68)).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_layout_identification() {
+    fn test_layout_identification() -> anyhow::Result<()> {
         let qwerty_str = crate::constants::layouts::QWERTY;
-        let keys: Vec<KeyCode> = qwerty_str.chars().map(|c| KeyCode::new(c as u16)).collect();
+        let keys: Vec<KeyCode> = qwerty_str
+            .chars()
+            .map(|c| KeyCode::new(u16::try_from(u32::from(c)).unwrap_or(0)))
+            .collect();
         let layout = Layout::new_unchecked(keys);
 
         let id = layout.identify();
         assert!(id.is_some());
-        let id = id.unwrap();
+        let id = id.ok_or_else(|| anyhow::anyhow!("Identification failed"))?;
         assert_eq!(id.name, "Qwerty");
         assert!(id.similarity > 0.9);
+        Ok(())
     }
 
     proptest! {

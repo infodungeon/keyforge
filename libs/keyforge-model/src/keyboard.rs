@@ -17,25 +17,22 @@
 use crate::error::ForgeError;
 use crate::geometry::KeyNode;
 use crate::types::{Movement, Point};
-use serde::{Deserialize, Serialize};
 
 /// The physical reality of the device.
 /// Contains the set of keys and pre-calculated spatial data for scoring.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Keyboard {
     /// The list of physical keys.
     keys: Vec<KeyNode>,
     /// The logical row index considered the "Home Row".
     pub home_row: crate::types::RowIndex,
     /// Type of keyboard (e.g., "split", "ortho").
-    #[serde(default)]
     pub kb_type: String,
     /// Pre-calculated centers for fingers [hand][finger] -> Point.
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<Point>>,
     /// Pre-calculated movements between every pair of physical keys.
     /// Index: [i * `key_count` + j] -> Movement.
-    #[serde(skip)]
     pub spatial_cache: Vec<Movement>,
 }
 
@@ -162,33 +159,54 @@ impl Keyboard {
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
+<<<<<<< HEAD
     use crate::types::{FingerIndex, HandIndex, RowIndex, SpatialUnit};
+=======
+    use crate::types::{FingerIndex, HandIndex, KeyIndex};
+>>>>>>> master
 
     #[test]
-    fn test_keyboard_spatial_precomputation() {
+    fn test_keyboard_spatial_precomputation() -> anyhow::Result<()> {
         let keys = vec![
             KeyNode {
+<<<<<<< HEAD
                 index: 0,
                 x: SpatialUnit::from_f32(0.0),
                 y: SpatialUnit::from_f32(0.0),
+=======
+                index: KeyIndex(0),
+                x: crate::types::SpatialUnit::from_f32(0.0),
+                y: crate::types::SpatialUnit::from_f32(0.0),
+>>>>>>> master
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(1),
                 ..Default::default()
             },
             KeyNode {
+<<<<<<< HEAD
                 index: 1,
                 x: SpatialUnit::from_f32(3.0),
                 y: SpatialUnit::from_f32(4.0),
+=======
+                index: KeyIndex(1),
+                x: crate::types::SpatialUnit::from_f32(3.0),
+                y: crate::types::SpatialUnit::from_f32(4.0),
+>>>>>>> master
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(2),
                 ..Default::default()
             },
         ];
+<<<<<<< HEAD
         let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();
+=======
+        let kb = Keyboard::new(keys, crate::types::RowIndex::new(0), "test".into())?;
+>>>>>>> master
 
         assert_eq!(kb.spatial_cache.len(), 4);
         // (3-0)^2 + (4-0)^2 = 9 + 16 = 25
-        assert_eq!(kb.spatial_cache[1].dist_sq(), 25_000_000); // 1000^2 scaling for KU^2
+        assert_eq!(kb.spatial_cache[1].dist_sq(), 25_000_000);
+        Ok(())
     }
 
     #[test]

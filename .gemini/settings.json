@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "narsil": {
+<<<<<<< HEAD
       "command": "python3",
       "args": ["ops/scripts/mcp_bridge.py", "/home/robert/.cargo/bin/narsil-mcp", "--repos", ".,/tmp/gemini-cli-audit", "--call-graph", "--persist", "--git"]
     },
@@ -26,6 +27,31 @@
         "GEMINI_CLI_CLOUDFLARE_KEY": "$GEMINI_CLI_CLOUDFLARE_KEY",
         "GEMINI_CLI_CLOUDFLARE_ACCOUNT_ID": "$GEMINI_CLI_CLOUDFLARE_ACCOUNT_ID",
         "KF_GH_AUTH_BLOB": "$KF_GH_AUTH_BLOB"
+=======
+      "command": "/home/robert/.cargo/bin/narsil-mcp",
+      "args": [
+        "--repos",
+        "/home/robert/projects/keyforge",
+        "--call-graph",
+        "--persist",
+        "--git"
+      ]
+    },
+    "arbor": {
+      "command": "/home/robert/.cargo/bin/arbor",
+      "args": [
+        "bridge",
+        "/home/robert/projects/keyforge"
+      ]
+    },
+    "github": {
+      "command": "node",
+      "args": [
+        "/home/robert/.npm-global/lib/node_modules/@modelcontextprotocol/server-github/dist/index.js"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${KF_GH_AUTH_BLOB}"
+>>>>>>> master
       }
     }
   }

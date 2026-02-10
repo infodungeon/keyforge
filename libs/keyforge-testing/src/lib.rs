@@ -21,6 +21,7 @@
 
 pub use keyforge_testing_macros::kf_test;
 
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::init::{initialize_workspace_async, InitMode};
 use keyforge_infra::FsProvider;
 use std::path::PathBuf;
@@ -75,9 +76,11 @@ impl HermeticWorkspace {
         .await?;
 
         // Initialize structure (will validate assets now)
-        initialize_workspace_async(&root, InitMode::Create).await?;
 
-        let provider = FsProvider::new(root.clone());
+        let safe_root = SafePath::from_trusted_root_path(root.clone());
+        initialize_workspace_async(&safe_root, InitMode::Create).await?;
+
+        let provider = FsProvider::new(safe_root);
 
         Ok(Self {
             _temp: temp,
@@ -142,7 +145,10 @@ impl HermeticWorkspace {
                 aliases: vec!["H".into()],
             },
         ];
-        let keycodes_json = serde_json::to_string_pretty(&keycodes)?;
+        let keycodes_dto = keyforge_protocol::KeycodeRegistryDto {
+            definitions: keycodes.into_iter().map(Into::into).collect(),
+        };
+        let keycodes_json = serde_json::to_string_pretty(&keycodes_dto)?;
         self.write_file("user/config/keycodes.json", &keycodes_json)
             .await?;
         self.write_file("system/config/keycodes.json", &keycodes_json)
@@ -153,7 +159,10 @@ impl HermeticWorkspace {
         // 2. Cost Matrix
         let mut static_costs = HashMap::new();
         let mut base_costs = RowCosts::new();
-        base_costs.insert(RowIndex::new(0), 100.0);
+        base_costs.insert(
+            RowIndex::new(0),
+            keyforge_model::types::Score::from_f32(100.0).map_err(|e| anyhow::anyhow!(e))?,
+        );
 
         let fingers_def = FingerDefinition::Standard(keyforge_model::cost_model::FingerReach {
             base: base_costs,
@@ -164,7 +173,10 @@ impl HermeticWorkspace {
         let mut fingers = HashMap::new();
         fingers.insert(
             "thumb".into(),
-            FingerDefinition::Thumb(HashMap::from([("pos_1".into(), 100.0)])),
+            FingerDefinition::Thumb(HashMap::from([(
+                "pos_1".into(),
+                keyforge_model::types::Score::from_f32(100.0).map_err(|e| anyhow::anyhow!(e))?,
+            )])),
         );
         fingers.insert("index".into(), fingers_def.clone());
         fingers.insert("middle".into(), fingers_def.clone());
@@ -196,8 +208,14 @@ impl HermeticWorkspace {
             models,
             dynamic_rules: keyforge_model::cost_model::DynamicRules::default(),
         };
+<<<<<<< HEAD
         let cost_model_json = serde_json::to_string_pretty(&cost_model)?;
         self.write_file("user/weights/cost.json", &cost_model_json)
+=======
+        let cost_model_dto = keyforge_protocol::CostModelDto::from(cost_model);
+        let cost_json = serde_json::to_string_pretty(&cost_model_dto)?;
+        self.write_file("user/weights/cost.json", &cost_json)
+>>>>>>> master
             .await?;
         self.write_file("user/weights/default.json", &cost_model_json)
             .await?;
@@ -208,7 +226,7 @@ impl HermeticWorkspace {
         let geometry = KeyboardGeometry {
             keys: vec![
                 KeyNode {
-                    index: 0,
+                    index: keyforge_model::types::KeyIndex::new(0),
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
@@ -218,7 +236,7 @@ impl HermeticWorkspace {
                     ..Default::default()
                 },
                 KeyNode {
-                    index: 1,
+                    index: keyforge_model::types::KeyIndex::new(1),
                     x: SpatialUnit::from_f32(1.0),
                     y: SpatialUnit::from_f32(0.0),
                     hand: HandIndex::new(0),
@@ -248,7 +266,8 @@ impl HermeticWorkspace {
             geometry,
             layouts: HashMap::from([("default".into(), "a b".into())]),
         };
-        let kb_json = serde_json::to_string_pretty(&kb_def)?;
+        let kb_json =
+            serde_json::to_string_pretty(&keyforge_protocol::KeyboardDefinitionDto::from(kb_def))?;
         self.write_file("user/keyboards/test_kb.json", &kb_json)
             .await?;
 
@@ -270,7 +289,8 @@ impl HermeticWorkspace {
         freqs[104] = 800; // 'h'
         en_small.char_freqs = Arc::from(freqs);
         en_small.bigrams = Arc::from(vec![(116, 104, 500)]); // 'th'
-        let en_small_json = serde_json::to_string_pretty(&en_small)?;
+        let en_small_json =
+            serde_json::to_string_pretty(&keyforge_protocol::CorpusDto::from(en_small))?;
         self.write_file("en_small.json", &en_small_json).await?;
 
         Ok(self)
@@ -329,6 +349,10 @@ mod tests {
         // Check core files
         assert!(ws.root.exists());
         assert!(ws.keyboard_path("test_kb").exists());
+<<<<<<< HEAD
+=======
+        assert!(ws.weights_path("poison_weights").exists());
+>>>>>>> master
         assert!(ws.keycodes_path("default").exists());
 
         // Check corpus dir

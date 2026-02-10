@@ -1,9 +1,8 @@
 // libs/keyforge-model/src/config/search/config.rs
 use crate::error::ForgeError;
-use serde::{Deserialize, Serialize};
 
 /// Configuration for the optimization search strategy.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum SearchConfig {
     /// Simulated Annealing strategy.
     Annealing {
@@ -22,7 +21,6 @@ pub enum SearchConfig {
         /// Multiplier for `start_temp` when reheating.
         reheat_factor: f32,
         /// Whether to include thumb keys in swap suggestions.
-        #[serde(default)]
         include_thumbs: bool,
     },
 }

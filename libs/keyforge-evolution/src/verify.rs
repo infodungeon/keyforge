@@ -24,7 +24,7 @@ mod tests {
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
     use std::sync::Arc;
 
-    fn setup_minimal() -> (Arc<dyn keyforge_physics::ScoringEngine>, Layout) {
+    fn setup_minimal() -> anyhow::Result<(Arc<dyn keyforge_physics::ScoringEngine>, Layout)> {
         let (kb, corpus, rubric, cm) = keyforge_model::testing::setup_minimal_assets();
 
         let engine = EngineFactory::new_scalar(&EngineCompilationContext {
@@ -33,15 +33,22 @@ mod tests {
             rubric: rubric.into(),
             cost_model: cm.into(),
             engine_config: keyforge_model::config::EngineConfig::default(),
+<<<<<<< HEAD
         })
         .unwrap();
         let layout = Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         (Arc::from(engine), layout)
+=======
+        })?;
+        let layout =
+            Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
+        Ok((Arc::from(engine), layout))
+>>>>>>> master
     }
 
     #[test]
-    fn test_zero_step_rejection() {
-        let (engine, layout) = setup_minimal();
+    fn test_zero_step_rejection() -> anyhow::Result<()> {
+        let (engine, layout) = setup_minimal()?;
         let config = SearchConfig::Annealing {
             steps: 0,
             start_temp: 1.0,
@@ -55,11 +62,12 @@ mod tests {
 
         let res = evolve(&engine, &config, NoOpCallback, Some(layout), None);
         assert!(res.is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_deterministic_seed_parity() {
-        let (engine, layout) = setup_minimal();
+    fn test_deterministic_seed_parity() -> anyhow::Result<()> {
+        let (engine, layout) = setup_minimal()?;
         let config = SearchConfig::Annealing {
             steps: 10,
             start_temp: 100.0,
@@ -77,10 +85,11 @@ mod tests {
         // However, we can prove that repeating the same run with the same
         // seed in production is stable.
 
-        let res1 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
-        let res2 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None).unwrap();
+        let res1 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None)?;
+        let res2 = evolve(&engine, &config, NoOpCallback, Some(layout.clone()), None)?;
 
         assert_eq!(res1.layout.keys(), res2.layout.keys());
         assert_eq!(res1.score, res2.score);
+        Ok(())
     }
 }

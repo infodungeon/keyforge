@@ -47,7 +47,6 @@ pub enum PosMap<'a> {
     },
 }
 
-#[allow(clippy::cast_possible_truncation)]
 impl<'a> PosMap<'a> {
     /// Creates a `PosMap` by manually populating the provided scratch buffers.
     pub(crate) fn from_scratch(
@@ -81,11 +80,11 @@ impl<'a> PosMap<'a> {
         }
 
         // 4. Calculate starts (prefix sum)
-        let mut offset = 0;
+        let mut offset: usize = 0;
         for &code in used_keys_scratch.iter() {
             let c = code.as_usize();
-            starts[c] = offset as u16;
-            offset += counts[c] as usize;
+            starts[c] = u16::try_from(offset).unwrap_or(u16::MAX);
+            offset += usize::from(counts[c]);
         }
 
         // 5. Fill indices
@@ -96,9 +95,9 @@ impl<'a> PosMap<'a> {
 
         for (i, &code) in layout.iter().enumerate().take(limit) {
             let c_raw = code.as_usize();
-            let base = starts[c_raw] as usize;
-            let off = current_offsets[c_raw] as usize;
-            indices[base + off] = KeyIndex::new(i as u16);
+            let base = usize::from(starts[c_raw]);
+            let off = usize::from(current_offsets[c_raw]);
+            indices[base + off] = KeyIndex::new(u16::try_from(i).unwrap_or(0));
             current_offsets[c_raw] += 1;
         }
 
@@ -130,8 +129,8 @@ impl<'a> PosMap<'a> {
                 if code_raw >= MAX_KEYCODE_SPACE {
                     return &[];
                 }
-                let start = starts[code_raw] as usize;
-                let count = counts[code_raw] as usize;
+                let start = usize::from(starts[code_raw]);
+                let count = usize::from(counts[code_raw]);
                 if count == 0 {
                     return &[];
                 }
@@ -172,9 +171,13 @@ pub struct PhysicsScratch {
     pub(crate) indices: Box<[KeyIndex; MAX_KEYBOARD_KEYS]>,
     pub(crate) current_offsets: Box<[u8; MAX_KEYCODE_SPACE]>, // Helper buffer
     pub(crate) used_keys: Vec<KeyCode>,
-    pub(crate) char_usage: Box<[f32; MAX_KEYCODE_SPACE]>,
+    pub(crate) char_usage: Box<[u64; MAX_KEYCODE_SPACE]>,
     /// A flat mapping for SIMD kernels (`KeyCode` -> `KeyIndex`).
     pub(crate) flat_map: Box<[KeyIndex; MAX_KEYCODE_SPACE]>,
+    /// Accumulated heatmap (frequency per key position).
+    pub(crate) heatmap: Box<[u64; MAX_KEYBOARD_KEYS]>,
+    /// Accumulated penalty map (weighted score per key position).
+    pub(crate) penalty_map: Box<[i64; MAX_KEYBOARD_KEYS]>,
 }
 
 impl PhysicsScratch {
@@ -203,11 +206,19 @@ impl PhysicsScratch {
                 .try_into()
                 .map_err(|_| err())?,
             used_keys: Vec::with_capacity(MAX_KEYBOARD_KEYS),
-            char_usage: vec![0.0f32; MAX_KEYCODE_SPACE]
+            char_usage: vec![0u64; MAX_KEYCODE_SPACE]
                 .into_boxed_slice()
                 .try_into()
                 .map_err(|_| err())?,
             flat_map: vec![KeyIndex::new(u16::MAX); MAX_KEYCODE_SPACE]
+                .into_boxed_slice()
+                .try_into()
+                .map_err(|_| err())?,
+            heatmap: vec![0u64; MAX_KEYBOARD_KEYS]
+                .into_boxed_slice()
+                .try_into()
+                .map_err(|_| err())?,
+            penalty_map: vec![0i64; MAX_KEYBOARD_KEYS]
                 .into_boxed_slice()
                 .try_into()
                 .map_err(|_| err())?,
@@ -221,9 +232,12 @@ impl PhysicsScratch {
             let c = code.as_usize();
             self.starts[c] = 0;
             self.counts[c] = 0;
-            self.char_usage[c] = 0.0;
+            self.char_usage[c] = 0;
             self.flat_map[c] = KeyIndex::new(u16::MAX);
         }
+        // Always reset analysis buffers
+        self.heatmap.fill(0);
+        self.penalty_map.fill(0);
     }
 
     /// Returns mutable references to the individual scratch buffers.
@@ -237,8 +251,10 @@ impl PhysicsScratch {
         &mut [KeyIndex],
         &mut [u8; MAX_KEYCODE_SPACE],
         &mut Vec<KeyCode>,
-        &mut [f32; MAX_KEYCODE_SPACE],
+        &mut [u64; MAX_KEYCODE_SPACE],
         &mut [KeyIndex; MAX_KEYCODE_SPACE],
+        &mut [u64; MAX_KEYBOARD_KEYS],
+        &mut [i64; MAX_KEYBOARD_KEYS],
     ) {
         (
             self.starts.as_mut(),
@@ -248,6 +264,8 @@ impl PhysicsScratch {
             &mut self.used_keys,
             self.char_usage.as_mut(),
             self.flat_map.as_mut(),
+            self.heatmap.as_mut(),
+            self.penalty_map.as_mut(),
         )
     }
 }

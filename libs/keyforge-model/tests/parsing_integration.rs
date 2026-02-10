@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // libs/keyforge-model/tests/parsing_integration.rs
 
 #[keyforge_testing_macros::kf_test]
@@ -53,3 +54,12 @@ mod integration_tests {
         assert_eq!(def.geometry.keys[2].hand, HandIndex::RIGHT);
     }
 }
+=======
+/*
+#[keyforge_testing_macros::kf_test]
+mod integration_tests {
+    use super::*;
+...
+}
+*/
+>>>>>>> master

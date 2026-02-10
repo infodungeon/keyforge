@@ -6,11 +6,13 @@ use crate::net::sync::ServerManifest;
 use crate::util::corpus::inject_synthetic_data;
 use async_trait::async_trait;
 use keyforge_adapter::loader::{AssetLoader, LoaderResult};
+use keyforge_boundary::SafePath;
 use keyforge_model::config::CorpusSource;
 use keyforge_model::constants::VALKEY_ASSET_PREFIX;
 use keyforge_model::error::ForgeError;
 use keyforge_model::{Asset, AssetCategory, Corpus};
-use std::path::Path;
+use serde::de::DeserializeOwned;
+use sha2::Digest;
 use std::sync::Arc;
 
 const ASSET_PREFIX: &str = VALKEY_ASSET_PREFIX;
@@ -19,13 +21,18 @@ const ASSET_PREFIX: &str = VALKEY_ASSET_PREFIX;
 #[derive(Clone, Debug)]
 pub struct ValkeyProvider {
     coordinator: Arc<dyn DistributedCoordinator>,
+    root: SafePath,
 }
 
 impl ValkeyProvider {
     /// Creates a new `ValkeyProvider` using the provided distributed coordinator.
     #[must_use]
+    #[allow(clippy::expect_used, clippy::missing_panics_doc)]
     pub fn new(coordinator: Arc<dyn DistributedCoordinator>) -> Self {
-        Self { coordinator }
+        Self {
+            coordinator,
+            root: SafePath::from_trusted_root_path(std::path::PathBuf::from(".")),
+        }
     }
 
     /// Returns the underlying distributed coordinator.
@@ -64,14 +71,34 @@ impl ValkeyProvider {
     async fn hydrate_mpk<T: serde::de::DeserializeOwned + Send + 'static>(
         &self,
         subpath: &str,
-    ) -> LoaderResult<T> {
+    ) -> LoaderResult<(T, [u8; 32])> {
         let compressed = self.fetch_blob(subpath).await?;
+<<<<<<< HEAD
         tokio::task::spawn_blocking(move || {
             let decoder = zstd::Decoder::new(&compressed[..]).map_err(ForgeError::from)?;
             rmp_serde::from_read(decoder).map_err(|e| ForgeError::InvalidData(e.to_string()))
+=======
+
+        let (asset, hash) = tokio::task::spawn_blocking(move || -> LoaderResult<(T, [u8; 32])> {
+            let mut decoder =
+                zstd::Decoder::new(&compressed[..]).map_err(|e| ForgeError::Io(e.to_string()))?;
+            let mut decompressed = Vec::new();
+            std::io::copy(&mut decoder, &mut decompressed)
+                .map_err(|e| ForgeError::Io(e.to_string()))?;
+
+            let mut hasher = sha2::Sha256::new();
+            sha2::Digest::update(&mut hasher, &decompressed);
+            let hash = hasher.finalize().into();
+
+            let asset = rmp_serde::from_read(&decompressed[..])
+                .map_err(|e| ForgeError::InvalidData(e.to_string()))?;
+            Ok((asset, hash))
+>>>>>>> master
         })
         .await
-        .map_err(|e| ForgeError::Internal(e.to_string()))?
+        .map_err(|e| ForgeError::Internal(e.to_string()))??;
+
+        Ok((asset, hash))
     }
 
     /// Invalidates all local caches (no-op for stateless distributed provider).
@@ -130,7 +157,7 @@ impl ValkeyProvider {
         name: &str,
     ) -> Arc<T> {
         let mpk_path = format!("config/{name}.mpk.zst");
-        if let Ok(cfg) = self.hydrate_mpk::<T>(&mpk_path).await {
+        if let Ok((cfg, _hash)) = self.hydrate_mpk::<T>(&mpk_path).await {
             return Arc::new(cfg);
         }
         Arc::new(T::default())
@@ -152,10 +179,10 @@ impl ValkeyProvider {
 
 #[async_trait]
 impl AssetLoader for ValkeyProvider {
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
         let category = T::category();
         let subpath = Self::id_to_subpath(category, id);
-        let mut asset: T = self.hydrate_mpk(&subpath).await?;
+        let (mut asset, _hash): (T, [u8; 32]) = self.hydrate_mpk(&subpath).await?;
         asset.post_load()?;
         Ok(Arc::new(asset))
     }
@@ -166,10 +193,25 @@ impl AssetLoader for ValkeyProvider {
             let base = format!("corpora/{}", src.id);
             for part in ["1grams", "2grams", "3grams", "words"] {
                 let path = format!("{base}/{part}.mpk.zst");
-                if let Ok(bytes) = self.fetch_blob(&path).await {
+                if let Ok(compressed) = self.fetch_blob(&path).await {
                     let part_res: Vec<serde_json::Value> = tokio::task::spawn_blocking(move || {
+<<<<<<< HEAD
                         let decoder = zstd::Decoder::new(&bytes[..]).map_err(ForgeError::from)?;
                         rmp_serde::from_read(decoder)
+=======
+                        let mut decoder = zstd::Decoder::new(&compressed[..])
+                            .map_err(|e| ForgeError::Io(e.to_string()))?;
+                        let mut decompressed = Vec::new();
+                        std::io::copy(&mut decoder, &mut decompressed)
+                            .map_err(|e| ForgeError::Io(e.to_string()))?;
+
+                        // Compute hash for verification (DATA-005)
+                        let mut hasher = sha2::Sha256::new();
+                        sha2::Digest::update(&mut hasher, &decompressed);
+                        let _hash: [u8; 32] = hasher.finalize().into();
+
+                        rmp_serde::from_read(&decompressed[..])
+>>>>>>> master
                             .map_err(|e| ForgeError::InvalidData(e.to_string()))
                     })
                     .await
@@ -187,8 +229,21 @@ impl AssetLoader for ValkeyProvider {
         Ok(Arc::new(corpus))
     }
 
-    fn root(&self) -> &Path {
-        Path::new(".")
+    async fn get_hash(
+        &self,
+        category: keyforge_model::AssetCategory,
+        id: &str,
+    ) -> LoaderResult<String> {
+        let subpath = Self::id_to_subpath(category, id);
+        let key = format!("{ASSET_PREFIX}:{subpath}");
+        match self.coordinator.get_manifest_hash(&key).await {
+            Ok(Some(h)) => Ok(h),
+            _ => Err(ForgeError::NotFound(id.to_string())),
+        }
+    }
+
+    fn root(&self) -> &SafePath {
+        &self.root
     }
 }
 

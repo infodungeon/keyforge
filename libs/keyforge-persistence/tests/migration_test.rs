@@ -1,6 +1,7 @@
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
+    use keyforge_boundary::SafePath;
     use keyforge_persistence::UserRepo;
     use serde_json::json;
     use std::fs;
@@ -29,7 +30,7 @@ mod integration_tests {
         fs::write(&legacy_path, serde_json::to_string(&legacy_data).unwrap()).unwrap();
 
         // 2. Initialize UserRepo
-        let repo = UserRepo::new(root.clone());
+        let repo = UserRepo::new(SafePath::from_trusted_root_path(root.clone()));
 
         // 3. Trigger migration via get_layouts
         let corne_layouts = repo.get_layouts("corne");

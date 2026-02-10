@@ -23,20 +23,16 @@ use crate::layout::Layout;
 use crate::rubric::Rubric;
 use crate::types::KeyCode;
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use utoipa::ToSchema;
 
 /// Metadata about a user project or session.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
+#[derive(Debug, Clone)]
 pub struct ProjectMeta {
     /// The display name of the project.
     pub name: String,
     /// The version string for the project.
     pub version: String,
     /// The author of the project.
-    #[serde(default)]
     pub author: String,
 }
 
@@ -52,11 +48,9 @@ impl Default for ProjectMeta {
 
 /// The root configuration aggregate for a `KeyForge` session.
 /// This structure is also used for persistence (Project files).
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
+#[derive(Debug, Clone)]
 pub struct Config {
     /// Metadata about the configuration/project.
-    #[serde(default)]
     pub meta: ProjectMeta,
 
     /// Name or Path of the keyboard definition (e.g. "corne", "`ansi_104`")
@@ -66,24 +60,20 @@ pub struct Config {
     pub corpora: Vec<CorpusSource>,
 
     /// Source for the cost matrix (biomechanical profile)
-    #[serde(default)]
     pub cost_matrix: CostMatrixSource,
 
     /// Optional seed for deterministic reproducibility
-    #[serde(default)]
     pub seed: Option<u64>,
 
     /// Search parameters for the optimization engine.
     pub search: SearchParams,
     /// Hardware-specific engine parameters.
-    #[serde(default)]
     pub engine: crate::config::EngineConfig,
     /// Weights for the physics scoring engine.
     pub weights: ScoringWeights,
     /// Definitions for layout tiers and critical bigrams.
     pub defs: LayoutDefinitions,
     /// Keys pinned to specific positions.
-    #[serde(default)]
     pub pinned_keys: Vec<crate::config::constraints::KeyConstraint>,
 }
 

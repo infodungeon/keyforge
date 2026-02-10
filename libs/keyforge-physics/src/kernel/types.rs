@@ -14,7 +14,7 @@
 
 use crate::error::PhysicsError;
 pub use keyforge_model::types::{
-    ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, Score,
+    ColIndex, FingerIndex, FixedWeight, HandIndex, KeyCode, KeyIndex, RowIndex, Score,
 };
 
 #[derive(Debug, Clone, Copy)]

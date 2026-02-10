@@ -1,65 +1,56 @@
 // libs/keyforge-model/src/rubric.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Scoring configuration and weights.
-//!
-//! A `Rubric` defines the cost parameters used by the physics engine
-//! to evaluate the efficiency of a layout.
-
+use crate::config::weights::constants::{
+    DEFAULT_BONUS_INWARD_ROLL, DEFAULT_FINGER_PENALTY_SCALE_ARRAY, DEFAULT_LOADER_TRIGRAM_LIMIT,
+    DEFAULT_PENALTY_REDIRECT, DEFAULT_PENALTY_SCISSOR, DEFAULT_PENALTY_SFB_BASE,
+    DEFAULT_PENALTY_SFB_DIAGONAL, DEFAULT_PENALTY_SFB_LATERAL, DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+    DEFAULT_PENALTY_SFB_LONG, DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
+    DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF, DEFAULT_TRIGRAM_COVERAGE, DEFAULT_WEIGHT_LATERAL_TRAVEL,
+    DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+};
 use crate::error::ForgeError;
-use serde::{Deserialize, Serialize};
+use crate::types::Score;
 
 /// Raw representation of a Rubric for serialization (DTO).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RawRubric {
     // --- Monograms ---
     /// Effort multipliers for each finger (0=Thumb, 4=Pinky).
-    pub finger_effort: [f32; 5],
+    pub finger_effort: [Score; 5],
     /// Weight for lateral finger travel.
-    pub travel_lat: f32,
+    pub travel_lat: Score,
     /// Weight for vertical finger travel.
-    pub travel_vert: f32,
+    pub travel_vert: Score,
 
     // --- Bigrams (Same Finger) ---
     /// Base penalty for Same Finger Bigrams.
-    pub sfb_base: f32,
+    pub sfb_base: Score,
     /// Penalty for lateral SFBs.
-    pub sfb_lateral: f32,
+    pub sfb_lateral: Score,
     /// Penalty for lateral SFB on a weak finger.
-    pub sfb_lateral_weak: f32,
+    pub sfb_lateral_weak: Score,
     /// Penalty for diagonal SFBs.
-    pub sfb_diagonal: f32,
+    pub sfb_diagonal: Score,
     /// Penalty for long-distance SFBs.
-    pub sfb_long: f32,
+    pub sfb_long: Score,
     /// Row difference threshold for "long" SFBs.
     pub threshold_sfb_long_row_diff: i8,
 
     // --- Bigrams (Adjacent Finger) ---
     /// Penalty for scissor (adjacent finger stretch) movements.
-    pub penalty_scissor: f32,
+    pub penalty_scissor: Score,
     /// Row difference threshold for scissors.
     pub threshold_scissor_row_diff: i8,
 
     // --- Flow & Trigrams ---
     /// Penalty for redirects (direction changes).
-    pub redirect: f32,
+    pub redirect: Score,
     /// Bonus for inward rolls.
-    pub roll_bonus: f32,
+    pub roll_bonus: Score,
     /// Bonus for outward rolls.
-    pub roll_out_bonus: f32,
+    pub roll_out_bonus: Score,
     /// Required trigram coverage ratio.
-    pub trigram_coverage: f32,
+    pub trigram_coverage: Score,
     /// Maximum number of trigrams to consider.
     pub trigram_limit: usize,
 }
@@ -67,38 +58,35 @@ pub struct RawRubric {
 impl Default for RawRubric {
     fn default() -> Self {
         Self {
-            finger_effort: [1.0, 1.0, 1.1, 1.3, 1.6],
-            travel_lat: 3.5,
-            travel_vert: 1.0,
-            sfb_base: 400.0,
-            sfb_lateral: 65.0,
-            sfb_lateral_weak: 160.0,
-            sfb_diagonal: 240.0,
-            sfb_long: 280.0,
-            threshold_sfb_long_row_diff: 2,
-            penalty_scissor: 25.0,
-            threshold_scissor_row_diff: 2,
-            redirect: 65.0,
-            roll_bonus: 35.0,
-            roll_out_bonus: 15.0,
-            trigram_coverage: 0.99,
-            trigram_limit: 50_000,
+            finger_effort: DEFAULT_FINGER_PENALTY_SCALE_ARRAY,
+            travel_lat: DEFAULT_WEIGHT_LATERAL_TRAVEL,
+            travel_vert: DEFAULT_WEIGHT_VERTICAL_TRAVEL,
+            sfb_base: DEFAULT_PENALTY_SFB_BASE,
+            sfb_lateral: DEFAULT_PENALTY_SFB_LATERAL,
+            sfb_lateral_weak: DEFAULT_PENALTY_SFB_LATERAL_WEAK,
+            sfb_diagonal: DEFAULT_PENALTY_SFB_DIAGONAL,
+            sfb_long: DEFAULT_PENALTY_SFB_LONG,
+            threshold_sfb_long_row_diff: DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF,
+            penalty_scissor: DEFAULT_PENALTY_SCISSOR,
+            threshold_scissor_row_diff: DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
+            redirect: DEFAULT_PENALTY_REDIRECT,
+            roll_bonus: DEFAULT_BONUS_INWARD_ROLL,
+            roll_out_bonus: Score::from_scaled_i64(15_000_000), // 15.0
+            trigram_coverage: DEFAULT_TRIGRAM_COVERAGE,
+            trigram_limit: DEFAULT_LOADER_TRIGRAM_LIMIT,
         }
     }
 }
 
 /// Validated Scoring configuration (Domain Model).
 /// Defines "What is expensive?" by assigning weights to physical movements.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(from = "RawRubric", into = "RawRubric")]
+#[derive(Debug, Clone, Default)]
 pub struct Rubric {
     inner: RawRubric,
 }
 
 impl From<RawRubric> for Rubric {
     fn from(raw: RawRubric) -> Self {
-        // Note: In production, we might want to return Result,
-        // but since this is used in #[serde(from)], we fallback to validation at usage or panic-free defaults.
         Self { inner: raw }
     }
 }
@@ -124,57 +112,64 @@ impl RubricBuilder {
 
     /// Sets the per-finger effort weights.
     #[must_use]
-    pub fn finger_effort(mut self, effort: [f32; 5]) -> Self {
-        self.raw.finger_effort = effort;
+    pub fn finger_effort(mut self, effort: [i64; 5]) -> Self {
+        let sc = |v: i64| Score::from_scaled_i64(v);
+        self.raw.finger_effort = [
+            sc(effort[0]),
+            sc(effort[1]),
+            sc(effort[2]),
+            sc(effort[3]),
+            sc(effort[4]),
+        ];
         self
     }
 
     /// Sets the lateral travel weight.
     #[must_use]
-    pub fn travel_lat(mut self, travel: f32) -> Self {
-        self.raw.travel_lat = travel;
+    pub fn travel_lat(mut self, travel: i64) -> Self {
+        self.raw.travel_lat = Score::from_scaled_i64(travel);
         self
     }
 
     /// Sets the vertical travel weight.
     #[must_use]
-    pub fn travel_vert(mut self, travel: f32) -> Self {
-        self.raw.travel_vert = travel;
+    pub fn travel_vert(mut self, travel: i64) -> Self {
+        self.raw.travel_vert = Score::from_scaled_i64(travel);
         self
     }
 
     /// Sets the base SFB penalty.
     #[must_use]
-    pub fn sfb_base(mut self, penalty: f32) -> Self {
-        self.raw.sfb_base = penalty;
+    pub fn sfb_base(mut self, penalty: i64) -> Self {
+        self.raw.sfb_base = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the lateral SFB penalty.
     #[must_use]
-    pub fn sfb_lateral(mut self, penalty: f32) -> Self {
-        self.raw.sfb_lateral = penalty;
+    pub fn sfb_lateral(mut self, penalty: i64) -> Self {
+        self.raw.sfb_lateral = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the weak-finger lateral SFB penalty.
     #[must_use]
-    pub fn sfb_lateral_weak(mut self, penalty: f32) -> Self {
-        self.raw.sfb_lateral_weak = penalty;
+    pub fn sfb_lateral_weak(mut self, penalty: i64) -> Self {
+        self.raw.sfb_lateral_weak = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the diagonal SFB penalty.
     #[must_use]
-    pub fn sfb_diagonal(mut self, penalty: f32) -> Self {
-        self.raw.sfb_diagonal = penalty;
+    pub fn sfb_diagonal(mut self, penalty: i64) -> Self {
+        self.raw.sfb_diagonal = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the long-reach SFB penalty.
     #[must_use]
-    pub fn sfb_long(mut self, penalty: f32) -> Self {
-        self.raw.sfb_long = penalty;
+    pub fn sfb_long(mut self, penalty: i64) -> Self {
+        self.raw.sfb_long = Score::from_scaled_i64(penalty);
         self
     }
 
@@ -187,8 +182,8 @@ impl RubricBuilder {
 
     /// Sets the scissor penalty.
     #[must_use]
-    pub fn penalty_scissor(mut self, penalty: f32) -> Self {
-        self.raw.penalty_scissor = penalty;
+    pub fn penalty_scissor(mut self, penalty: i64) -> Self {
+        self.raw.penalty_scissor = Score::from_scaled_i64(penalty);
         self
     }
 
@@ -201,29 +196,29 @@ impl RubricBuilder {
 
     /// Sets the redirect penalty.
     #[must_use]
-    pub fn redirect(mut self, penalty: f32) -> Self {
-        self.raw.redirect = penalty;
+    pub fn redirect(mut self, penalty: i64) -> Self {
+        self.raw.redirect = Score::from_scaled_i64(penalty);
         self
     }
 
     /// Sets the inward roll bonus.
     #[must_use]
-    pub fn roll_bonus(mut self, bonus: f32) -> Self {
-        self.raw.roll_bonus = bonus;
+    pub fn roll_bonus(mut self, bonus: i64) -> Self {
+        self.raw.roll_bonus = Score::from_scaled_i64(bonus);
         self
     }
 
     /// Sets the outward roll bonus.
     #[must_use]
-    pub fn roll_out_bonus(mut self, bonus: f32) -> Self {
-        self.raw.roll_out_bonus = bonus;
+    pub fn roll_out_bonus(mut self, bonus: i64) -> Self {
+        self.raw.roll_out_bonus = Score::from_scaled_i64(bonus);
         self
     }
 
     /// Sets the trigram coverage requirement.
     #[must_use]
-    pub fn trigram_coverage(mut self, coverage: f32) -> Self {
-        self.raw.trigram_coverage = coverage;
+    pub fn trigram_coverage(mut self, coverage: i64) -> Self {
+        self.raw.trigram_coverage = Score::from_scaled_i64(coverage);
         self
     }
 
@@ -244,49 +239,48 @@ impl Rubric {
 
     /// Returns the per-finger effort weights.
     #[must_use]
-    pub fn finger_effort(&self) -> &[f32; 5] {
+    pub fn finger_effort(&self) -> &[Score; 5] {
         &self.inner.finger_effort
     }
     /// Returns the lateral travel weight.
     #[must_use]
-    pub fn travel_lat(&self) -> f32 {
+    pub fn travel_lat(&self) -> Score {
         self.inner.travel_lat
     }
 
     /// Returns the vertical travel weight.
     #[must_use]
-    pub fn travel_vert(&self) -> f32 {
+    pub fn travel_vert(&self) -> Score {
         self.inner.travel_vert
     }
 
     /// Returns the base SFB penalty.
     #[must_use]
-    pub fn sfb_base(&self) -> f32 {
+    pub fn sfb_base(&self) -> Score {
         self.inner.sfb_base
     }
 
     /// Returns the lateral SFB penalty.
     #[must_use]
-    pub fn sfb_lateral(&self) -> f32 {
+    pub fn sfb_lateral(&self) -> Score {
         self.inner.sfb_lateral
     }
 
     /// Returns the weak-finger lateral SFB penalty.
-    /// Returns the lateral SFB penalty on a weak finger.
     #[must_use]
-    pub fn sfb_lateral_weak(&self) -> f32 {
+    pub fn sfb_lateral_weak(&self) -> Score {
         self.inner.sfb_lateral_weak
     }
 
     /// Returns the diagonal SFB penalty.
     #[must_use]
-    pub fn sfb_diagonal(&self) -> f32 {
+    pub fn sfb_diagonal(&self) -> Score {
         self.inner.sfb_diagonal
     }
 
     /// Returns the long-reach SFB penalty.
     #[must_use]
-    pub fn sfb_long(&self) -> f32 {
+    pub fn sfb_long(&self) -> Score {
         self.inner.sfb_long
     }
 
@@ -298,7 +292,7 @@ impl Rubric {
 
     /// Returns the scissor penalty.
     #[must_use]
-    pub fn penalty_scissor(&self) -> f32 {
+    pub fn penalty_scissor(&self) -> Score {
         self.inner.penalty_scissor
     }
 
@@ -310,25 +304,25 @@ impl Rubric {
 
     /// Returns the redirect penalty.
     #[must_use]
-    pub fn redirect(&self) -> f32 {
+    pub fn redirect(&self) -> Score {
         self.inner.redirect
     }
 
     /// Returns the inward roll bonus.
     #[must_use]
-    pub fn roll_bonus(&self) -> f32 {
+    pub fn roll_bonus(&self) -> Score {
         self.inner.roll_bonus
     }
 
     /// Returns the outward roll bonus.
     #[must_use]
-    pub fn roll_out_bonus(&self) -> f32 {
+    pub fn roll_out_bonus(&self) -> Score {
         self.inner.roll_out_bonus
     }
 
     /// Returns the trigram coverage requirement.
     #[must_use]
-    pub fn trigram_coverage(&self) -> f32 {
+    pub fn trigram_coverage(&self) -> Score {
         self.inner.trigram_coverage
     }
 
@@ -345,7 +339,9 @@ impl Rubric {
     /// Returns a `ForgeError` if the trigram coverage is out of range, or if
     /// trigram limits/penalties are invalid.
     pub fn validate(&self) -> Result<(), ForgeError> {
-        if self.inner.trigram_coverage < 0.0 || self.inner.trigram_coverage > 1.0 {
+        if self.inner.trigram_coverage < Score::ZERO
+            || self.inner.trigram_coverage > Score::from_scaled_i64(1_000_000)
+        {
             return Err(ForgeError::InvalidData(format!(
                 "Trigram coverage must be between 0.0 and 1.0, found {}",
                 self.inner.trigram_coverage
@@ -356,10 +352,17 @@ impl Rubric {
                 "Trigram limit must be greater than 0".into(),
             ));
         }
-        if self.inner.sfb_base < 0.0 || self.inner.sfb_lateral < 0.0 {
-            return Err(ForgeError::InvalidData(
-                "SFB penalties cannot be negative".into(),
-            ));
+        if self.inner.sfb_base < Score::ZERO {
+            return Err(ForgeError::InvalidData(format!(
+                "SFB base penalty must be non-negative, found {}",
+                self.inner.sfb_base
+            )));
+        }
+        if self.inner.sfb_lateral < Score::ZERO {
+            return Err(ForgeError::InvalidData(format!(
+                "SFB lateral penalty must be non-negative, found {}",
+                self.inner.sfb_lateral
+            )));
         }
         Ok(())
     }
@@ -370,49 +373,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_rubric_lifecycle() {
+    fn test_rubric_lifecycle() -> anyhow::Result<()> {
         // 1. Default Construction
         let r = Rubric::default();
 
         // Check key defaults to ensure physics engine gets sensible start values
-        assert!(r.sfb_base() > 0.0);
-        assert!(r.travel_lat() > 0.0);
-        assert!(r.travel_vert() > 0.0);
+        assert!(r.sfb_base() > Score::ZERO);
+        assert!(r.travel_lat() > Score::ZERO);
+        assert!(r.travel_vert() > Score::ZERO);
         assert_eq!(r.finger_effort().len(), 5);
 
-        // 2. Serialization Round-trip
-        let json = serde_json::to_string(&r).expect("Failed to serialize Rubric");
-        let recovered: Rubric = serde_json::from_str(&json).expect("Failed to deserialize Rubric");
+        // Round-trip removed since Serde is gone from domain
 
-        // 3. Verification
-        assert_eq!(r.sfb_base(), recovered.sfb_base());
-        assert_eq!(r.finger_effort(), recovered.finger_effort());
+        Ok(())
     }
 
     #[test]
-    fn test_rubric_modification() {
+    fn test_rubric_modification() -> anyhow::Result<()> {
         let mut raw = RawRubric::default();
-        raw.sfb_base = 1000.0;
-        raw.finger_effort[4] = 5.0; // Pinky penalty
+        let sc = |v: i64| Score::from_scaled_i64(v);
+        raw.sfb_base = sc(1_000_000_000); // 1000.0
+        raw.finger_effort[4] = sc(5_000_000); // Pinky penalty 5.0
 
         let r = Rubric::from(raw);
-        assert_eq!(r.sfb_base(), 1000.0);
-        assert_eq!(r.finger_effort()[4], 5.0);
+        assert_eq!(r.sfb_base(), sc(1_000_000_000));
+        assert_eq!(r.finger_effort()[4], sc(5_000_000));
+        Ok(())
     }
 
     #[test]
-    fn test_rubric_validation() {
+    fn test_rubric_validation() -> anyhow::Result<()> {
         let mut raw = RawRubric::default();
+        let sc = |v: i64| Score::from_scaled_i64(v);
         assert!(Rubric::from(raw.clone()).validate().is_ok());
 
         // Coverage bounds
-        raw.trigram_coverage = 1.5; // > 1.0
+        raw.trigram_coverage = Score::from_scaled_i64(2_000_000); // 2.0
         assert!(Rubric::from(raw.clone()).validate().is_err());
-        raw.trigram_coverage = -0.1;
+        raw.trigram_coverage = Score::from_scaled_i64(-100_000); // -0.1
         assert!(Rubric::from(raw.clone()).validate().is_err());
 
         // Reset to valid
-        raw.trigram_coverage = 0.99;
+        raw.trigram_coverage = sc(990_000); // 0.99
 
         // Limits
         raw.trigram_limit = 0;
@@ -420,11 +422,12 @@ mod tests {
         raw.trigram_limit = 100;
 
         // Weights
-        raw.sfb_base = -10.0; // Negative penalty
+        raw.sfb_base = Score::from_scaled_i64(-10_000_000); // Negative penalty
         assert!(Rubric::from(raw.clone()).validate().is_err());
 
-        raw.sfb_base = 400.0;
-        raw.sfb_lateral = -1.0;
+        raw.sfb_base = sc(400_000_000); // 400.0
+        raw.sfb_lateral = Score::from_scaled_i64(-1_000_000);
         assert!(Rubric::from(raw).validate().is_err());
+        Ok(())
     }
 }

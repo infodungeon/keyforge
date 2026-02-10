@@ -27,8 +27,13 @@ mod integration_tests {
         let layout =
             Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         let score = engine.score(&layout).unwrap();
+<<<<<<< HEAD
         let (m, b, t) = engine.score_detailed(&layout).unwrap();
         assert_eq!(score.raw(), m + b + t);
+=======
+        let detailed = engine.score_detailed(&layout).unwrap();
+        assert_eq!(score.raw(), detailed.0 + detailed.1 + detailed.2);
+>>>>>>> master
     }
 
     #[test]
@@ -63,7 +68,16 @@ mod integration_tests {
         )
         .unwrap();
 
+<<<<<<< HEAD
         assert_eq!(engine.name(), "Intel Comet Lake (AVX2 Optimized)");
+=======
+        assert_eq!(engine.name(), "Intel Comet Lake (AVX2) Optimized");
+        // bitflags API: contains()
+        assert!(engine
+            .capabilities()
+            .features
+            .contains(keyforge_physics::EngineFeatures::AVX2));
+>>>>>>> master
         assert_eq!(engine.key_count(), 3);
     }
 }

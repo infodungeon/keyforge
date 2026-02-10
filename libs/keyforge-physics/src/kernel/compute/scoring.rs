@@ -75,11 +75,12 @@ pub fn score_monograms(ctx: &EvaluationContext<'_>) -> Result<Score, PhysicsErro
         }
 
         if let Some(min) = min_cost {
-            let contrib =
-                min.checked_mul(freq as i64)
-                    .ok_or_else(|| PhysicsError::ScoreOverflow {
-                        context: format!("Monogram freq scale for code {code:?}"),
-                    })?;
+            let freq_i64 = i64::try_from(freq).unwrap_or(i64::MAX);
+            let contrib = min
+                .checked_mul(freq_i64)
+                .ok_or_else(|| PhysicsError::ScoreOverflow {
+                    context: format!("Monogram freq scale for code {code:?}"),
+                })?;
             total = total
                 .checked_add(contrib)
                 .ok_or_else(|| PhysicsError::ScoreOverflow {

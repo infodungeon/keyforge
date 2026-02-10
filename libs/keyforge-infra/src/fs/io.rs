@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::error::{InfraError, InfraResult};
+use keyforge_boundary::SafePath;
 use std::io::{Read, Write};
 use std::path::Path;
 use tempfile::NamedTempFile;
@@ -25,8 +26,8 @@ use tempfile::NamedTempFile;
 /// # Errors
 ///
 /// Returns `InfraError` if directory creation, writing, or file persistence fails.
-pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> InfraResult<()> {
-    let path = path.as_ref();
+pub fn atomic_write<C: AsRef<[u8]>>(path: &SafePath, content: C) -> InfraResult<()> {
+    let path = path.as_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(InfraError::Io)?;
     }
@@ -59,8 +60,8 @@ pub fn atomic_write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> Infr
 /// # Errors
 ///
 /// Returns `InfraError` if the file cannot be opened, read, or if it exceeds the size limit.
-pub fn read_to_string_limited<P: AsRef<Path>>(path: P, limit_bytes: u64) -> InfraResult<String> {
-    let path = path.as_ref();
+pub fn read_to_string_limited(path: &SafePath, limit_bytes: u64) -> InfraResult<String> {
+    let path = path.as_path();
     let file = std::fs::File::open(path).map_err(InfraError::Io)?;
     let mut reader = file.take(limit_bytes + 1);
     let mut buffer = String::new();

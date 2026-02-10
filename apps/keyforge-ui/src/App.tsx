@@ -2,14 +2,15 @@ import { useState } from "react";
 import { AppMode } from "./types";
 import { NavRail } from "./components/NavRail";
 import { StatusBar } from "./components/StatusBar";
-import { ToastProvider, useToast } from "./context/ToastContext";
+import { ToastProvider } from "./context/ToastContext";
 import { ArenaProvider } from "./context/ArenaContext";
 import { LibraryProvider } from "./context/LibraryContext";
 import { SessionProvider } from "./context/SessionContext";
-import { AnalysisProvider, useAnalysis } from "./context/AnalysisContext";
+import { AnalysisProvider } from "./context/AnalysisContext";
 import { SystemProvider, useSystem } from "./context/SystemContext";
-import { BackendProvider, useBackend } from "./context/BackendContext";
+import { BackendProvider } from "./context/BackendContext";
 import { useKeyboard } from "./context/KeyboardContext";
+import { useJobDispatch } from "./hooks/useJobDispatch";
 import { Button } from "./components/ui/Button";
 import { Input } from "./components/ui/Input";
 import { CloudOff, RefreshCw } from "lucide-react";
@@ -28,17 +29,7 @@ function AppContent() {
   const [mode, setMode] = useState<AppMode>("analyze");
   const [pinnedKeys, setPinnedKeys] = useState("");
 
-  const {
-    startJob,
-    stopJob,
-    weights,
-    searchParams,
-    selectedCorpus,
-    selectedCostMatrix,
-    keyboards,
-  } = useKeyboard();
-
-  const { activeResult } = useAnalysis();
+  const { stopJob, keyboards } = useKeyboard();
 
   const {
     hiveUrl,
@@ -54,8 +45,7 @@ function AppContent() {
   } = useSystem();
 
   const { activeJobId } = useKeyboard();
-  const { addToast } = useToast();
-  const backend = useBackend();
+  const { dispatchJob } = useJobDispatch();
 
   if (keyboards.length === 0) {
     return (
@@ -112,70 +102,7 @@ function AppContent() {
   }
 
   const handleDispatch = async () => {
-    if (!activeResult?.geometry || !weights || !searchParams) {
-      addToast(
-        "error",
-        "Configuration incomplete (missing geometry, weights, or params).",
-      );
-      return;
-    }
-
-    try {
-      const corpora = (selectedCorpus || "text/en_std").split(",").map((s) => {
-        const [id, w] = s.trim().split(":");
-        return {
-          id: id.trim(),
-          weight: w ? parseFloat(w) : 1.0,
-          hash: undefined,
-        };
-      });
-
-      // Task-ui-002: Parse pinnedKeys string (format: "index:keycode, ...")
-      const pinnedConstraints = pinnedKeys
-        .split(",")
-        .filter((s) => s.trim().length > 0)
-        .map((s) => {
-          const [idxStr, key] = s.trim().split(":");
-          const index = parseInt(idxStr);
-          if (isNaN(index) || !key) return null;
-          return { index, key: key.trim() };
-        })
-        .filter((c) => c !== null);
-
-      const request = {
-        version: 1,
-        definition: {
-          meta: {
-            name: "Custom Job",
-            author: "KeyForge UI",
-            version: "1.0",
-            notes: "",
-            type: "ortho",
-          },
-          geometry: activeResult.geometry,
-          layouts: {},
-        },
-        weights: weights,
-        params: searchParams,
-        pinned_keys: pinnedConstraints,
-        corpora: corpora,
-        cost_matrix: {
-          type: "Predefined",
-          data: selectedCostMatrix || "cost_matrix.json",
-        } as const,
-        biometrics: [],
-        parent_job_id: null,
-        baseline_score: null,
-        parents: [],
-      };
-
-      const jobId = await backend.dispatchJob(hiveUrl, hiveSecret, request);
-
-      startJob(jobId);
-      addToast("success", "Optimization Job Dispatched to Hive");
-    } catch (e) {
-      addToast("error", `Dispatch Failed: ${e}`);
-    }
+    await dispatchJob(hiveUrl, hiveSecret, pinnedKeys);
   };
 
   const renderView = () => {

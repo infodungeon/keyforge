@@ -1,11 +1,7 @@
 // libs/keyforge-model/src/types/biomechanical.rs
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 /// The physical hand used for typing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Hand {
     /// The left hand.
     Left,
@@ -26,14 +22,12 @@ impl Hand {
 
 impl From<Hand> for HandIndex {
     fn from(hand: Hand) -> Self {
-        #[allow(clippy::cast_possible_truncation)]
-        Self(hand.index() as u8)
+        Self(u8::try_from(hand.index()).unwrap_or(0))
     }
 }
 
 /// The finger used for typing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Finger {
     /// The thumb.
     Thumb,
@@ -69,21 +63,20 @@ impl Finger {
     /// Calculates the absolute distance between two fingers.
     #[must_use]
     pub fn distance(self, other: Self) -> u8 {
-        #[allow(clippy::cast_possible_truncation)]
-        (self.index() as u8).abs_diff(other.index() as u8)
+        u8::try_from(self.index())
+            .unwrap_or(0)
+            .abs_diff(u8::try_from(other.index()).unwrap_or(0))
     }
 }
 
 impl From<Finger> for FingerIndex {
     fn from(finger: Finger) -> Self {
-        #[allow(clippy::cast_possible_truncation)]
-        Self(finger.index() as u8)
+        Self(u8::try_from(finger.index()).unwrap_or(0))
     }
 }
 
 /// A physical zone on the keyboard relative to a finger's home position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Zone {
     /// The home column for the finger.
     Base,
@@ -94,8 +87,7 @@ pub enum Zone {
 }
 
 /// The direction of movement across the keyboard.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     /// Movement towards the center (Pinky -> Thumb).
     Inward,
@@ -108,8 +100,7 @@ pub enum Direction {
 /// Identifier for a hand (Left=0, Right=1).
 ///
 /// [DEPRECATED] Use `Hand` enum instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct HandIndex(u8);
 
@@ -138,7 +129,7 @@ impl HandIndex {
     /// Returns the value as `usize`.
     #[must_use]
     pub fn as_usize(&self) -> usize {
-        self.0 as usize
+        usize::from(self.0)
     }
     /// Returns true if this is the left hand.
     #[must_use]
@@ -170,8 +161,7 @@ impl TryFrom<u8> for HandIndex {
 /// Identifier for a finger (Thumb=0 to Pinky=4).
 ///
 /// [DEPRECATED] Use `Finger` enum instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct FingerIndex(u8);
 
@@ -215,7 +205,7 @@ impl FingerIndex {
     /// Returns the value as `usize`.
     #[must_use]
     pub fn as_usize(&self) -> usize {
-        self.0 as usize
+        usize::from(self.0)
     }
 
     /// Calculates the absolute distance between two fingers.
@@ -253,8 +243,7 @@ impl TryFrom<u8> for FingerIndex {
 }
 
 /// Preference for which hand should handle Space keys.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SpaceHandPreference {
     /// Only use left hand for space.
     Left,

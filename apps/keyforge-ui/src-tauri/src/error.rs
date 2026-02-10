@@ -95,8 +95,26 @@ impl From<keyforge_infra::error::InfraError> for CommandError {
             )),
             InfraError::LockError(s) | InfraError::Config(s) => CommandError::Config(s),
             InfraError::Validation(s) => CommandError::Validation(s),
+<<<<<<< HEAD
             InfraError::Model(e) => CommandError::from(e),
+=======
+            InfraError::Model(e) => CommandError::Internal(e.to_string()),
+            InfraError::Boundary(e) => CommandError::Validation(e.to_string()),
+            InfraError::Internal(s) => CommandError::Internal(s),
+>>>>>>> master
         }
+    }
+}
+
+impl From<keyforge_boundary::BoundaryError> for CommandError {
+    fn from(e: keyforge_boundary::BoundaryError) -> Self {
+        CommandError::Validation(e.to_string())
+    }
+}
+
+impl From<keyforge_model::error::ModelError> for CommandError {
+    fn from(e: keyforge_model::error::ModelError) -> Self {
+        CommandError::Internal(e.to_string())
     }
 }
 
