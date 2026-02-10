@@ -20,7 +20,6 @@ use keyforge_model::constants::{
     ASSET_DEFAULT_COST_MATRIX, DEFAULT_KEYBOARD_ID, MAX_INPUT_FILE_SIZE,
 };
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::job::JobIdentifier;
 use keyforge_model::types::path::SafePath;
 use keyforge_model::CostMatrixSource;
 use std::convert::TryFrom;
@@ -58,8 +57,9 @@ pub async fn run(args: QueryArgs, root: &SafePath) -> Result<(), Box<dyn std::er
     let kb_content = read_to_string_limited(&kb_path, MAX_INPUT_FILE_SIZE)
         .map_err(|e| format!("Failed to read keyboard file {kb_path}: {e}"))?;
 
-    let kb_def = KeyboardDefinition::parse(&kb_content, None)
-        .map_err(|e| format!("Failed to parse keyboard definition: {e}"))?;
+    let kb_def_dto: keyforge_protocol::KeyboardDefinitionDto = serde_json::from_str(&kb_content)
+        .map_err(|e| format!("Failed to parse keyboard definition JSON: {e}"))?;
+    let kb_def: KeyboardDefinition = kb_def_dto.into();
 
     let corpora_input = args
         .shared
@@ -69,7 +69,6 @@ pub async fn run(args: QueryArgs, root: &SafePath) -> Result<(), Box<dyn std::er
     for s in corpora_input {
         domain_corpora.push(s.parse::<keyforge_model::config::CorpusSource>()?);
     }
-    let corpora_hash = keyforge_model::job::calculate_corpora_hash(&domain_corpora);
     let constraints = args.shared.pinned_keys;
 
     let config = keyforge_model::config::Config::try_from(args.config)?;
@@ -78,20 +77,26 @@ pub async fn run(args: QueryArgs, root: &SafePath) -> Result<(), Box<dyn std::er
 
     let cost_source = CostMatrixSource::Predefined(cost_input);
 
-    let proto_geometry: keyforge_model::geometry::KeyboardGeometry =
-        serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;
+    let job_config = keyforge_protocol::JobConfig {
+        definition: kb_def.clone().into(),
+        weights: config.weights.into(),
+        params: config.search.into(),
+        pinned_keys: keyforge_protocol::LimitedVec(
+            constraints.into_iter().map(Into::into).collect(),
+        ),
+        corpora: keyforge_protocol::LimitedVec(
+            domain_corpora.iter().cloned().map(Into::into).collect(),
+        ),
+        cost_matrix: cost_source.into(),
+        biometrics: keyforge_protocol::LimitedVec(vec![]),
+        parent_job_id: None,
+        baseline_score: None,
+        parents: keyforge_protocol::LimitedVec(vec![]),
+    };
 
-    let job_id = JobIdentifier::try_from_parts(
-        &proto_geometry,
-        &config.weights,
-        &config.search,
-        &constraints,
-        &corpora_hash,
-        &cost_source,
-        None,
-    )
-    .map_err(|e| format!("Failed to compute job id: {e}"))?
-    .hash;
+    let job_id = job_config
+        .id()
+        .map_err(|e| format!("Failed to compute job id: {e}"))?;
 
     eprintln!("   Job ID: {job_id}");
     let hive = &args.hive;

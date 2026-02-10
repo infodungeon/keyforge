@@ -1,10 +1,7 @@
 // libs/keyforge-model/src/types/fraction.rs
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 /// Represents a rational fraction for deterministic physics calculations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Fraction {
     /// The numerator of the fraction.
     pub numerator: i64,

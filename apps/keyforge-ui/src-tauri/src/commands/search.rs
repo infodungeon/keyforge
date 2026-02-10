@@ -6,7 +6,7 @@ use keyforge_adapter::loader::AssetLoader;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::HiveClient;
-use keyforge_model::{KeyCode, KeyboardDefinition};
+use keyforge_model::KeyCode;
 use keyforge_protocol::{JobRequest, JobResponse, JobStatusDto};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -259,10 +259,12 @@ pub async fn cmd_start_search(
 
     // 2. Prepare Engine Request via SessionBuilder
     let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
-        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
-            job.to_domain_geometry(),
-            "local",
-        )))
+        .with_keyboard_def(std::sync::Arc::new(
+            keyforge_model::geometry::KeyboardDefinition::from_geometry(
+                job.to_domain_geometry(),
+                "local",
+            ),
+        ))
         .with_corpus(&job.to_domain_corpus_sources())
         .await?
         .with_cost_matrix(&job.to_domain_cost_matrix())
@@ -293,11 +295,14 @@ pub async fn cmd_start_search(
     let window_handle = window.clone();
 
     // Resolve keycodes for labeling in the callback
-    let keycodes = state
+    let keycodes_dto = state
         .assets
-        .load::<keyforge_model::KeycodeRegistry>("default")
+        .load::<keyforge_protocol::KeycodeRegistryDto>("default")
         .await
-        .unwrap_or_else(|_| Arc::new(keyforge_model::KeycodeRegistry::new_with_defaults()));
+        .unwrap_or_else(|_| Arc::new(keyforge_protocol::KeycodeRegistryDto::default()));
+    let keycodes = Arc::new(keyforge_model::keycodes::KeycodeRegistry::from(
+        (*keycodes_dto).clone(),
+    ));
 
     let callback = TauriProgressCallback {
         window: window_handle.clone(),
@@ -313,7 +318,8 @@ pub async fn cmd_start_search(
             .await
         {
             Ok(result) => {
-                let _ = window_handle.emit("search_finished", result);
+                let result_dto: keyforge_protocol::OptimizationResultDto = result.into();
+                let _ = window_handle.emit("search_finished", result_dto);
             }
             Err(e) => {
                 let _ = window_handle.emit("search_error", e.to_string());

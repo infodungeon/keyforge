@@ -1,11 +1,7 @@
 // libs/keyforge-model/src/config/metadata.rs
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 /// Supported data types for parameters.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy)]
 pub enum ParamType {
     /// Floating point number.
     Float,
@@ -16,8 +12,7 @@ pub enum ParamType {
 }
 
 /// Metadata describing a configuration parameter.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
+#[derive(Debug, Clone)]
 pub struct ParameterMetadata {
     /// Internal key name.
     pub key: String,

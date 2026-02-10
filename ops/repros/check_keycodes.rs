@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
+use keyforge_model::keycodes::KeycodeRegistry;
 use std::fs::File;
 use std::path::Path;
 
@@ -12,11 +12,12 @@ fn main() {
 
     let file = File::open(path).unwrap();
     let decoder = zstd::Decoder::new(file).unwrap();
-    // Fix: The file contains Vec<KeycodeDefinition>, not KeycodeRegistry struct
-    let defs: Vec<KeycodeDefinition> = rmp_serde::from_read(decoder).unwrap();
+    // Deserialize as DTO
+    let registry_dto: keyforge_protocol::KeycodeRegistryDto =
+        rmp_serde::from_read(decoder).unwrap();
 
-    // KeycodeRegistry::new() performs the QMK -> ASCII remapping
-    let reg = KeycodeRegistry::new(defs);
+    // Convert to domain model
+    let reg = KeycodeRegistry::from(registry_dto);
 
     println!("--- Verifying Fixed Keys ---");
     let targets = [

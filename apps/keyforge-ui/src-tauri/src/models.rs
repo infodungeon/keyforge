@@ -3,11 +3,11 @@ use std::collections::HashMap;
 
 // RE-EXPORTS from Protocol
 pub use keyforge_protocol::{
-    AnalysisReportDto, BiometricSample, ConfigAggregateDto, DerivedStatsDto, JobConfig,
-    JobRequest as RegisterJobRequest, JobResponse as RegisterJobResponse, KeyNodeDto, LayoutDto,
-    NodeRequest as RegisterNodeRequest, NodeResponse as RegisterNodeResponse, PopulationResponse,
-    ResultSubmission as SubmitResultRequest, ScoringWeightsDto, SearchParamsDto, SwapSuggestionDto,
-    TuningProfile, UserStatsStore, ValidationResultDto,
+    AnalysisReportDto, BiometricSample, ConfigDto as ConfigAggregateDto, DerivedStatsDto,
+    JobConfig, JobRequest as RegisterJobRequest, JobResponse as RegisterJobResponse, KeyNodeDto,
+    LayoutDto, NodeRequest as RegisterNodeRequest, NodeResponse as RegisterNodeResponse,
+    PopulationResponse, ResultSubmission as SubmitResultRequest, ScoringWeightsDto,
+    SearchParamsDto, SwapSuggestionDto, TuningProfile, UserStatsStore, ValidationResultDto,
 };
 
 /// Periodic status update for a remote job running on the Hive.

@@ -2,20 +2,12 @@
 
 use crate::constants::{SCORE_SCALE, WEIGHT_SCALE};
 use crate::types::FixedPointMath;
-use serde::{Deserialize, Serialize};
 use std::ops::{Add, Mul, Neg, Sub};
-#[cfg(feature = "ts_bindings")]
-use ts_rs::TS;
-use utoipa::ToSchema;
 
 /// Represents a biomechanical effort score in deterministic fixed-point units.
 ///
 /// Scaling: 1,000,000 units = 1.0 Effort Point.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct Score(i64);
 
@@ -243,8 +235,7 @@ impl<'a> std::iter::Sum<&'a Score> for Score {
 }
 
 /// Represents a relative weight for a scoring metric.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 #[repr(transparent)]
 pub struct Weight(pub f32);
 
@@ -268,29 +259,9 @@ impl From<f32> for Weight {
 /// Represents a relative weight for a scoring metric in deterministic fixed-point units.
 ///
 /// Scaling: 1,000 units = 1.0 Weight.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, utoipa::ToSchema)]
-#[cfg_attr(feature = "ts_bindings", derive(TS), ts(export, type = "number"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct FixedWeight(i32);
-
-impl serde::Serialize for FixedWeight {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_f32(self.to_f32())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for FixedWeight {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let val = f32::deserialize(deserializer)?;
-        Self::from_f32(val).map_err(serde::de::Error::custom)
-    }
-}
 
 impl FixedPointMath for FixedWeight {
     type Raw = i32;

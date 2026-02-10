@@ -7,34 +7,11 @@ use crate::config::{
 };
 use crate::types::{JobStatusDto, LimitedVec};
 use crate::PROTOCOL_VERSION;
-use keyforge_model::{LayoutValidator, Projection, Validator};
+use keyforge_model::{LayoutValidator, Validator};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ts_bindings")]
 use ts_rs::TS;
 use utoipa::ToSchema;
-
-impl Projection<JobConfig> for keyforge_model::config::Config {
-    fn project(source: JobConfig) -> Result<Self, keyforge_model::error::ForgeError> {
-        Ok(Self {
-            meta: keyforge_model::ProjectMeta {
-                name: source.definition.meta.name.clone(),
-                author: source.definition.meta.author.clone(),
-                version: source.definition.meta.version.clone(),
-            },
-            keyboard: source.definition.meta.name.clone(),
-            corpora: source.to_domain_corpus_sources(),
-            cost_matrix: source.to_domain_cost_matrix(),
-            seed: None,
-            search: source.to_domain_params(),
-            weights: source
-                .to_domain_weights()
-                .map_err(keyforge_model::error::ForgeError::InvalidData)?,
-            defs: keyforge_model::config::LayoutDefinitions::default(),
-            engine: keyforge_model::config::EngineConfig::default(),
-            pinned_keys: source.to_domain_pinned_keys(),
-        })
-    }
-}
 
 fn default_version() -> u32 {
     PROTOCOL_VERSION
@@ -132,7 +109,9 @@ impl JobConfig {
             comfortable_scissors: self.weights.comfortable_scissors.clone(),
         })
     }
+}
 
+impl JobConfig {
     /// Converts protocol search params to domain model params.
     #[must_use]
     pub fn to_domain_params(&self) -> keyforge_model::config::SearchParams {
@@ -237,22 +216,25 @@ impl JobConfig {
     /// # Errors
     ///
     /// Returns `ModelError` if the configuration parts cannot be hashed or are invalid.
-    pub fn id(&self) -> Result<String, keyforge_model::error::ModelError> {
-        let corpora_hash =
-            keyforge_model::job::calculate_corpora_hash(&self.to_domain_corpus_sources());
+    pub fn id(&self) -> Result<String, keyforge_model::error::ForgeError> {
+        let geometry = self.to_domain_geometry();
+        let corpora = self.to_domain_corpus_sources();
+        let weights = self
+            .to_domain_weights()
+            .map_err(keyforge_model::error::ForgeError::InvalidData)?;
+        let params = self.to_domain_params();
+        let cost_matrix = self.to_domain_cost_matrix();
+        let pinned = self.to_domain_pinned_keys();
 
-        keyforge_model::job::JobIdentifier::from_parts(
-            &self.to_domain_geometry(),
-            &self
-                .to_domain_weights()
-                .map_err(keyforge_model::error::ModelError::Invariant)?,
-            &self.to_domain_params(),
-            &self.to_domain_pinned_keys(),
-            &corpora_hash,
-            &self.to_domain_cost_matrix(),
-            None,
+        Ok(keyforge_model::JobIdentifier::calculate(
+            &geometry,
+            &corpora,
+            &weights,
+            &params,
+            &cost_matrix,
+            &pinned,
         )
-        .map(|ident| ident.hash)
+        .hash)
     }
 }
 

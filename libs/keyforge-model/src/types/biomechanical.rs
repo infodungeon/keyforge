@@ -1,11 +1,7 @@
 // libs/keyforge-model/src/types/biomechanical.rs
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 /// The physical hand used for typing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Hand {
     /// The left hand.
     Left,
@@ -31,8 +27,7 @@ impl From<Hand> for HandIndex {
 }
 
 /// The finger used for typing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Finger {
     /// The thumb.
     Thumb,
@@ -81,8 +76,7 @@ impl From<Finger> for FingerIndex {
 }
 
 /// A physical zone on the keyboard relative to a finger's home position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Zone {
     /// The home column for the finger.
     Base,
@@ -93,8 +87,7 @@ pub enum Zone {
 }
 
 /// The direction of movement across the keyboard.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     /// Movement towards the center (Pinky -> Thumb).
     Inward,
@@ -107,8 +100,7 @@ pub enum Direction {
 /// Identifier for a hand (Left=0, Right=1).
 ///
 /// [DEPRECATED] Use `Hand` enum instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct HandIndex(u8);
 
@@ -169,8 +161,7 @@ impl TryFrom<u8> for HandIndex {
 /// Identifier for a finger (Thumb=0 to Pinky=4).
 ///
 /// [DEPRECATED] Use `Finger` enum instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct FingerIndex(u8);
 
@@ -252,8 +243,7 @@ impl TryFrom<u8> for FingerIndex {
 }
 
 /// Preference for which hand should handle Space keys.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SpaceHandPreference {
     /// Only use left hand for space.
     Left,

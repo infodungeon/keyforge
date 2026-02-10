@@ -1,6 +1,5 @@
 // ops/repros/fix_keycodes.rs
 
-use keyforge_model::keycodes::KeycodeDefinition;
 use std::io::Write;
 
 fn main() {
@@ -18,7 +17,7 @@ fn main() {
     // SAFETY: TYPE-003 Exception: Utility script.
     let file = std::fs::File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
-    let mut defs: Vec<KeycodeDefinition> =
+    let mut defs: Vec<keyforge_protocol::assets::KeycodeDefinitionDto> =
         rmp_serde::from_read(decoder).expect("Failed to deserialize");
 
     // 2. Apply Fixes

@@ -16,8 +16,7 @@ pub trait FixedPointMath {
 }
 
 /// Units for physical distance on the keyboard (1000 units = 1.0 Key Unit).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, utoipa::ToSchema)]
-#[schema(as = f32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct SpatialUnit(i32);
 
 impl SpatialUnit {
@@ -59,25 +58,6 @@ impl std::fmt::Display for SpatialUnit {
     }
 }
 
-impl serde::Serialize for SpatialUnit {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_f32(self.to_f32())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for SpatialUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let val = f32::deserialize(deserializer)?;
-        Ok(Self::from_f32(val))
-    }
-}
-
 impl FixedPointMath for SpatialUnit {
     type Raw = i32;
     fn raw(self) -> Self::Raw {
@@ -93,17 +73,7 @@ impl FixedPointMath for SpatialUnit {
 }
 
 /// A 2D point in deterministic spatial units.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-    utoipa::ToSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Point {
     /// X coordinate.
     pub x: SpatialUnit,

@@ -3,11 +3,10 @@
 use crate::layout::Layout;
 use crate::metrics::{MetricId, MetricSet};
 use crate::types::Score;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents a specific N-gram that violates a metric threshold.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct MetricViolation {
     /// The keys involved (e.g., "TH").
     pub keys: String,
@@ -18,18 +17,15 @@ pub struct MetricViolation {
 }
 
 /// Detailed breakdown of a layout's performance.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct AnalysisReport {
     /// Total weighted score.
     pub score: Score,
     /// Raw unnormalized score (for verification).
-    #[serde(default)]
     pub raw_score: Score,
     /// Standard metric values.
-    #[serde(default)]
     pub metrics: MetricSet,
     /// Top offenders grouped by metric.
-    #[serde(default)]
     pub violations: HashMap<MetricId, Vec<MetricViolation>>,
 
     /// Total finger travel distance.
@@ -49,36 +45,27 @@ pub struct AnalysisReport {
     /// Inward roll score.
     pub rolls: Score,
     /// Total SFB penalty.
-    #[serde(default)]
     pub sfb_penalty: Score,
     /// Total scissor penalty.
-    #[serde(default)]
     pub scissor_penalty: Score,
     /// Total redirect penalty.
-    #[serde(default)]
     pub redir_penalty: Score,
     /// Total roll penalty.
-    #[serde(default)]
     pub roll_penalty: Score,
     /// Usage heatmap.
-    #[serde(default)]
     pub heatmap: Vec<Score>,
     /// Effort heatmap.
-    #[serde(default)]
     pub penalty_map: Vec<Score>,
     /// Top SFB offenders.
-    #[serde(default)]
     pub top_sfbs: Vec<MetricViolation>,
     /// Top Scissor offenders.
-    #[serde(default)]
     pub top_scissors: Vec<MetricViolation>,
     /// Top Redirect offenders.
-    #[serde(default)]
     pub top_redirs: Vec<MetricViolation>,
 }
 
 /// The final output of an optimization run.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct OptimizationResult {
     /// The final score achieved.
     pub score: Score,
@@ -90,7 +77,7 @@ pub struct OptimizationResult {
 pub type ScoringResult = OptimizationResult;
 
 /// A proposed change to the layout during optimization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SwapSuggestion {
     /// Index of the first key.
     pub index_a: usize,

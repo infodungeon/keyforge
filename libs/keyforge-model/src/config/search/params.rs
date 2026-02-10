@@ -7,24 +7,17 @@ use super::constants::{
 };
 use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use sha2::{Digest, Sha256};
 
 /// Parameters controlling the Simulated Annealing algorithm.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone)]
 pub struct SearchParams {
     /// Dynamic parameters map.
     pub params: std::collections::HashMap<String, f32>,
     /// Random seed for deterministic replay (Optional).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
     /// Whether to include thumb keys in swap suggestions.
-    #[serde(default = "default_false")]
     pub include_thumbs: bool,
-}
-
-fn default_false() -> bool {
-    false
 }
 
 impl Default for SearchParams {
@@ -257,6 +250,25 @@ impl SearchParams {
     #[must_use]
     pub fn get_reheat_factor(&self) -> f32 {
         self.get_param("reheat_factor", DEFAULT_REHEAT_FACTOR)
+    }
+
+    /// Generates a deterministic hash of the search parameters.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        let mut keys: Vec<_> = self.params.keys().collect();
+        keys.sort();
+        for k in keys {
+            if let Some(val) = self.params.get(k) {
+                hasher.update(k.as_bytes());
+                hasher.update(val.to_bits().to_le_bytes());
+            }
+        }
+        if let Some(s) = self.seed {
+            hasher.update(s.to_le_bytes());
+        }
+        hasher.update([u8::from(self.include_thumbs)]);
+        hex::encode(hasher.finalize())
     }
 }
 

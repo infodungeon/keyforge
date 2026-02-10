@@ -15,13 +15,14 @@
 use super::dto::{HiveJobConfigProjection, HiveJobConfigRow, HiveJobProjection, HiveJobRow};
 use super::identity;
 use keyforge_model::constants::MAX_PINNED_KEYS_COUNT;
-use keyforge_model::mapping::Projection;
 use keyforge_model::types::KeyIndex;
 use keyforge_model::Validator;
 use keyforge_protocol::{JobRequest, KeyboardDefinitionDto, ScoringWeightsDto, SearchParamsDto};
 use sha2::{Digest, Sha256};
 use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
+
+use super::projection::Projection;
 
 #[derive(Clone, Debug)]
 pub struct JobRepository {
@@ -248,7 +249,7 @@ impl JobRepository {
         kb_id: i32,
     ) -> Result<keyforge_model::geometry::KeyboardDefinition, sqlx::Error> {
         use super::dto::{HiveKeyRow, HiveKeyboardMetaRow, HiveKeyboardProjection};
-        use keyforge_model::mapping::Projection;
+        use super::projection::Projection;
 
         let meta_row = sqlx::query_as!(
             HiveKeyboardMetaRow,
@@ -475,7 +476,8 @@ impl JobRepository {
             comfortable_scissors: weights.comfortable_scissors.clone(),
         };
 
-        let w_json = serde_json::to_string(&model_weights).unwrap_or_default();
+        let weights_dto: keyforge_protocol::ScoringWeightsDto = model_weights.clone().into();
+        let w_json = serde_json::to_string(&weights_dto).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(w_json.as_bytes());
         let hash = hex::encode(hasher.finalize());
@@ -489,7 +491,7 @@ impl JobRepository {
             RETURNING id
             "#,
             hash,
-            serde_json::to_value(&model_weights).unwrap_or_default()
+            serde_json::to_value(&weights_dto).unwrap_or_default()
         )
         .fetch_one(&mut **tx)
         .await?;
@@ -516,7 +518,8 @@ impl JobRepository {
             include_thumbs: params.include_thumbs,
         };
 
-        let p_json = serde_json::to_string(&model_params).unwrap_or_default();
+        let params_dto: keyforge_protocol::SearchParamsDto = model_params.clone().into();
+        let p_json = serde_json::to_string(&params_dto).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(p_json.as_bytes());
         let hash = hex::encode(hasher.finalize());

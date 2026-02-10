@@ -15,13 +15,10 @@
 //! Central registry for biomechanical metrics.
 
 use crate::types::Score;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use utoipa::ToSchema;
 
 /// Unique identifier for a biomechanical metric (e.g. "sfb", "`travel_dist`").
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, strum::EnumString)]
 pub enum MetricId {
     /// Total finger travel distance.
     TravelDistance,
@@ -58,10 +55,9 @@ pub enum MetricId {
 }
 
 /// A collection of metric values.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[derive(Debug, Clone, Default)]
 pub struct MetricSet {
     /// Map of metric ID to its calculated value.
-    #[serde(default)]
     values: HashMap<MetricId, Score>,
 }
 

@@ -34,7 +34,11 @@ async fn main() {
     let loader = FsProvider::new(data_dir);
 
     let kb_name = "ortho_30";
-    let kb_def = loader.load::<KeyboardDefinition>(kb_name).await.unwrap();
+    let kb_dto = loader
+        .load::<keyforge_protocol::KeyboardDefinitionDto>(kb_name)
+        .await
+        .unwrap();
+    let kb_def = Arc::new(KeyboardDefinition::from(kb_dto.as_ref().clone()));
     let cost_model = Arc::new(mock_cost_model());
 
     // Create a manual corpus with 1 bigram 'th' (116, 104)

@@ -1717,15 +1717,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "csscolorparser"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fda6aace1fbef3aa217b27f4c8d7d071ef2a70a5ca51050b1f17d40299d3f16"
-dependencies = [
- "phf 0.11.3",
-]
-
-[[package]]
 name = "cssparser"
 version = "0.29.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4492,20 +4483,13 @@ dependencies = [
  "hex",
  "keyforge-testing",
  "keyforge-testing-macros",
- "kle-serial",
- "postcard",
  "proptest",
  "regex",
- "serde",
- "serde-big-array",
- "serde_json",
  "sha2",
  "smallvec",
  "strum",
  "thiserror 2.0.18",
  "tracing",
- "ts-rs",
- "utoipa",
  "zeroize",
 ]
 
@@ -4562,12 +4546,14 @@ name = "keyforge-protocol"
 version = "0.9.0"
 dependencies = [
  "anyhow",
+ "hex",
  "keyforge-model",
  "keyforge-testing",
  "keyforge-testing-macros",
  "proptest",
  "serde",
  "serde_json",
+ "sha2",
  "strum",
  "thiserror 2.0.18",
  "tracing",
@@ -4741,18 +4727,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
-]
-
-[[package]]
-name = "kle-serial"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84241ea44acb21c4dd578281f75531367481b09403b173551647e9f9324a588b"
-dependencies = [
- "csscolorparser 0.7.2",
- "num-traits",
- "rgb",
- "serde",
 ]
 
 [[package]]
@@ -7317,12 +7291,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rgb"
-version = "0.8.52"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c6a884d2998352bb4daf0183589aec883f16a6da1f4dde84d8e2e9a5409a1ce"
-
-[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7862,15 +7830,6 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
-]
-
-[[package]]
-name = "serde-big-array"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -10649,7 +10608,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7de81ef35c9010270d63772bebef2f2d6d1f2d20a983d27505ac850b8c4b4296"
 dependencies = [
- "csscolorparser 0.6.2",
+ "csscolorparser",
  "deltae",
  "lazy_static",
  "wezterm-dynamic",

@@ -16,8 +16,6 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::{extract::State, routing::get, Json, Router};
 use keyforge_adapter::loader::AssetLoader;
-use keyforge_model::config::ParameterMetadata;
-use keyforge_model::{Config, KeyboardDefinition};
 use serde::Serialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -97,22 +95,23 @@ pub async fn list_keyboards(State(state): State<Arc<AppState>>) -> AppResult<Jso
 pub async fn get_keyboard(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(name): axum::extract::Path<String>,
-) -> AppResult<Json<KeyboardDefinition>> {
-    let kb = state
+) -> AppResult<Json<keyforge_protocol::KeyboardDefinitionDto>> {
+    let kb_dto = state
         .assets
-        .load::<KeyboardDefinition>(&name)
+        .load::<keyforge_protocol::KeyboardDefinitionDto>(&name) // Load DTO
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to load keyboard {}: {}", name, e);
-            AppError::NotFound
-        })?;
-    Ok(Json(kb.as_ref().clone()))
+        .map_err(|e| AppError::Internal(format!("Failed to load keyboard: {e}")))?;
+
+    Ok(Json((*kb_dto).clone())) // Return DTO directly since we want API to return DTO
 }
 
 /// Retrieves the global application configuration.
-pub async fn get_app_config(State(state): State<Arc<AppState>>) -> AppResult<Json<Config>> {
-    let config: Arc<Config> = state.assets.load_config_asset(ASSET_SYSTEM_CONFIG).await;
-    Ok(Json(config.as_ref().clone()))
+pub async fn get_app_config(
+    State(state): State<Arc<AppState>>,
+) -> AppResult<Json<keyforge_protocol::ConfigDto>> {
+    let config_dto: Arc<keyforge_protocol::ConfigDto> =
+        state.assets.load_config_asset(ASSET_SYSTEM_CONFIG).await;
+    Ok(Json((*config_dto).clone()))
 }
 
 /// Lists all available corpora for optimization.
@@ -135,13 +134,15 @@ pub async fn list_keymap_extras(
 }
 
 /// Returns the schema for search parameters.
-pub async fn get_search_schema() -> Json<Vec<ParameterMetadata>> {
-    Json(keyforge_model::config::SearchParams::schema())
+pub async fn get_search_schema() -> Json<Vec<keyforge_protocol::ParameterMetadataDto>> {
+    let schema = keyforge_model::config::SearchParams::schema();
+    Json(schema.into_iter().map(Into::into).collect())
 }
 
 /// Returns the schema for scoring weights.
-pub async fn get_weights_schema() -> Json<Vec<ParameterMetadata>> {
-    Json(keyforge_model::config::ScoringWeights::schema())
+pub async fn get_weights_schema() -> Json<Vec<keyforge_protocol::ParameterMetadataDto>> {
+    let schema = keyforge_model::config::ScoringWeights::schema();
+    Json(schema.into_iter().map(Into::into).collect())
 }
 
 /// Builds and returns the Axum router for system-related endpoints.

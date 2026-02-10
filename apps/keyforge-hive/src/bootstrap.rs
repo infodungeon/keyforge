@@ -12,8 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::path::{Path, PathBuf};
+
+mod safe_path_serde {
+    use super::{Deserialize, Deserializer};
+    use keyforge_model::types::path::SafePath;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SafePath, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        SafePath::try_from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
 
 /// Minimal bootstrap config that tells Hive where its canonical `data/` root lives.
 ///
@@ -26,6 +39,7 @@ pub struct HiveBootstrapConfig {
     /// Expected layout:
     /// - `${data_root}/system/...` (read-only system assets)
     /// - `${data_root}/user/...`   (server-side writable workspace, if applicable)
+    #[serde(with = "safe_path_serde")]
     pub data_root: keyforge_model::types::path::SafePath,
 }
 

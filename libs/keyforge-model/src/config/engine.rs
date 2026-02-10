@@ -1,12 +1,9 @@
 // libs/keyforge-model/src/config/engine.rs
 
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 /// Hardware-specific optimization parameters for the physics engines.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(default)]
+#[derive(Debug, Clone, Copy)]
 pub struct EngineConfig {
     /// L1 Data Cache size in bytes.
     pub l1d_size: usize,

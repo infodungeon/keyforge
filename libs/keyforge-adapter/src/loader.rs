@@ -17,7 +17,7 @@ pub type LoaderResult<T> = Result<T, ForgeError>;
 #[async_trait]
 pub trait AssetLoader: Send + Sync + Debug {
     /// Generic asset loader.
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>>;
+    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>>;
 
     /// Loads one or more corpora and merges them into a single bundle.
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>>;
@@ -52,29 +52,15 @@ impl Default for InMemoryLoader {
 
 #[async_trait]
 impl AssetLoader for InMemoryLoader {
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
-        let tid = TypeId::of::<T>();
-        let type_name = std::any::type_name::<T>();
-        let maps = self
-            .assets
-            .read()
-            .map_err(|e| ForgeError::Internal(format!("Lock poisoned: {e}")))?;
-        let map = maps.get(&tid).ok_or_else(|| {
-            ForgeError::NotFound(format!("No assets of type '{type_name}' registered"))
-        })?;
-        let res = map
-            .get(id)
-            .cloned()
-            .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
-        res.downcast::<T>()
-            .map_err(|_| ForgeError::Internal(format!("Downcast failed for {type_name}")))
+    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        self.load_any::<T>(id)
     }
 
     async fn load_corpus(&self, sources: &[CorpusSource]) -> LoaderResult<Arc<Corpus>> {
         let mut blended = Corpus::default();
         let mut found_any = false;
         for src in sources {
-            if let Ok(corpus) = self.load::<Corpus>(&src.id).await {
+            if let Ok(corpus) = self.load_any::<Corpus>(&src.id) {
                 blended.merge(&corpus, src.weight);
                 found_any = true;
             } else {
@@ -101,6 +87,24 @@ impl AssetLoader for InMemoryLoader {
 }
 
 impl InMemoryLoader {
+    fn load_any<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+        let tid = TypeId::of::<T>();
+        let type_name = std::any::type_name::<T>();
+        let maps = self
+            .assets
+            .read()
+            .map_err(|e| ForgeError::Internal(format!("Lock poisoned: {e}")))?;
+        let map = maps.get(&tid).ok_or_else(|| {
+            ForgeError::NotFound(format!("No assets of type '{type_name}' registered"))
+        })?;
+        let res = map
+            .get(id)
+            .cloned()
+            .ok_or_else(|| ForgeError::NotFound(id.to_string()))?;
+        res.downcast::<T>()
+            .map_err(|_| ForgeError::Internal(format!("Downcast failed for {type_name}")))
+    }
+
     /// Creates a new `InMemoryLoader`.
     #[must_use]
     pub fn new() -> Self {
@@ -108,7 +112,7 @@ impl InMemoryLoader {
     }
 
     /// Generic injection of an asset into the in-memory loader.
-    pub fn inject<T: Asset>(&self, id: &str, asset: T) {
+    pub fn inject<T: Asset + serde::de::DeserializeOwned>(&self, id: &str, asset: T) {
         let tid = TypeId::of::<T>();
         if let Ok(mut maps) = self.assets.write() {
             maps.entry(tid)

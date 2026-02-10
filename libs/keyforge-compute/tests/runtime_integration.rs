@@ -31,8 +31,8 @@ mod runtime_tests {
         async fn load<T: Asset>(&self, _id: &str) -> LoaderResult<Arc<T>> {
             let tid = std::any::TypeId::of::<T>();
 
-            if tid == std::any::TypeId::of::<keyforge_model::keycodes::KeycodeRegistry>() {
-                let reg = keyforge_model::keycodes::KeycodeRegistry::new_with_defaults();
+            if tid == std::any::TypeId::of::<keyforge_protocol::KeycodeRegistryDto>() {
+                let reg = keyforge_protocol::KeycodeRegistryDto::default();
                 let any_kc = Arc::new(reg) as Arc<dyn std::any::Any + Send + Sync>;
                 return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
             }

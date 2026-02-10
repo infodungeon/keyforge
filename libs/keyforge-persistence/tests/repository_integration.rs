@@ -160,8 +160,7 @@ mod integration_tests {
                 entry
                     .file_name()
                     .to_str()
-                    .map(|s| s.contains("passwd"))
-                    .unwrap_or(false)
+                    .is_some_and(|s| s.contains("passwd"))
             } else {
                 false
             }

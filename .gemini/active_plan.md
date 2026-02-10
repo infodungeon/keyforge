@@ -13,23 +13,43 @@
     -   **INFRA-P2**: Registry State-Machine / Agent Team Launcher (DONE).
     -   **INFRA-P3**: Context Insurance / High-Frequency Checkpointing (DONE).
 
-## Current Tracks
-1.  **[READY] #INFRA-P4**: Scope Enforcement.
-    -   *Status:* **READY** (Conductor).
-    -   *Goal:* Programmatic tool-rejection for out-of-scope files.
-    -   *Status:* **READY** (gemini-guy).
-    -   *Goal:* Tool-level high-frequency checkpointing.
-3.  **[READY] #INFRA-P4**: Scope Enforcement.
-    -   *Status:* **READY** (Conductor).
-    -   *Goal:* Programmatic tool-rejection for out-of-scope files.
+## Current Tracks (Granular)
 
-## Completed Tracks
--   **[DONE] #150 (ARCH-003)**: Physics Analysis Determinism.
--   **[DONE] #161 (DATA-MIGR-001)**: Rollback Migrations.
--   **[DONE] INFRA-001**: Gemini CLI Rebaseline.
+### Track A: Security & Ops Hardening
+- [READY] **#173**: Resource Quotas (Persistence Tier)
+- [READY] **#174**: Resource Quotas (App Tier)
+- [READY] **#175**: Secret Hygiene (Env Template)
+- [READY] **#176**: Secret Hygiene (Docker Interpolation)
+- [READY] **#188**: Secret Hygiene (Justfile Integration)
+
+### Track B: Data Integrity (DATA-005)
+- [READY] **#177**: Asset Hashing (Infra)
+- [READY] **#178**: Fingerprint Logic (Infra)
+- [READY] **#183**: Integration (Compute)
+
+### Track C: Physics Purity (ARCH-003)
+- [READY] **#179**: Heatmap Accumulators (Fixed-Point)
+- [READY] **#184**: AnalysisReport Standardization
+- [READY] **#185**: Parity Verification & Normalization
+
+### Track D: SQL Purity (ARCH-004)
+- [READY] **#180**: Admin Repository Purge
+- [READY] **#186**: Macro Inlining (queries.rs)
+- [READY] **#187**: Test Seeder Migration
+
+### Track E: UI View Purity (ARCH-001)
+- [READY] **#181**: useJobDispatch Hook Extraction
+- [READY] **#182**: App.tsx Integration
+
+## Blocked Tracks (Too Large / Vague)
+- [BLOCKED] **#141**: Cross-crate Physics leak (Needs Decomposition).
+- [BLOCKED] **#138**: Serde severance (Manually Decomposed to ETS-100x-138-Px).
+- [BLOCKED] **#121**: Quality Sprint (Vague EPIC).
+- [BLOCKED] **#116**: System Forge (Vague EPIC).
+- [BLOCKED] **#87**: Semantic Type Foundation (Massive scope).
 
 ## Agent Team Status
--   **Conductor:** ACTIVE (Verified)
--   **Gemini-Guy:** ACTIVE (Verified)
--   **Architect:** STANDBY
+-   **Conductor:** ACTIVE
+-   **Gemini-Guy:** ACTIVE
+-   **Architect:** ACTIVE (Decomposition Audit Complete)
 -   **Coder:** STANDBY

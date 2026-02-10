@@ -2,8 +2,6 @@
 
 // use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 // --- Default Values (Strings) ---
 
@@ -20,8 +18,7 @@ pub const DEFAULT_CRITICAL_BIGRAMS: &str = "th,he,in,er,an,re,nd,ou";
 pub const DEFAULT_FINGER_REPEAT_SCALE_ARRAY: [f32; 5] = [1.0, 1.0, 1.0, 1.2, 1.5];
 
 /// Definitions for character tiers and critical bigrams.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct LayoutDefinitions {
     /// Characters considered high priority (Home row candidates).
     pub tier_high_chars: String,

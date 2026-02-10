@@ -1,11 +1,54 @@
 // apps/keyforge-agent/src/models.rs
 
 use keyforge_model::types::path::SafePath;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 pub use keyforge_protocol::{NodeRequest, NodeResponse, TuningProfile};
+
+mod safe_path_serde {
+    use super::{Deserialize, Deserializer, SafePath, Serializer};
+
+    pub fn serialize<S>(path: &SafePath, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&path.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SafePath, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        SafePath::try_from_str(&s).map_err(serde::de::Error::custom)
+    }
+
+    pub mod option {
+        use super::{Deserialize, Deserializer, SafePath, Serializer};
+
+        #[allow(clippy::ref_option)]
+        pub fn serialize<S>(opt: &Option<SafePath>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            match opt {
+                Some(path) => serializer.serialize_some(&path.to_string()),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<SafePath>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let opt: Option<String> = Option::deserialize(deserializer)?;
+            opt.map(|s| SafePath::try_from_str(&s).map_err(serde::de::Error::custom))
+                .transpose()
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationConfig {
@@ -135,6 +178,7 @@ pub struct AgentConfig {
     pub node_id: String,
     pub secret: String,
     pub private_key: String,
+    #[serde(with = "safe_path_serde")]
     pub data_dir: SafePath,
     pub cores: usize,
     #[serde(default)]
@@ -167,7 +211,6 @@ impl Default for AgentConfig {
             private_key: String::new(),
             data_dir: {
                 let root = common.resolve_data_dir();
-
                 SafePath::from_trusted_root_path(root)
             },
             cores: common.cores.unwrap_or(1),
@@ -190,6 +233,7 @@ pub struct PartialAgentConfig {
     pub node_id: Option<String>,
     pub secret: Option<String>,
     pub private_key: Option<String>,
+    #[serde(default, with = "safe_path_serde::option")]
     pub data_dir: Option<SafePath>,
     pub cores: Option<usize>,
     pub calibration: Option<CalibrationConfig>,

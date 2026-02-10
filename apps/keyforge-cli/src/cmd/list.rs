@@ -3,7 +3,6 @@
 use clap::Args;
 use comfy_table::Table;
 use keyforge_adapter::loader::AssetLoader;
-use keyforge_model::geometry::KeyboardDefinition;
 
 #[derive(Args, Debug, Clone)]
 pub struct ListArgs {
@@ -33,12 +32,15 @@ async fn list_keyboards<L: AssetLoader + ?Sized>(loader: &L) -> crate::error::Cl
     table.set_header(vec!["ID", "Name", "Type", "Author"]);
 
     for id in keyboards {
-        if let Ok(def) = loader.load::<KeyboardDefinition>(&id).await {
+        if let Ok(def_dto) = loader
+            .load::<keyforge_protocol::KeyboardDefinitionDto>(&id)
+            .await
+        {
             table.add_row(vec![
                 id,
-                def.meta.name.clone(),
-                def.meta.kb_type.clone(),
-                def.meta.author.clone(),
+                def_dto.meta.name.clone(),
+                def_dto.meta.kb_type.clone(),
+                def_dto.meta.author.clone(),
             ]);
         }
     }

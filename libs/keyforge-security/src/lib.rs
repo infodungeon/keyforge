@@ -429,7 +429,7 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_error_branches() -> anyhow::Result<()> {
+    fn test_verify_error_branches() {
         let (_, public) = generate_keypair();
         let sig = hex::encode([0u8; 64]);
 
@@ -444,15 +444,13 @@ mod tests {
 
         // 4. Invalid signature length
         assert!(verify_result(&public, "j", "l", 0.0, 0, 0, "001122").is_err());
-        Ok(())
     }
 
     #[test]
-    fn test_security_error_display() -> anyhow::Result<()> {
+    fn test_security_error_display() {
         let hex_err = hex::FromHexError::InvalidHexCharacter { c: 'g', index: 0 };
         assert!(format!("{}", SecurityError::Encoding(hex_err)).contains("Encoding Error"));
         assert!(format!("{}", SecurityError::Key("k".into())).contains("Key Error"));
         assert!(format!("{}", SecurityError::Signature("s".into())).contains("Signature Error"));
-        Ok(())
     }
 }

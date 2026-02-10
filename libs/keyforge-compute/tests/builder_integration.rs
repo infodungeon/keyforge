@@ -25,8 +25,8 @@ mod builder_tests {
             let tid = std::any::TypeId::of::<T>();
 
             // Special handling for keycodes which are often requested by string literal
-            if tid == std::any::TypeId::of::<KeycodeRegistry>() {
-                let reg = KeycodeRegistry::new_with_defaults();
+            if tid == std::any::TypeId::of::<keyforge_protocol::KeycodeRegistryDto>() {
+                let reg = keyforge_protocol::KeycodeRegistryDto::default();
                 let any_kc = Arc::new(reg) as Arc<dyn Any + Send + Sync>;
                 return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
             }

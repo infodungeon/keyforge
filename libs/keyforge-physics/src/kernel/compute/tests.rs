@@ -19,7 +19,7 @@ fn setup_kb_robust() -> Keyboard {
             ..Default::default()
         })
         .collect();
-    Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap()
+    Keyboard::new(keys, RowIndex::new(0), "test".into()).expect("Failed to create keyboard")
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -98,7 +98,7 @@ mod tests {
         // 2. Bigram overflow
         {
             let mut costs = (*ctx.geometry.cost_matrix).to_vec();
-            costs[0 * ctx.key_count + 1] = Score::from_scaled_i64(i64::MAX / 2);
+            costs[1] = Score::from_scaled_i64(i64::MAX / 2);
             ctx.geometry.cost_matrix = Arc::from(costs);
             ctx.corpus.bigram_starts = Arc::from(vec![0, 1, 1, 1, 1, 1]);
             ctx.corpus.bigram_others = Arc::from(vec![KeyCode::new(98)]);

@@ -21,12 +21,10 @@ use super::constants::{
 use crate::config::metadata::{ParamType, ParameterMetadata};
 use crate::types::Score;
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use sha2::{Digest, Sha256};
 
 /// Weights and penalties defining the "personality" of the scoring engine.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct ScoringWeights {
     /// Dynamic weights map.
     pub weights: std::collections::HashMap<String, Score>,
@@ -167,6 +165,25 @@ impl ScoringWeights {
             ),
         );
         weights.insert("trigram_coverage".to_string(), DEFAULT_TRIGRAM_COVERAGE);
+    }
+
+    /// Generates a deterministic hash of the scoring weights.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        let mut keys: Vec<_> = self.weights.keys().collect();
+        keys.sort();
+        for k in keys {
+            if let Some(val) = self.weights.get(k) {
+                hasher.update(k.as_bytes());
+                hasher.update(val.raw().to_le_bytes());
+            }
+        }
+        for w in &self.finger_penalty_scale {
+            hasher.update(w.raw().to_le_bytes());
+        }
+        hasher.update(self.comfortable_scissors.as_bytes());
+        hex::encode(hasher.finalize())
     }
 }
 

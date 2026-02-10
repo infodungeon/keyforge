@@ -17,7 +17,6 @@
 //! Following ARCH-005 and ADR-022, this module is pure and contains zero
 //! dependencies on infrastructure-layer error types (std::io, serde_json).
 
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// The central error type for the `KeyForge` domain.
@@ -94,7 +93,7 @@ impl From<String> for ForgeError {
 }
 
 /// Errors related to core model logic and integrity.
-#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ModelError {
     /// Failed to serialize a component.
     #[error("Serialization Failed: {0}")]
@@ -110,7 +109,7 @@ pub enum ModelError {
 }
 
 /// Specific errors related to physical constraints and scoring.
-#[derive(Error, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Error, Debug, PartialEq)]
 pub enum PhysicsError {
     /// Hand index out of bounds (must be 0 or 1).
     #[error("Hand index {0} is invalid (must be 0 or 1)")]

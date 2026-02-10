@@ -7,7 +7,6 @@ use clap::Args;
 use indicatif::{ProgressBar, ProgressStyle};
 use keyforge_adapter::loader::AssetLoader;
 use keyforge_infra::FsProvider;
-use keyforge_model::KeyboardDefinition;
 use std::sync::Arc;
 
 #[derive(Args, Debug, Clone)]
@@ -47,10 +46,12 @@ pub async fn run(
         .unwrap_or(keyforge_model::constants::ASSET_KEYCODES_FILENAME);
 
     let builder = keyforge_compute::SessionBuilder::new(loader)
-        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
-            job.to_domain_geometry(),
-            "optimized",
-        )))
+        .with_keyboard_def(std::sync::Arc::new(
+            keyforge_model::geometry::KeyboardDefinition::from_geometry(
+                job.to_domain_geometry(),
+                "optimized",
+            ),
+        ))
         .with_corpus(&job.to_domain_corpus_sources())
         .await
         .map_err(|e| CliError::Other(format!("Corpus load failed: {e}")))?

@@ -1,11 +1,10 @@
 // libs/keyforge-model/src/config/source.rs
 
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use utoipa::ToSchema;
 
 /// Filename for the default Cost Matrix asset.
 pub const ASSET_COST_MATRIX: &str = "cost_matrix";
@@ -15,15 +14,13 @@ pub const ASSET_COST_MATRIX: &str = "cost_matrix";
 pub const DEFAULT_CORPUS_WEIGHT: f32 = 1.0;
 
 /// Defines a source for text corpus data.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
-
+#[derive(Debug, Clone, PartialEq)]
 pub struct CorpusSource {
     /// The identifier or path of the corpus.
     pub id: String,
     /// The weight multiplier for this corpus.
     pub weight: f32,
     /// Optional hash for integrity verification.
-    #[serde(default, skip_serializing_if = "crate::utils::is_none")]
     pub hash: Option<String>,
 }
 
@@ -91,8 +88,7 @@ impl FromStr for CorpusSource {
 }
 
 /// Source for the cost matrix data.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, ToSchema)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum CostMatrixSource {
     /// A predefined cost matrix file (e.g. "`default_costmatrix.json`").
     Predefined(String),
@@ -109,6 +105,21 @@ impl fmt::Display for CostMatrixSource {
         match self {
             CostMatrixSource::Predefined(s) => write!(f, "{s}"),
         }
+    }
+}
+
+impl CostMatrixSource {
+    /// Generates a deterministic hash of the cost matrix source.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        match self {
+            CostMatrixSource::Predefined(s) => {
+                hasher.update([0]); // discriminant
+                hasher.update(s.as_bytes());
+            }
+        }
+        hex::encode(hasher.finalize())
     }
 }
 

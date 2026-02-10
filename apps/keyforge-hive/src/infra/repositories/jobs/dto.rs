@@ -2,12 +2,13 @@
 
 use keyforge_model::error::ForgeError;
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-use keyforge_model::mapping::Projection;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use keyforge_model::Asset;
 use keyforge_protocol::CorpusSourceDto;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use super::projection::{JsonProjection, Projection};
 
 /// Database-aligned DTO for a Keyboard metadata row.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -154,34 +155,31 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
 
 impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
     fn project(source: HiveJobProjection) -> Result<Self, ForgeError> {
-        let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
-        let params = keyforge_model::config::SearchParams::project(
-            source.row.params_json.unwrap_or_default(),
-        )?;
+        let weights: keyforge_protocol::ScoringWeightsDto =
+            JsonProjection::project(source.row.weights_json)?;
+        let params: keyforge_protocol::SearchParamsDto =
+            JsonProjection::project(source.row.params_json.unwrap_or_default())?;
 
-        let pinned_keys: Vec<keyforge_model::config::KeyConstraint> =
+        let pinned_keys_dtos: Vec<keyforge_protocol::KeyConstraintDto> =
             serde_json::from_str(&source.row.pinned_keys)
                 .map_err(|e| ForgeError::Serde(e.to_string()))?;
-        let cost_matrix: keyforge_model::config::CostMatrixSource =
+
+        let cost_matrix_dto: keyforge_protocol::CostMatrixSourceDto =
             serde_json::from_str(&source.row.cost_matrix)
                 .map_err(|e| ForgeError::Serde(e.to_string()))?;
 
         Ok(Self {
             definition: source.definition.into(),
-            weights: weights.into(),
-            params: params.into(),
-            pinned_keys: pinned_keys
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<_>>()
-                .into(),
+            weights,
+            params,
+            pinned_keys: pinned_keys_dtos.into(),
             corpora: vec![CorpusSourceDto {
                 id: source.row.corpus_name,
                 weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
                 hash: None,
             }]
             .into(),
-            cost_matrix: cost_matrix.into(),
+            cost_matrix: cost_matrix_dto,
             biometrics: vec![].into(),
             parent_job_id: source.row.parent_job_id,
             baseline_score: None,
@@ -200,15 +198,17 @@ pub type HiveConfigTuple = (
 
 impl Projection<HiveJobConfigProjection> for HiveConfigTuple {
     fn project(source: HiveJobConfigProjection) -> Result<Self, ForgeError> {
-        let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
-        let cost_matrix = serde_json::from_str(&source.row.cost_matrix)
-            .map_err(|e| ForgeError::Serde(e.to_string()))?;
+        let weights_dto: keyforge_protocol::ScoringWeightsDto =
+            JsonProjection::project(source.row.weights_json)?;
+        let cost_matrix_dto: keyforge_protocol::CostMatrixSourceDto =
+            serde_json::from_str(&source.row.cost_matrix)
+                .map_err(|e| ForgeError::Serde(e.to_string()))?;
 
         Ok((
             source.definition.geometry,
-            weights,
+            weights_dto.into(),
             source.row.corpus_name,
-            cost_matrix,
+            cost_matrix_dto.into(),
         ))
     }
 }

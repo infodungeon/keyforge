@@ -2,13 +2,11 @@
 
 use crate::types::KeyIndex;
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::str::FromStr;
-use utoipa::ToSchema;
 
 /// Constraint forcing a key to a specific physical index.
-#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
-
+#[derive(Clone, Debug)]
 pub struct KeyConstraint {
     /// The physical index of the key.
     pub index: KeyIndex,
@@ -22,6 +20,17 @@ impl Validator for KeyConstraint {
             return Err(format!("Constraint for index {} has empty key", self.index));
         }
         Ok(())
+    }
+}
+
+impl KeyConstraint {
+    /// Generates a deterministic hash of the key constraint.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.index.raw().to_le_bytes());
+        hasher.update(self.key.as_bytes());
+        hex::encode(hasher.finalize())
     }
 }
 

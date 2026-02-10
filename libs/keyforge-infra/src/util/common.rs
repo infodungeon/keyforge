@@ -56,8 +56,9 @@ pub fn calculate_file_hash_str(s: &str) -> String {
 /// Returns `InfraError` if the file cannot be read or parsed.
 pub fn load_keycode_registry(path: &SafePath) -> InfraResult<KeycodeRegistry> {
     let content = crate::fs::io::read_to_string_limited(path, MAX_INPUT_FILE_SIZE)?;
-    let registry: KeycodeRegistry = serde_json::from_str(&content).map_err(InfraError::Serde)?;
-    Ok(registry)
+    let dto: keyforge_protocol::KeycodeRegistryDto =
+        serde_json::from_str(&content).map_err(InfraError::Serde)?;
+    Ok(dto.into())
 }
 
 /// Aggregately sanitizes filenames to prevent traversal or shell issues.
@@ -108,62 +109,10 @@ pub fn normalize_path(raw: &str) -> Option<String> {
     }
 }
 
-/// Calculates a unique fingerprint for a collection of corpora sources.
-///
-/// This incorporates both the asset IDs and their content hashes to ensure
-/// cache uniqueness (DATA-005).
-#[must_use]
-pub fn calculate_fingerprint(sources: &[keyforge_model::config::CorpusSource]) -> String {
-    let mut hasher = Sha256::new();
-    // Sort for canonicalization
-    let mut sorted = sources.to_vec();
-    sorted.sort_by(|a, b| a.id.cmp(&b.id));
-
-    for s in &sorted {
-        hasher.update(s.id.as_bytes());
-        hasher.update(b":");
-        if let Some(h) = &s.hash {
-            hasher.update(h.as_bytes());
-        } else {
-            hasher.update(b"NO_HASH");
-        }
-        hasher.update(b"|");
-    }
-    hex::encode(hasher.finalize())
-}
-
 #[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
     use std::fs;
-
-    #[test]
-    fn test_content_hash_fingerprint_uniqueness() {
-        use keyforge_model::config::CorpusSource;
-
-        let s1 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: Some("h1".into()),
-        }];
-        let s2 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: Some("h2".into()),
-        }];
-        let s3 = vec![CorpusSource {
-            id: "b".into(),
-            weight: 1.0,
-            hash: Some("h1".into()),
-        }];
-
-        let f1 = calculate_fingerprint(&s1);
-        let f2 = calculate_fingerprint(&s2);
-        let f3 = calculate_fingerprint(&s3);
-
-        assert_ne!(f1, f2);
-        assert_ne!(f1, f3);
-    }
 
     #[test]
     fn test_calculate_file_hash() -> anyhow::Result<()> {
@@ -186,7 +135,7 @@ mod tests {
         let path = temp.path().join("keycodes.json");
         fs::write(
             &path,
-            r#"[{"code": 97, "id": "KC_A", "label": "a", "aliases": []}]"#,
+            r#"{"definitions": [{"code": 97, "id": "KC_A", "label": "a", "aliases": []}]}"#,
         )?;
 
         let rel = SafePath::try_from_str("keycodes.json")?;

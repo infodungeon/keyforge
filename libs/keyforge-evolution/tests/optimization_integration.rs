@@ -11,31 +11,31 @@ use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
 use std::sync::Arc;
 
 fn mock_cost_model() -> anyhow::Result<CostModel> {
-    let json = format!(
-        r#"{{
-    "meta": {{ "version": "2.0", "description": "Test", "unit": "pts" }},
-    "models": {{
-        "model_a_row_staggered": {{
+    let json = r#"{
+    "meta": { "version": "2.0", "description": "Test", "unit": "pts" },
+    "models": {
+        "model_a_row_staggered": {
             "description": "Test Model",
-            "static_costs": {{
-                "universal_hand": {{
-                    "thumb": {{ "pos_1": 100.0 }},
-                    "index": {{ "base": {{ "r0": 100.0 }} }},
-                    "middle": {{ "base": {{ "r0": 100.0 }} }},
-                    "ring": {{ "base": {{ "r0": 100.0 }} }},
-                    "pinky": {{ "base": {{ "r0": 100.0 }} }}
-                }}
-            }}
-        }}
-    }},
-    "dynamic_rules": {{ "sequence_modifiers": {{}}, "penalties": {{}}, "constraints": {{}} }}
-}}"#
-    );
+            "static_costs": {
+                "universal_hand": {
+                    "thumb": { "pos_1": 100.0 },
+                    "index": { "base": { "r0": 100.0 } },
+                    "middle": { "base": { "r0": 100.0 } },
+                    "ring": { "base": { "r0": 100.0 } },
+                    "pinky": { "base": { "r0": 100.0 } }
+                }
+            }
+        }
+    },
+    "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
+}"#
+    .to_string();
     // Note: The JSON still uses floats, which is fine because FixedWeight implements Deserialize from float.
     let dto: keyforge_protocol::CostModelDto = serde_json::from_str(&json)?;
     Ok(dto.into())
 }
 
+#[allow(clippy::type_complexity)]
 fn setup_env() -> anyhow::Result<(Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>)> {
     let keys = vec![
         KeyNode {

@@ -18,14 +18,12 @@
 //! `KeyIndex` positions on a keyboard.
 
 use crate::types::{KeyCode, KeyIndex};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use thiserror::Error;
-use utoipa::ToSchema;
 
 /// Errors related to Layout construction and validation.
-#[derive(Error, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Error, Debug)]
 pub enum LayoutError {
     /// Layout contains the same key code multiple times.
     #[error("Layout contains duplicate keys")]
@@ -39,7 +37,7 @@ pub enum LayoutError {
 }
 
 /// A raw, unvalidated representation of a layout, used for I/O and serialization.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawLayout {
     /// The list of keys.
     /// The index corresponds to the `KeyIndex`.
@@ -48,8 +46,7 @@ pub struct RawLayout {
 
 /// A rich domain model for a keyboard layout.
 /// Invariants are enforced upon construction and mutation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(try_from = "RawLayout", into = "RawLayout")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layout {
     /// The list of keys.
     /// Private to ensure invariants (like non-emptiness or size consistency) are maintained.
@@ -152,7 +149,7 @@ impl From<Vec<KeyCode>> for RawLayout {
 }
 
 /// Represents the identity of a layout based on its similarity to standard layouts.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone)]
 pub struct LayoutIdentity {
     /// The name of the standard layout (e.g., "Qwerty", "Colemak").
     pub name: String,

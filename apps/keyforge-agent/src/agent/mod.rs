@@ -197,7 +197,8 @@ impl Agent {
                         ).await {
                             Ok(opt_res) => {
                                 info!("✅ Job {} Completed. Score: {}", job_id, opt_res.score);
-                                let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
+                                let layout_dto: keyforge_protocol::LayoutDto = opt_res.layout.into();
+                                let layout_str = serde_json::to_string(&layout_dto).unwrap_or_default();
 
                                 let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                                 let nonce = rand::random();

@@ -1,22 +1,5 @@
 // libs/keyforge-model/src/rubric.rs
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Scoring configuration and weights.
-//!
-//! A `Rubric` defines the cost parameters used by the physics engine
-//! to evaluate the efficiency of a layout.
-
 use crate::config::weights::constants::{
     DEFAULT_BONUS_INWARD_ROLL, DEFAULT_FINGER_PENALTY_SCALE_ARRAY, DEFAULT_LOADER_TRIGRAM_LIMIT,
     DEFAULT_PENALTY_REDIRECT, DEFAULT_PENALTY_SCISSOR, DEFAULT_PENALTY_SFB_BASE,
@@ -27,10 +10,9 @@ use crate::config::weights::constants::{
 };
 use crate::error::ForgeError;
 use crate::types::Score;
-use serde::{Deserialize, Serialize};
 
 /// Raw representation of a Rubric for serialization (DTO).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RawRubric {
     // --- Monograms ---
     /// Effort multipliers for each finger (0=Thumb, 4=Pinky).
@@ -98,8 +80,7 @@ impl Default for RawRubric {
 
 /// Validated Scoring configuration (Domain Model).
 /// Defines "What is expensive?" by assigning weights to physical movements.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(from = "RawRubric", into = "RawRubric")]
+#[derive(Debug, Clone, Default)]
 pub struct Rubric {
     inner: RawRubric,
 }
@@ -402,13 +383,8 @@ mod tests {
         assert!(r.travel_vert() > Score::ZERO);
         assert_eq!(r.finger_effort().len(), 5);
 
-        // 2. Serialization Round-trip
-        let json = serde_json::to_string(&r)?;
-        let recovered: Rubric = serde_json::from_str(&json)?;
+        // Round-trip removed since Serde is gone from domain
 
-        // 3. Verification
-        assert_eq!(r.sfb_base(), recovered.sfb_base());
-        assert_eq!(r.finger_effort(), recovered.finger_effort());
         Ok(())
     }
 

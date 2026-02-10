@@ -17,25 +17,22 @@
 use crate::error::ForgeError;
 use crate::geometry::KeyNode;
 use crate::types::{Movement, Point};
-use serde::{Deserialize, Serialize};
 
 /// The physical reality of the device.
 /// Contains the set of keys and pre-calculated spatial data for scoring.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Keyboard {
     /// The list of physical keys.
     pub keys: Vec<KeyNode>,
     /// The logical row index considered the "Home Row".
     pub home_row: crate::types::RowIndex,
     /// Type of keyboard (e.g., "split", "ortho").
-    #[serde(default)]
     pub kb_type: String,
     /// Pre-calculated centers for fingers \[hand\]\[finger\] -> Point.
     /// Used for distance calculations relative to the resting position.
     pub finger_origins: Vec<Vec<Point>>,
     /// Pre-calculated movements between every pair of physical keys.
     /// Index: [i * `key_count` + j] -> Movement.
-    #[serde(skip)]
     pub spatial_cache: Vec<Movement>,
 }
 

@@ -49,7 +49,7 @@ mod tests {
     }
 
     #[test]
-    fn test_annealing_acceptance() -> anyhow::Result<()> {
+    fn test_annealing_acceptance() {
         let mut criteria = CoolingAnnealing;
 
         // 1. Improvement always accepted
@@ -66,6 +66,5 @@ mod tests {
 
         // 4. Below minimum temp rejects everything positive
         assert!(!criteria.should_accept(1, 1e-12, &mut rng_low));
-        Ok(())
     }
 }

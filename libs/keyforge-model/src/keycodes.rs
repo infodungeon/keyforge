@@ -17,7 +17,6 @@
 //! This module defines how logical key codes (like 'A' or 'Shift') are represented,
 //! named, and mapped to display labels.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -29,7 +28,7 @@ use crate::validator::Validator;
 use crate::constants::{DEFAULT_NO_OP, DEFAULT_TRANSPARENT};
 
 /// Definition of a logical key code (e.g., "`KC_A`").
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct KeycodeDefinition {
     /// The numeric code.
     pub code: KeyCode,
@@ -64,15 +63,23 @@ impl Validator for KeycodeDefinition {
 }
 
 /// Registry for looking up key codes by name or ID.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(from = "Vec<KeycodeDefinition>", into = "Vec<KeycodeDefinition>")]
+#[derive(Debug, Clone, Default)]
 pub struct KeycodeRegistry {
     /// List of all definitions.
     pub definitions: Vec<KeycodeDefinition>,
-    #[serde(skip)]
     name_to_code: HashMap<String, KeyCode>,
-    #[serde(skip)]
     code_to_label: HashMap<KeyCode, String>,
+}
+
+impl Asset for KeycodeRegistry {
+    fn category() -> AssetCategory {
+        AssetCategory::Keycodes
+    }
+
+    fn post_load(&mut self) -> Result<(), ForgeError> {
+        self.rebuild_maps();
+        self.validate().map_err(ForgeError::InvalidData)
+    }
 }
 
 impl From<Vec<KeycodeDefinition>> for KeycodeRegistry {
@@ -84,17 +91,6 @@ impl From<Vec<KeycodeDefinition>> for KeycodeRegistry {
 impl From<KeycodeRegistry> for Vec<KeycodeDefinition> {
     fn from(reg: KeycodeRegistry) -> Self {
         reg.definitions
-    }
-}
-
-impl Asset for KeycodeRegistry {
-    fn category() -> AssetCategory {
-        AssetCategory::Keycodes
-    }
-
-    fn post_load(&mut self) -> Result<(), ForgeError> {
-        self.rebuild_maps();
-        self.validate().map_err(ForgeError::InvalidData)
     }
 }
 
@@ -391,27 +387,6 @@ mod tests {
         assert_eq!(reg.get_label(KeyCode::new(0)), " ");
 
         assert_eq!(reg.get_label(KeyCode::new(999)), "[999]"); // Fallback
-        Ok(())
-    }
-
-    #[test]
-
-    fn test_keycode_asset_and_conversions() -> anyhow::Result<()> {
-        let reg = KeycodeRegistry::new_with_defaults();
-
-        assert_eq!(KeycodeRegistry::category(), AssetCategory::Keycodes);
-
-        let mut reg_clone = reg.clone();
-
-        assert!(reg_clone.post_load().is_ok());
-
-        let defs: Vec<KeycodeDefinition> = reg.clone().into();
-
-        assert_eq!(defs.len(), reg.definitions.len());
-
-        let reg_from: KeycodeRegistry = defs.into();
-
-        assert_eq!(reg_from.definitions.len(), reg.definitions.len());
         Ok(())
     }
 

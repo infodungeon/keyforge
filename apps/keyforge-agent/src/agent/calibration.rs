@@ -83,8 +83,9 @@ pub async fn calibrate(
         .await
         .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {e}")))?;
 
-    let def: KeyboardDefinition = serde_json::from_str(&content)
+    let def_dto: keyforge_protocol::KeyboardDefinitionDto = serde_json::from_str(&content)
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
+    let def: KeyboardDefinition = def_dto.into();
 
     let keyboard = Arc::new(Keyboard::new(
         def.geometry.keys().to_vec(),

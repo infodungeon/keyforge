@@ -65,7 +65,7 @@ impl AssetCache {
 
 #[async_trait]
 impl AssetLoader for AssetCache {
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + serde::de::DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
         self.manager
             .ensure_keyboard(id)
             .await
@@ -89,8 +89,9 @@ impl AssetLoader for AssetCache {
                 .map_err(|e| ForgeError::NotFound(e.to_string()))?;
             let path = self.root.join("system/corpora")?.join(&src.id)?;
             let data = std::fs::read(path.as_path()).map_err(|e| ForgeError::Io(e.to_string()))?;
-            let corpus: Corpus =
+            let corpus_dto: keyforge_protocol::CorpusDto =
                 serde_json::from_slice(&data).map_err(|e| ForgeError::Serde(e.to_string()))?;
+            let corpus: Corpus = corpus_dto.into();
             blended.merge(&corpus, src.weight);
         }
         Ok(Arc::new(blended))

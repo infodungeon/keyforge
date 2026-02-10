@@ -64,7 +64,10 @@ impl FsProvider {
 
 #[async_trait]
 impl AssetLoader for FsProvider {
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + for<'de> serde::Deserialize<'de>>(
+        &self,
+        id: &str,
+    ) -> LoaderResult<Arc<T>> {
         let path = self.resolve_asset_path(T::category(), id)?;
         let content = fs::read(path.as_path()).await.map_err(|e| {
             keyforge_model::error::ForgeError::Io(format!("Failed to read {id}: {e}"))
@@ -102,7 +105,10 @@ impl AssetLoader for FsProvider {
     ) -> LoaderResult<Arc<keyforge_model::Corpus>> {
         let mut corpus = keyforge_model::Corpus::default();
         for source in sources {
-            let part = self.load::<keyforge_model::Corpus>(&source.id).await?;
+            let part_dto = self
+                .load::<keyforge_protocol::CorpusDto>(&source.id)
+                .await?;
+            let part: keyforge_model::Corpus = (*part_dto).clone().into();
             corpus.merge(&part, source.weight);
         }
         Ok(Arc::new(corpus))

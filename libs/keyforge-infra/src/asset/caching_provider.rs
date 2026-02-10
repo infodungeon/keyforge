@@ -6,6 +6,7 @@ use keyforge_model::config::CorpusSource;
 use keyforge_model::types::path::SafePath;
 use keyforge_model::{Asset, Corpus};
 use moka::future::Cache;
+use serde::de::DeserializeOwned;
 use std::any::{Any, TypeId};
 use std::sync::Arc;
 
@@ -37,7 +38,7 @@ impl<L: AssetLoader> CachingProvider<L> {
 
 #[async_trait]
 impl<L: AssetLoader> AssetLoader for CachingProvider<L> {
-    async fn load<T: Asset>(&self, id: &str) -> LoaderResult<Arc<T>> {
+    async fn load<T: Asset + DeserializeOwned>(&self, id: &str) -> LoaderResult<Arc<T>> {
         let tid = TypeId::of::<T>();
         if let Some(asset) = self.cache.get(&(tid, id.to_string())).await {
             return asset.downcast::<T>().map_err(|_| {

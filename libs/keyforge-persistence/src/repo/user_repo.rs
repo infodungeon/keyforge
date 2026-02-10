@@ -315,7 +315,8 @@ impl UserRepo {
         let path = kb_dir
             .join(&format!("{safe_name}.json"))
             .map_err(InfraError::from)?;
-        let json = serde_json::to_string_pretty(def).map_err(InfraError::Serde)?;
+        let dto: keyforge_protocol::KeyboardDefinitionDto = def.clone().into();
+        let json = serde_json::to_string_pretty(&dto).map_err(InfraError::Serde)?;
 
         atomic_write(&path, json)?;
         Ok(())

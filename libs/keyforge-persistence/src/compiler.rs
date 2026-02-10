@@ -17,10 +17,11 @@ pub async fn compile_request<L: AssetLoader>(
     config: &Config,
 ) -> Result<EngineRequest, PersistenceError> {
     // 1. Load Keyboard Definition
-    let kb_def = loader
-        .load::<KeyboardDefinition>(&config.keyboard)
+    let kb_def_dto = loader
+        .load::<keyforge_protocol::KeyboardDefinitionDto>(&config.keyboard)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keyboard {}: {}", config.keyboard, e)))?;
+    let kb_def: Arc<KeyboardDefinition> = Arc::new((*kb_def_dto).clone().into());
 
     // 2. Load Corpus
     let corpus = loader
@@ -29,10 +30,11 @@ pub async fn compile_request<L: AssetLoader>(
         .map_err(|e| PersistenceError::AssetLoad(format!("Corpus: {e}")))?;
 
     // 3. Load Keycode Registry (Mandatory for resolution)
-    let registry = loader
-        .load::<KeycodeRegistry>(ASSET_KEYCODES)
+    let registry_dto = loader
+        .load::<keyforge_protocol::KeycodeRegistryDto>(ASSET_KEYCODES)
         .await
         .map_err(|e| PersistenceError::AssetLoad(format!("Keycodes: {e}")))?;
+    let registry: Arc<KeycodeRegistry> = Arc::new((*registry_dto).clone().into());
 
     // 4. Load Cost Model
     let cost_model = match &config.cost_matrix {

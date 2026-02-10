@@ -52,10 +52,12 @@ pub async fn run(args: DebugArgs, loader: &FsProvider) -> Result<(), Box<dyn std
                 }
             }
 
-            let def = loader
-                .load::<KeyboardDefinition>(&keyboard)
+            let def_dto = loader
+                .load::<keyforge_protocol::KeyboardDefinitionDto>(&keyboard)
                 .await
                 .map_err(|e| format!("Failed to load keyboard '{keyboard}': {e}"))?;
+
+            let def: KeyboardDefinition = (*def_dto).clone().into();
 
             let svg_content = generate_physics_svg(&def.geometry, &[], &[])?;
             atomic_write(&output, svg_content).map_err(|e| format!("Failed to write SVG: {e}"))?;

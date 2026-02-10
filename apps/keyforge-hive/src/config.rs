@@ -64,7 +64,7 @@ pub struct AppConfig {
 
     /// CORS allowed origins (comma separated or *).
     #[serde(default)]
-    pub cors: keyforge_model::config::CorsConfig,
+    pub cors: CorsConfig,
 
     /// Unique Server Identity Key (Machine ID).
     /// If not provided, one will be generated Ephemerally (WARNING: unstable across restarts).
@@ -107,7 +107,7 @@ impl AppConfig {
             .or_else(|_| env::var("VALKEY_URL"))
             .unwrap_or_else(|_| default_valkey());
 
-        let cors = keyforge_model::config::CorsConfig {
+        let cors = CorsConfig {
             allowed_origins: env::var("CORS_ALLOWED_ORIGINS").unwrap_or_default(),
         };
         let server_key = env::var("HIVE_SERVER_KEY").ok();
@@ -145,7 +145,7 @@ impl AppConfig {
             network: NetworkConfig::default(),
             rate_limits: RateLimitConfig::default(),
             valkey_url: DEFAULT_VALKEY_URL.to_string(),
-            cors: keyforge_model::config::CorsConfig {
+            cors: CorsConfig {
                 allowed_origins: "*".to_string(),
             },
             server_key: Some("mock_server_key".to_string()),
@@ -247,4 +247,19 @@ fn parse_env<T: std::str::FromStr>(key: &str, default: T) -> T {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(default)
+}
+
+/// Configuration for CORS.
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+pub struct CorsConfig {
+    /// Allowed origins.
+    pub allowed_origins: String,
+}
+
+impl Default for CorsConfig {
+    fn default() -> Self {
+        Self {
+            allowed_origins: "*".to_string(),
+        }
+    }
 }

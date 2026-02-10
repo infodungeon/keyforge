@@ -1,15 +1,9 @@
 // libs/keyforge-model/src/types/newtypes.rs
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-
 // --- Domain-Specific Newtypes (Anti-Primitive Obsession) ---
 
 /// A security-bounded duration in milliseconds.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct DurationMs(u64);
 
@@ -27,8 +21,7 @@ impl DurationMs {
 }
 
 /// High-precision latency measurement in milliseconds.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 #[repr(transparent)]
 pub struct LatencyMs(f64);
 
@@ -46,10 +39,7 @@ impl LatencyMs {
 }
 
 /// Number of iterations for an optimization step.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct IterationCount(usize);
 
@@ -73,8 +63,7 @@ impl From<usize> for IterationCount {
 }
 
 /// Simulated annealing temperature.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, ToSchema, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Default)]
 #[repr(transparent)]
 pub struct Temperature(f32);
 
@@ -119,10 +108,7 @@ impl From<f32> for Temperature {
 }
 
 /// Patience limit for stagnant optimization runs.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct PatienceCount(usize);
 
@@ -146,10 +132,7 @@ impl From<usize> for PatienceCount {
 }
 
 /// Number of reheating cycles.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct ReheatCount(usize);
 
@@ -175,10 +158,7 @@ impl From<usize> for ReheatCount {
 /// Generic scaling or adjustment factor for bit-perfect deterministic math.
 ///
 /// Use `raw()`/`from_raw()` for integer-only arithmetic.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct ScalingFactor(i64);
 
@@ -217,10 +197,7 @@ impl From<i64> for ScalingFactor {
 }
 
 /// A deterministic seed for PRNGs.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema, Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct Seed(u64);
 

@@ -16,7 +16,8 @@ use keyforge_adapter::loader::{AssetLoader, InMemoryLoader};
 use keyforge_model::config::CorpusSource;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
-use keyforge_model::{Corpus, CostModel, Layout, Rubric};
+use keyforge_model::{CostModel, Layout, Rubric};
+
 use serde::Serialize;
 use serde_wasm_bindgen::{from_value, to_value};
 use std::sync::Arc;
@@ -117,11 +118,12 @@ impl KeyforgeEngine {
     ///
     /// # Errors
     ///
-    /// Returns an error if the JSON value cannot be deserialized into a `KeyboardDefinition`.
+    /// Returns an error if the JSON value cannot be deserialized into a `KeyboardDefinitionDto`.
     #[wasm_bindgen(js_name = injectKeyboard)]
     pub fn inject_keyboard(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let kb: KeyboardDefinition = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        self.loader.inject(name, kb);
+        let kb_dto: keyforge_protocol::KeyboardDefinitionDto =
+            from_value(json_val).map_err(|e| map_serde_error(&e))?;
+        self.loader.inject(name, kb_dto);
         Ok(())
     }
 
@@ -129,11 +131,12 @@ impl KeyforgeEngine {
     ///
     /// # Errors
     ///
-    /// Returns an error if the JSON value cannot be deserialized into a `Corpus`.
+    /// Returns an error if the JSON value cannot be deserialized into a `CorpusDto`.
     #[wasm_bindgen(js_name = injectCorpus)]
     pub fn inject_corpus(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let corpus: Corpus = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        self.loader.inject(name, corpus);
+        let corpus_dto: keyforge_protocol::CorpusDto =
+            from_value(json_val).map_err(|e| map_serde_error(&e))?;
+        self.loader.inject(name, corpus_dto);
         Ok(())
     }
 
@@ -141,7 +144,7 @@ impl KeyforgeEngine {
     ///
     /// # Errors
     ///
-    /// Returns an error if the JSON value cannot be deserialized into a `CostModel`.
+    /// Returns an error if the JSON value cannot be deserialized into a `CostModelDto`.
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
         let model_dto: keyforge_protocol::CostModelDto =
@@ -154,11 +157,12 @@ impl KeyforgeEngine {
     ///
     /// # Errors
     ///
-    /// Returns an error if the JSON value cannot be deserialized into a `KeycodeRegistry`.
+    /// Returns an error if the JSON value cannot be deserialized into a `KeycodeRegistryDto`.
     #[wasm_bindgen(js_name = injectKeycodes)]
     pub fn inject_keycodes(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let reg: KeycodeRegistry = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        self.loader.inject(name, reg);
+        let reg_dto: keyforge_protocol::KeycodeRegistryDto =
+            from_value(json_val).map_err(|e| map_serde_error(&e))?;
+        self.loader.inject(name, reg_dto);
         Ok(())
     }
 
@@ -180,18 +184,24 @@ impl KeyforgeEngine {
         layout_val: JsValue,
         rubric_val: JsValue,
     ) -> Result<JsValue, JsValue> {
-        let layout: Layout = from_value(layout_val).map_err(|e| map_serde_error(&e))?;
+        let layout_dto: keyforge_protocol::LayoutDto =
+            from_value(layout_val).map_err(|e| map_serde_error(&e))?;
+        let layout: Layout = layout_dto.into();
+
         let rubric: Rubric = if rubric_val.is_null() || rubric_val.is_undefined() {
             Rubric::default()
         } else {
-            from_value(rubric_val).map_err(|e| map_serde_error(&e))?
+            let dto: keyforge_protocol::RubricDto =
+                from_value(rubric_val).map_err(|e| map_serde_error(&e))?;
+            dto.into()
         };
 
-        let kb_def = self
+        let kb_def_dto = self
             .loader
-            .load::<KeyboardDefinition>(&keyboard_name)
+            .load::<keyforge_protocol::KeyboardDefinitionDto>(&keyboard_name)
             .await
             .map_err(to_js_error)?;
+        let kb_def: Arc<KeyboardDefinition> = Arc::new((*kb_def_dto).clone().into());
 
         let corpus = self
             .loader
@@ -209,6 +219,13 @@ impl KeyforgeEngine {
             .await
             .map_err(to_js_error)?;
         let cost_model: Arc<CostModel> = Arc::new((*cost_model_dto).clone().into());
+
+        let reg_dto = self
+            .loader
+            .load::<keyforge_protocol::KeycodeRegistryDto>("default")
+            .await
+            .map_err(to_js_error)?;
+        let _registry: Arc<KeycodeRegistry> = Arc::new((*reg_dto).clone().into());
 
         let keyboard = Arc::new(
             keyforge_model::Keyboard::new(
@@ -231,8 +248,9 @@ impl KeyforgeEngine {
         .map_err(|e| map_physics_error(&e))?;
 
         let report = engine.analyze(&layout).map_err(|e| map_physics_error(&e))?;
+        let report_dto: keyforge_protocol::AnalysisReportDto = report.into();
 
-        to_value(&report).map_err(|e| map_serde_error(&e))
+        to_value(&report_dto).map_err(|e| map_serde_error(&e))
     }
 }
 

@@ -2,28 +2,25 @@ use crate::error::CommandError;
 use crate::state::SessionState;
 use crate::utils::get_data_dir;
 use keyforge_adapter::loader::AssetLoader;
-use keyforge_model::config::Config;
-use keyforge_model::types::path::SafePath;
-// use keyforge_protocol::config::Config; // This likely stays Protocol DTO if config passed from FE
 use keyforge_model::constants::{ASSET_KEYCODES, ASSET_UI_CATEGORIES};
-use keyforge_model::keycodes::KeycodeRegistry;
+use keyforge_model::types::path::SafePath;
 use tauri::AppHandle;
 
 /// Returns the default global application configuration.
 #[tauri::command]
 #[must_use]
-pub fn cmd_get_default_config() -> Config {
-    Config::default()
+pub fn cmd_get_default_config() -> keyforge_protocol::ConfigDto {
+    keyforge_model::config::Config::default().into()
 }
 
 /// Retrieves the current keycode registry, either from the active runtime or by loading it from disk.
 #[tauri::command]
 pub async fn cmd_get_keycodes(
     state: tauri::State<'_, SessionState>,
-) -> Result<KeycodeRegistry, CommandError> {
+) -> Result<keyforge_protocol::KeycodeRegistryDto, CommandError> {
     Ok(state
         .assets
-        .load::<KeycodeRegistry>(ASSET_KEYCODES)
+        .load::<keyforge_protocol::KeycodeRegistryDto>(ASSET_KEYCODES)
         .await?
         .as_ref()
         .clone())

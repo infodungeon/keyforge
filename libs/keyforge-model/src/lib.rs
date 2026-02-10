@@ -41,8 +41,6 @@ pub mod keyboard;
 pub mod keycodes;
 /// The `Layout` entity (logical mapping).
 pub mod layout;
-/// Standardized mapping between external data and domain models.
-pub mod mapping;
 pub mod metrics;
 /// Scoring configuration and weights.
 pub mod rubric;
@@ -68,11 +66,12 @@ pub use corpus::Corpus;
 pub use cost_model::CostModel;
 pub use error::ForgeError;
 pub use geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-pub use job::{Completed, Job, JobIdentifier, JobState, JobStatus, Pending, Running};
+pub use job::{
+    calculate_corpora_hash, Completed, Job, JobIdentifier, JobState, JobStatus, Pending, Running,
+};
 pub use keyboard::Keyboard;
 pub use keycodes::KeycodeRegistry;
 pub use layout::Layout;
-pub use mapping::{BulkProjection, Projection};
 pub use metrics::{MetricId, MetricSet};
 pub use rubric::Rubric;
 pub use types::{

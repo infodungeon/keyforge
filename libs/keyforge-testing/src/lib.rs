@@ -147,7 +147,10 @@ impl HermeticWorkspace {
                 aliases: vec!["H".into()],
             },
         ];
-        let keycodes_json = serde_json::to_string_pretty(&keycodes)?;
+        let keycodes_dto = keyforge_protocol::KeycodeRegistryDto {
+            definitions: keycodes.into_iter().map(Into::into).collect(),
+        };
+        let keycodes_json = serde_json::to_string_pretty(&keycodes_dto)?;
         self.write_file("user/config/keycodes.json", &keycodes_json)
             .await?;
         self.write_file("system/config/keycodes.json", &keycodes_json)
@@ -260,7 +263,8 @@ impl HermeticWorkspace {
             geometry,
             layouts: HashMap::from([("default".into(), "a b".into())]),
         };
-        let kb_json = serde_json::to_string_pretty(&kb_def)?;
+        let kb_json =
+            serde_json::to_string_pretty(&keyforge_protocol::KeyboardDefinitionDto::from(kb_def))?;
         self.write_file("user/keyboards/test_kb.json", &kb_json)
             .await?;
 
@@ -282,7 +286,8 @@ impl HermeticWorkspace {
         freqs[104] = 800; // 'h'
         en_small.char_freqs = Arc::from(freqs);
         en_small.bigrams = Arc::from(vec![(116, 104, 500)]); // 'th'
-        let en_small_json = serde_json::to_string_pretty(&en_small)?;
+        let en_small_json =
+            serde_json::to_string_pretty(&keyforge_protocol::CorpusDto::from(en_small))?;
         self.write_file("en_small.json", &en_small_json).await?;
 
         Ok(self)

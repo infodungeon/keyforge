@@ -1,25 +1,9 @@
 // libs/keyforge-model/src/types/indices.rs
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
-use utoipa::ToSchema;
 
 /// Unique identifier for a physical key position on the keyboard.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    ToSchema,
-    Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct KeyIndex(pub u16);
 
@@ -73,21 +57,7 @@ impl From<KeyIndex> for usize {
 }
 
 /// Logical identifier for a character or action (e.g., 'A', 'Shift').
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    ToSchema,
-    Default,
-)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 #[repr(transparent)]
 pub struct KeyCode(pub u16);
 

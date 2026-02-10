@@ -58,29 +58,21 @@ impl OptimizationUseCase {
             }
         }
 
-        let keyforge_model::CostMatrixSource::Predefined(ref name) = cost_matrix;
-        let cost_matrix_hash = Some(
-            loader
-                .get_hash(keyforge_model::AssetCategory::CostModel, name)
-                .await?,
-        );
+        let corpora_hash = keyforge_model::calculate_corpora_hash(&corpora);
+        tracing::debug!("Resolved corpora hash: {}", corpora_hash);
 
-        let corpora_hash = keyforge_infra::util::common::calculate_fingerprint(&corpora);
-
-        let id = JobIdentifier::try_from_parts(
+        let id = keyforge_model::JobIdentifier::calculate(
             &geometry,
+            &corpora,
             &weights,
             &params,
-            &pinned,
-            &corpora_hash,
             &cost_matrix,
-            cost_matrix_hash.as_deref(),
-        )
-        .map_err(|e| keyforge_model::error::ForgeError::Validation(e.to_string()))?;
+            &pinned,
+        );
 
         // 2. Build the session
-        let kb_def = loader
-            .load::<keyforge_model::geometry::KeyboardDefinition>(&req.config.definition.meta.name)
+        let kb_def_dto = loader
+            .load::<keyforge_protocol::KeyboardDefinitionDto>(&req.config.definition.meta.name)
             .await
             .map_err(|e| {
                 keyforge_model::error::ForgeError::Io(format!(
@@ -88,6 +80,8 @@ impl OptimizationUseCase {
                     req.config.definition.meta.name, e
                 ))
             })?;
+        let kb_def: Arc<keyforge_model::geometry::KeyboardDefinition> =
+            Arc::new((*kb_def_dto).clone().into());
 
         let keyforge_protocol::config::CostMatrixSourceDto::Predefined(cost_model_name) =
             &req.config.cost_matrix;
