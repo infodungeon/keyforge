@@ -69,7 +69,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
     /// # Errors
     /// Returns `LoaderResult` if the keyboard fails to load.
     pub async fn with_keyboard(mut self, name: &str) -> LoaderResult<Self> {
-        self.keyboard = Some(self.loader.load::<KeyboardDefinition>(name).await?);
+        let dto = self
+            .loader
+            .load::<keyforge_protocol::KeyboardDefinitionDto>(name)
+            .await?;
+        self.keyboard = Some(Arc::new((*dto).clone().into()));
         Ok(self)
     }
 
@@ -101,7 +105,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
     pub async fn with_cost_matrix(mut self, source: &CostMatrixSource) -> LoaderResult<Self> {
         match source {
             CostMatrixSource::Predefined(name) => {
-                self.cost_model = Some(self.loader.load::<CostModel>(name).await?);
+                let dto = self
+                    .loader
+                    .load::<keyforge_protocol::CostModelDto>(name)
+                    .await?;
+                self.cost_model = Some(Arc::new((*dto).clone().into()));
             }
         }
         Ok(self)
@@ -118,7 +126,11 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
     /// # Errors
     /// Returns `LoaderResult` if the registry fails to load.
     pub async fn with_keycodes(mut self, name: &str) -> LoaderResult<Self> {
-        self.registry = Some(self.loader.load::<KeycodeRegistry>(name).await?);
+        let dto = self
+            .loader
+            .load::<keyforge_protocol::KeycodeRegistryDto>(name)
+            .await?;
+        self.registry = Some(Arc::new((*dto).clone().into()));
         Ok(self)
     }
 

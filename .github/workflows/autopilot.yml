@@ -4,21 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       task:
-        description: 'Task to offload (mutants, kani, coverage, bench)'
+        description: "Task to offload (mutants, kani, coverage, bench)"
         required: true
-        default: 'coverage'
+        default: "coverage"
 
 jobs:
   autopilot:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@f7ccc83f9ed1e5b9c81d8a67d7ad1a747e22a561 # master (stable)
 
       - name: Cache Cargo
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: |
             ~/.cargo/bin/

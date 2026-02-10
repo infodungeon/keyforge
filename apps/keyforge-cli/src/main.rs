@@ -4,9 +4,7 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use indicatif::ProgressBar;
 use keyforge_infra::{fs::io::read_to_string_limited, resolve_root};
-use keyforge_model::KeyboardDefinition;
 use keyforge_protocol::JobConfig;
-use std::convert::TryFrom;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -22,7 +20,7 @@ impl keyforge_evolution::ProgressCallback for ProgressBarCallback {
     fn on_progress(
         &self,
         epoch: usize,
-        score: f32,
+        score: keyforge_model::Score,
         _layout: &[keyforge_model::KeyCode],
         ips: f32,
     ) -> keyforge_evolution::OptimizationControl {
@@ -218,13 +216,16 @@ async fn build_job_config(
         .keyboard
         .clone()
         .unwrap_or_else(|| "ortho_30".to_string());
-    let definition = loader.load::<KeyboardDefinition>(&kb_name).await?;
+    let definition_dto = loader
+        .load::<keyforge_protocol::KeyboardDefinitionDto>(&kb_name)
+        .await?;
 
     let weights = if let Some(w_input) = &shared.weights {
-        let w_path = cli_parsers::resolve_path(w_input, None, loader.root())?;
+        let w_path = cli_parsers::resolve_path(w_input, None, loader.root().as_path())?;
         let content =
             read_to_string_limited(&w_path, keyforge_model::constants::MAX_INPUT_FILE_SIZE)?;
-        serde_json::from_str(&content)?
+        let weights_dto: keyforge_protocol::ScoringWeightsDto = serde_json::from_str(&content)?;
+        weights_dto.into()
     } else {
         keyforge_model::config::Config::try_from(config_args.clone())?.weights
     };
@@ -236,7 +237,7 @@ async fn build_job_config(
         .unwrap_or_else(|| "cost_matrix.json".to_string());
 
     Ok(keyforge_protocol::JobConfig {
-        definition: (*definition).clone().into(),
+        definition: (*definition_dto).clone(),
         weights: weights.into(),
         params: params.into(),
         pinned_keys: shared

@@ -1,6 +1,6 @@
 use super::CompilationStage;
 use crate::error::PhysicsError;
-use crate::kernel::types::KeyCode;
+use crate::kernel::types::{KeyCode, Score};
 use keyforge_model::constants::MAX_KEYCODE_SPACE;
 use keyforge_model::{Corpus, Rubric};
 use std::sync::Arc;
@@ -73,7 +73,7 @@ fn flatten_bigrams(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>, Vec
     let mut current_offset = 0usize;
 
     for &(c1, c2, freq) in &sorted {
-        let c1 = c1 as usize;
+        let c1 = usize::from(c1);
         while current_char <= c1 {
             starts[current_char] = current_offset;
             current_char += 1;
@@ -103,7 +103,7 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
     let mut current_offset = 0usize;
 
     for &(c1, c2, freq) in &sorted {
-        let c2 = c2 as usize;
+        let c2 = usize::from(c2);
         while current_char <= c2 {
             starts[current_char] = current_offset;
             current_char += 1;
@@ -124,7 +124,7 @@ fn flatten_bigrams_rev(source: &[(u16, u16, u32)]) -> (Vec<usize>, Vec<KeyCode>,
 #[allow(clippy::cast_sign_loss, clippy::cast_precision_loss)]
 fn prune_trigrams(
     source: &[(u16, u16, u16, u32)],
-    coverage: f32,
+    coverage: Score,
     limit: usize,
 ) -> Vec<(u16, u16, u16, u32)> {
     if source.is_empty() {
@@ -133,15 +133,18 @@ fn prune_trigrams(
 
     let mut source = source.to_vec();
 
-    source.sort_unstable_by(|a, b| {
-        b.3.cmp(&a.3)
-            .then_with(|| a.0.cmp(&b.0))
-            .then_with(|| a.1.cmp(&b.1))
-            .then_with(|| a.2.cmp(&b.2))
+    source.sort_unstable_by(|&(a0, a1, a2, a3), &(b0, b1, b2, b3)| {
+        b3.cmp(&a3)
+            .then_with(|| a0.cmp(&b0))
+            .then_with(|| a1.cmp(&b1))
+            .then_with(|| a2.cmp(&b2))
     });
     let total_freq: u64 = source.iter().map(|x| u64::from(x.3)).sum();
+    // Deterministic coverage calculation using Score (basis: SCORE_SCALE)
+    let coverage_scaled = u64::try_from(coverage.raw()).unwrap_or(0);
     #[allow(clippy::cast_possible_truncation)]
-    let target = (total_freq as f64 * f64::from(coverage)) as u64;
+    let target = u64::try_from(u128::from(total_freq) * u128::from(coverage_scaled) / 1_000_000)
+        .unwrap_or(u64::MAX);
     let mut acc = 0;
     let mut cutoff = source.len();
     for (i, item) in source.iter().enumerate() {
@@ -172,7 +175,7 @@ fn flatten_trigrams_start(
     let mut current_offset = 0usize;
 
     for &(c1, c2, c3, freq) in &sorted {
-        let c1 = c1 as usize;
+        let c1 = usize::from(c1);
         while current_char <= c1 {
             starts[current_char] = current_offset;
             current_char += 1;

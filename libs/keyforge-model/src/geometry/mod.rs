@@ -22,44 +22,32 @@ use crate::constants::{MAX_KEYBOARD_KEYS, MAX_KEYBOARD_NAME_LEN};
 use crate::error::ForgeError;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, SpatialUnit};
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use utoipa::ToSchema;
-
-/// Keyboard Layout Editor (KLE) integration.
-pub mod kle;
 
 /// Metadata describing a keyboard definition.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
-
+#[derive(Debug, Clone, Default)]
 pub struct KeyboardMeta {
     /// Display name of the keyboard.
     pub name: String,
     /// Author of the definition.
-    #[serde(default)]
     pub author: String,
     /// Version string.
-    #[serde(default)]
     pub version: String,
     /// Additional notes or description.
-    #[serde(default)]
     pub notes: String,
     /// Type of keyboard (e.g., "split", "ortho").
-    #[serde(default, rename = "type")]
     pub kb_type: String,
 }
 
 /// Complete definition of a keyboard, including metadata and geometry.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Default)]
 pub struct KeyboardDefinition {
     /// Metadata about the keyboard.
-    #[serde(default)]
     pub meta: KeyboardMeta,
     /// Physical geometry of the keys.
     pub geometry: KeyboardGeometry,
     /// Pre-defined layouts available for this keyboard.
-    #[serde(default)]
     pub layouts: HashMap<String, String>,
 }
 
@@ -85,24 +73,19 @@ impl Validator for KeyboardDefinition {
 }
 
 /// Represents a single physical key on the keyboard.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
-
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeyNode {
-    /// Zero-based index of the key in the layout.
-    #[serde(default)]
-    pub index: usize,
+    /// Unique index of the key in the layout.
+    pub index: KeyIndex,
     /// Descriptive label for the key (e.g., "K01", "Thumb").
-    #[serde(alias = "id")]
     pub label: String,
     /// X-coordinate of the key center in keyboard units.
     pub x: SpatialUnit,
     /// Y-coordinate of the key center in keyboard units.
     pub y: SpatialUnit,
     /// Width of the key in keyboard units (default 1.0).
-    #[serde(default = "default_size")]
     pub w: f32,
     /// Height of the key in keyboard units (default 1.0).
-    #[serde(default = "default_size")]
     pub h: f32,
     /// Which hand is responsible for this key.
     pub hand: HandIndex,
@@ -113,26 +96,21 @@ pub struct KeyNode {
     /// Column index (logical).
     pub col: ColIndex,
     /// Whether this key is part of the "home" position.
-    #[serde(default)]
     pub is_home: bool,
     /// Whether this key requires a stretch to reach.
-    #[serde(default)]
     pub is_stretch: bool,
     /// Rotation angle in degrees.
-    #[serde(default)]
     pub r: f32,
     /// Rotation center X.
-    #[serde(default)]
     pub rx: SpatialUnit,
     /// Rotation center Y.
-    #[serde(default)]
     pub ry: SpatialUnit,
 }
 
 impl Default for KeyNode {
     fn default() -> Self {
         Self {
-            index: 0,
+            index: KeyIndex::new(0),
             label: String::new(),
             x: SpatialUnit::default(),
             y: SpatialUnit::default(),
@@ -151,30 +129,18 @@ impl Default for KeyNode {
     }
 }
 
-fn default_size() -> f32 {
-    1.0
-}
-
 /// Collection of keys and slot definitions defining the keyboard geometry.
-///
-/// NOTE: Uses `Vec<T>` for serialization compatibility with `utoipa` and `ts-rs`.
-/// The `Keyboard` runtime structure uses `Arc<[T]>` for performance.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
-
+#[derive(Debug, Clone, Default)]
 pub struct KeyboardGeometry {
     /// List of physical keys.
     pub keys: Vec<KeyNode>,
     /// Indices of keys that are "prime" (highest efficiency).
-    #[serde(default)]
     pub prime_slots: Vec<KeyIndex>,
     /// Indices of keys that are "med" (medium efficiency).
-    #[serde(default)]
     pub med_slots: Vec<KeyIndex>,
     /// Indices of keys that are "low" (lowest efficiency).
-    #[serde(default)]
     pub low_slots: Vec<KeyIndex>,
     /// Logical index of the home row.
-    #[serde(default)]
     pub home_row: RowIndex,
 }
 
@@ -225,6 +191,40 @@ impl KeyboardGeometry {
     #[must_use]
     pub fn low_slots(&self) -> &[KeyIndex] {
         &self.low_slots
+    }
+
+    /// Generates a deterministic hash of the keyboard geometry.
+    #[must_use]
+    pub fn calculate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        for key in &self.keys {
+            hasher.update(key.index.raw().to_le_bytes());
+            // Use bit_cast to ensure consistent representation of floats
+            hasher.update(key.x.raw().to_le_bytes());
+            hasher.update(key.y.raw().to_le_bytes());
+            hasher.update(key.w.to_bits().to_le_bytes());
+            hasher.update(key.h.to_bits().to_le_bytes());
+            hasher.update(key.hand.as_u8().to_le_bytes());
+            hasher.update(key.finger.as_u8().to_le_bytes());
+            hasher.update(key.row.raw().to_le_bytes());
+            hasher.update(key.col.raw().to_le_bytes());
+            hasher.update([u8::from(key.is_home)]);
+            hasher.update([u8::from(key.is_stretch)]);
+            hasher.update(key.r.to_bits().to_le_bytes());
+            hasher.update(key.rx.raw().to_le_bytes());
+            hasher.update(key.ry.raw().to_le_bytes());
+        }
+        for idx in &self.prime_slots {
+            hasher.update(idx.raw().to_le_bytes());
+        }
+        for idx in &self.med_slots {
+            hasher.update(idx.raw().to_le_bytes());
+        }
+        for idx in &self.low_slots {
+            hasher.update(idx.raw().to_le_bytes());
+        }
+        hasher.update(self.home_row.raw().to_le_bytes());
+        hex::encode(hasher.finalize())
     }
 }
 
@@ -278,7 +278,7 @@ impl Validator for KeyboardGeometry {
             .chain(&self.med_slots)
             .chain(&self.low_slots)
         {
-            if (idx.raw() as usize) >= max_idx {
+            if usize::from(idx.raw()) >= max_idx {
                 return Err(format!("Slot index {idx} out of bounds (keys: {max_idx})"));
             }
         }
@@ -307,21 +307,6 @@ impl Validator for KeyboardGeometry {
 }
 
 impl KeyboardDefinition {
-    /// Parses a keyboard definition from JSON, supporting both `KeyForge` format and KLE format.
-    ///
-    /// # Errors
-    /// Returns an error if the content is not valid JSON or KLE format.
-    pub fn parse(content: &str, name_hint: Option<&str>) -> Result<Self, String> {
-        if let Ok(def) = serde_json::from_str::<KeyboardDefinition>(content) {
-            return Ok(def);
-        }
-        if let Ok(geom) = kle::parse_kle_json(content) {
-            let name = name_hint.unwrap_or("Imported Board").to_string();
-            return Ok(Self::from_geometry(geom, &name));
-        }
-        Err("Content is not a valid KeyForge or KLE JSON".to_string())
-    }
-
     /// Creates a new `KeyboardDefinition` from a `KeyboardGeometry`.
     #[must_use]
     pub fn from_geometry(geometry: KeyboardGeometry, name: &str) -> Self {
@@ -341,16 +326,21 @@ impl KeyboardDefinition {
     #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     pub fn generate_test(keys_count: usize) -> Self {
         let keys: Vec<KeyNode> = (0..keys_count)
-            .map(|i| KeyNode {
-                index: i,
-                label: format!("K{i:02}"),
-                x: SpatialUnit::from_f32(i as f32),
-                y: SpatialUnit::default(),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new_unchecked(0),
-                row: RowIndex::new(0),
-                col: ColIndex::new(i as i8),
-                ..Default::default()
+            .map(|i| {
+                let u16_val = u16::try_from(i).unwrap_or(u16::MAX);
+                let f32_val = f32::from(u16_val);
+                let i8_val = i8::try_from(i % 128).unwrap_or(0);
+                KeyNode {
+                    index: KeyIndex::new(u16_val),
+                    label: format!("K{i:02}"),
+                    x: SpatialUnit::from_f32(f32_val),
+                    y: SpatialUnit::default(),
+                    hand: HandIndex::new(0),
+                    finger: FingerIndex::new_unchecked(0),
+                    row: RowIndex::new(0),
+                    col: ColIndex::new(i8_val),
+                    ..Default::default()
+                }
             })
             .collect();
 
@@ -362,7 +352,9 @@ impl KeyboardDefinition {
             },
             geometry: KeyboardGeometry {
                 keys,
-                prime_slots: (0..keys_count as u16).map(KeyIndex::new).collect(),
+                prime_slots: (0..u16::try_from(keys_count).unwrap_or(0))
+                    .map(KeyIndex::new)
+                    .collect(),
                 home_row: RowIndex::new(0),
                 ..Default::default()
             },

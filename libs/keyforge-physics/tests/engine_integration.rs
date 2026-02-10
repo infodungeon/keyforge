@@ -1,8 +1,8 @@
-// libs/keyforge-physics/tests/engine_integration.rs
-
 #[keyforge_testing_macros::kf_test]
 mod integration_tests {
     use super::*;
+    // libs/keyforge-physics/tests/engine_integration.rs
+
     use keyforge_model::testing::setup_minimal_assets;
     use keyforge_model::{KeyCode, Layout};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
@@ -27,8 +27,8 @@ mod integration_tests {
         let layout =
             Layout::new_unchecked(vec![KeyCode::new(97), KeyCode::new(98), KeyCode::new(99)]);
         let score = engine.score(&layout).unwrap();
-        let (m, b, t) = engine.score_detailed(&layout).unwrap();
-        assert_eq!(score.raw(), m + b + t);
+        let detailed = engine.score_detailed(&layout).unwrap();
+        assert_eq!(score.raw(), detailed.0 + detailed.1 + detailed.2);
     }
 
     #[test]
@@ -45,6 +45,10 @@ mod integration_tests {
 
         assert_eq!(engine.name(), "Exact (Oracle)");
         assert!(engine.capabilities().is_exact);
+        assert!(!engine
+            .capabilities()
+            .features
+            .contains(keyforge_physics::EngineFeatures::AVX2));
         assert_eq!(engine.key_count(), 3);
     }
 
@@ -63,7 +67,12 @@ mod integration_tests {
         )
         .unwrap();
 
-        assert_eq!(engine.name(), "Intel Comet Lake (AVX2 Optimized)");
+        assert_eq!(engine.name(), "Intel Comet Lake (AVX2) Optimized");
+        // bitflags API: contains()
+        assert!(engine
+            .capabilities()
+            .features
+            .contains(keyforge_physics::EngineFeatures::AVX2));
         assert_eq!(engine.key_count(), 3);
     }
 }

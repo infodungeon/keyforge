@@ -29,3 +29,4 @@
 | **[ADR-020](adr/adr-020.md)** | Foundation Hardening | Accepted | 2026-01-22 |
 | **[ADR-021](adr/adr-021.md)** | Unified Persistence & Protocol for Community Entities | Accepted | 2026-01-28 |
 | **[ADR-022](adr/adr-022.md)** | Rich Domain Entities and Clean Hexagonal Boundaries | Accepted | 2026-01-28 |
+| **[ADR-027](adr/adr-027.md)** | Path Traversal Prevention via SafePath Newtype | Accepted | 2026-02-10 |

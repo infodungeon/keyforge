@@ -16,6 +16,7 @@ anyhow.workspace = true
 keyforge-protocol = { path = "../../libs/keyforge-protocol" }
 keyforge-adapter = { path = "../../libs/keyforge-adapter" }
 keyforge-model = { path = "../../libs/keyforge-model" }
+keyforge-boundary.workspace = true
 keyforge-infra = { path = "../../libs/keyforge-infra" }
 keyforge-compute = { path = "../../libs/keyforge-compute" }
 keyforge-physics = { path = "../../libs/keyforge-physics" }

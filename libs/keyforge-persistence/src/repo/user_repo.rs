@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use fs2::FileExt;
+use keyforge_boundary::SafePath;
 use keyforge_infra::error::{InfraError, InfraResult};
 use keyforge_infra::fs::io::atomic_write;
 use keyforge_infra::util::common::sanitize_filename;
@@ -22,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// A persistent store for user-created layouts, organized by keyboard ID.
@@ -37,13 +37,13 @@ pub struct UserLayoutStore {
 /// and custom keyboard definitions.
 #[derive(Debug)]
 pub struct UserRepo {
-    root: PathBuf,
+    root: SafePath,
 }
 
 impl UserRepo {
     /// Creates a new `UserRepo` instance using the specified root directory as the data store.
     #[must_use]
-    pub fn new(root: PathBuf) -> Self {
+    pub fn new(root: SafePath) -> Self {
         Self { root }
     }
 
@@ -52,14 +52,17 @@ impl UserRepo {
     /// Checks if the legacy monolithic `user_layouts.json` file exists.
     /// If so, it migrates the data to individual files and deletes the legacy file.
     fn migrate_legacy_store_if_needed(&self) -> InfraResult<()> {
-        let legacy_path = self.root.join("user/user_layouts.json");
-        if !legacy_path.exists() {
+        let rel_legacy =
+            SafePath::try_from_str("user/user_layouts.json").map_err(InfraError::from)?;
+        let legacy_path = SafePath::from_trusted_root(self.root.as_path(), &rel_legacy);
+
+        if !legacy_path.as_path().exists() {
             return Ok(());
         }
 
         tracing::info!("Migrating legacy user layouts to individual files...");
 
-        if let Ok(content) = fs::read_to_string(&legacy_path) {
+        if let Ok(content) = fs::read_to_string(legacy_path.as_path()) {
             if let Ok(store) = serde_json::from_str::<UserLayoutStore>(&content) {
                 for (kb_id, layouts) in store.layouts {
                     for (name, layout_data) in layouts {
@@ -70,24 +73,30 @@ impl UserRepo {
         }
 
         // Rename legacy file to .bak instead of deleting immediately, for safety
-        let backup_path = self.root.join("user/user_layouts.json.bak");
-        fs::rename(legacy_path, backup_path).map_err(InfraError::Io)?;
+        let rel_backup =
+            SafePath::try_from_str("user/user_layouts.json.bak").map_err(InfraError::from)?;
+        let backup_path = SafePath::from_trusted_root(self.root.as_path(), &rel_backup);
+        fs::rename(legacy_path.as_path(), backup_path.as_path()).map_err(InfraError::Io)?;
 
         Ok(())
     }
 
-    fn get_layout_dir(&self, kb_id: &str) -> PathBuf {
-        self.root.join("user/layouts").join(kb_id)
+    fn get_layout_dir(&self, kb_id: &str) -> InfraResult<SafePath> {
+        let rel =
+            SafePath::try_from_str(&format!("user/layouts/{kb_id}")).map_err(InfraError::from)?;
+        Ok(SafePath::from_trusted_root(self.root.as_path(), &rel))
     }
 
     fn save_layout_internal(&self, kb_id: &str, name: &str, layout: &str) -> InfraResult<()> {
-        let dir = self.get_layout_dir(kb_id);
-        if !dir.exists() {
-            fs::create_dir_all(&dir).map_err(InfraError::Io)?;
+        let dir = self.get_layout_dir(kb_id)?;
+        if !dir.as_path().exists() {
+            fs::create_dir_all(dir.as_path()).map_err(InfraError::Io)?;
         }
 
         let safe_name = sanitize_filename(name);
-        let path = dir.join(format!("{safe_name}.json"));
+        let path = dir
+            .join(&format!("{safe_name}.json"))
+            .map_err(InfraError::from)?;
 
         let data = serde_json::json!({
             "name": name,
@@ -96,7 +105,7 @@ impl UserRepo {
         });
 
         let json = serde_json::to_string_pretty(&data).map_err(InfraError::Serde)?;
-        atomic_write(path, json)?;
+        atomic_write(&path, json)?;
         Ok(())
     }
 
@@ -123,12 +132,14 @@ impl UserRepo {
     pub fn delete_layout(&self, kb_id: &str, name: &str) -> InfraResult<()> {
         self.migrate_legacy_store_if_needed()?;
 
-        let dir = self.get_layout_dir(kb_id);
+        let dir = self.get_layout_dir(kb_id)?;
         let safe_name = sanitize_filename(name);
-        let path = dir.join(format!("{safe_name}.json"));
+        let path = dir
+            .join(&format!("{safe_name}.json"))
+            .map_err(InfraError::from)?;
 
-        if path.exists() {
-            fs::remove_file(path).map_err(InfraError::Io)?;
+        if path.as_path().exists() {
+            fs::remove_file(path.as_path()).map_err(InfraError::Io)?;
         }
         Ok(())
     }
@@ -139,13 +150,15 @@ impl UserRepo {
         let _ = self.migrate_legacy_store_if_needed();
 
         let mut layouts = HashMap::new();
-        let dir = self.get_layout_dir(kb_id);
+        let Ok(dir) = self.get_layout_dir(kb_id) else {
+            return layouts;
+        };
 
-        if !dir.exists() {
+        if !dir.as_path().exists() {
             return layouts;
         }
 
-        if let Ok(entries) = fs::read_dir(dir) {
+        if let Ok(entries) = fs::read_dir(dir.as_path()) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.extension().is_some_and(|ext| ext == "json") {
@@ -187,10 +200,11 @@ impl UserRepo {
     where
         F: FnMut(BiometricSample),
     {
-        let path = self.root.join("user/user_stats.jsonl");
+        let rel = SafePath::try_from_str("user/user_stats.jsonl").map_err(InfraError::from)?;
+        let path = SafePath::from_trusted_root(self.root.as_path(), &rel);
         let mut count = 0;
-        if path.exists() {
-            let file = fs::File::open(&path).map_err(InfraError::Io)?;
+        if path.as_path().exists() {
+            let file = fs::File::open(path.as_path()).map_err(InfraError::Io)?;
             let reader = BufReader::new(file);
             for line in reader.lines() {
                 let line = line.map_err(InfraError::Io)?;
@@ -222,8 +236,9 @@ impl UserRepo {
             buffer.push(b'\n');
         }
 
-        let path = self.root.join("user/user_stats.jsonl");
-        if let Some(parent) = path.parent() {
+        let rel = SafePath::try_from_str("user/user_stats.jsonl").map_err(InfraError::from)?;
+        let path = SafePath::from_trusted_root(self.root.as_path(), &rel);
+        if let Some(parent) = path.as_path().parent() {
             fs::create_dir_all(parent).map_err(InfraError::Io)?;
         }
 
@@ -231,7 +246,7 @@ impl UserRepo {
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&path)
+            .open(path.as_path())
             .map_err(InfraError::Io)?;
 
         file.lock_exclusive().map_err(InfraError::Io)?;
@@ -248,7 +263,7 @@ impl UserRepo {
     /// Retrieves all accumulated biometric samples.
     #[must_use]
     pub fn get_biometrics(&self) -> Vec<BiometricSample> {
-        self.load_stats_store().biometrics.0
+        self.load_stats_store().biometrics.into_inner()
     }
 
     /// Deletes all accumulated biometric samples from disk.
@@ -257,9 +272,10 @@ impl UserRepo {
     ///
     /// Returns `InfraError::Io` if the file cannot be removed.
     pub fn reset_biometrics(&self) -> InfraResult<()> {
-        let path = self.root.join("user/user_stats.jsonl");
-        if path.exists() {
-            fs::remove_file(path).map_err(InfraError::Io)?;
+        let rel = SafePath::try_from_str("user/user_stats.jsonl").map_err(InfraError::from)?;
+        let path = SafePath::from_trusted_root(self.root.as_path(), &rel);
+        if path.as_path().exists() {
+            fs::remove_file(path.as_path()).map_err(InfraError::Io)?;
         }
         Ok(())
     }
@@ -269,9 +285,11 @@ impl UserRepo {
     /// # Errors
     /// Returns `InfraError` if saving fails.
     pub fn save_personal_cost_model(&self, model: &keyforge_model::CostModel) -> InfraResult<()> {
-        let output_path = self.root.join("user/personal_cost.json");
-        let json = serde_json::to_string_pretty(model).map_err(InfraError::Serde)?;
-        atomic_write(output_path, json)?;
+        let rel = SafePath::try_from_str("user/personal_cost.json").map_err(InfraError::from)?;
+        let output_path = SafePath::from_trusted_root(self.root.as_path(), &rel);
+        let dto = keyforge_protocol::CostModelDto::from(model.clone());
+        let json = serde_json::to_string_pretty(&dto).map_err(InfraError::Serde)?;
+        atomic_write(&output_path, json)?;
         Ok(())
     }
 
@@ -287,16 +305,20 @@ impl UserRepo {
         filename: &str,
         def: &KeyboardDefinition,
     ) -> InfraResult<()> {
-        let kb_dir = self.root.join("user/keyboards");
-        if !kb_dir.exists() {
-            fs::create_dir_all(&kb_dir).map_err(InfraError::Io)?;
+        let rel_kb_dir = SafePath::try_from_str("user/keyboards").map_err(InfraError::from)?;
+        let kb_dir = SafePath::from_trusted_root(self.root.as_path(), &rel_kb_dir);
+        if !kb_dir.as_path().exists() {
+            fs::create_dir_all(kb_dir.as_path()).map_err(InfraError::Io)?;
         }
 
         let safe_name = sanitize_filename(filename);
-        let path = kb_dir.join(format!("{safe_name}.json"));
-        let json = serde_json::to_string_pretty(def).map_err(InfraError::Serde)?;
+        let path = kb_dir
+            .join(&format!("{safe_name}.json"))
+            .map_err(InfraError::from)?;
+        let dto: keyforge_protocol::KeyboardDefinitionDto = def.clone().into();
+        let json = serde_json::to_string_pretty(&dto).map_err(InfraError::Serde)?;
 
-        atomic_write(path, json)?;
+        atomic_write(&path, json)?;
         Ok(())
     }
 }

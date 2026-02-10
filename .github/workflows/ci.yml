@@ -2,11 +2,11 @@ name: KeyForge CI/CD
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,10 +17,10 @@ jobs:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@f7ccc83f9ed1e5b9c81d8a67d7ad1a747e22a561 # master (stable)
         with:
           components: clippy, rustfmt
 
@@ -30,7 +30,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y             libwebkit2gtk-4.1-dev             build-essential             curl             wget             file             libssl-dev             libgtk-3-dev             libayatana-appindicator3-dev             librsvg2-dev
 
       - name: Cache Cargo
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: |
             ~/.cargo/bin/
@@ -48,7 +48,6 @@ jobs:
 
       - name: Check Formatting
         run: cargo fmt --all -- --check
-
 
       - name: Install Cargo Audit & Deny
         run: |
@@ -71,7 +70,7 @@ jobs:
 
       - name: Upload Audit Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: audit-reports
           path: docs/planning/audit_results/expanded/
@@ -81,13 +80,13 @@ jobs:
         run: cargo build --release --workspace --exclude keyforge-ui
 
       - name: Install just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
 
       - name: Install Node.js for UI Tests
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: apps/keyforge-ui/package-lock.json
 
       - name: Install UI Dependencies
@@ -105,12 +104,12 @@ jobs:
     name: UI Health
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: apps/keyforge-ui/package-lock.json
       - name: Install Dependencies
         run: cd apps/keyforge-ui && npm install
@@ -123,15 +122,15 @@ jobs:
     name: ARM64 Test Suite
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@f7ccc83f9ed1e5b9c81d8a67d7ad1a747e22a561 # master (stable)
         with:
           targets: aarch64-apple-darwin
 
       - name: Cache Cargo
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: |
             ~/.cargo/bin/
@@ -157,15 +156,15 @@ jobs:
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@f7ccc83f9ed1e5b9c81d8a67d7ad1a747e22a561 # master (stable)
         with:
           components: llvm-tools-preview
 
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@509565405a8a987e73cf742e26b26dcc72c4b01a # v2
         with:
           tool: cargo-tarpaulin
 
@@ -178,7 +177,7 @@ jobs:
         run: cargo tarpaulin --workspace --exclude keyforge-ui --exclude keyforge-hive --timeout 300 --out Xml -- --test-threads 1
 
       - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3
         with:
           file: tarpaulin-report.xml
           fail_ci_if_error: false
@@ -191,24 +190,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+          - platform: "macos-latest"
+            args: "--target aarch64-apple-darwin"
+          - platform: "ubuntu-22.04"
+            args: ""
+          - platform: "windows-latest"
+            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@f7ccc83f9ed1e5b9c81d8a67d7ad1a747e22a561 # master (stable)
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
 
@@ -225,17 +224,17 @@ jobs:
 
       # OPS-030: Code Signing (Placeholder for Secrets)
       # In production, inject certificates here via secrets
-      
+
       - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@73fb865345c54760d875b94642314f8c0c894afa # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'KeyForge ${{ github.ref_name }}'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseName: "KeyForge ${{ github.ref_name }}"
+          releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

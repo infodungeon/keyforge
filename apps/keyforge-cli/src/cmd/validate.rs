@@ -46,7 +46,8 @@ pub async fn run(args: &ValidateArgs, loader: &FsProvider) -> Result<(), CliErro
         .await
         .map_err(|e| CliError::Other(format!("Keycodes load failed: {e}")))?
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights()
+                .map_err(|e| CliError::Other(format!("Invalid weights: {e}")))?,
         ));
 
     let session = builder

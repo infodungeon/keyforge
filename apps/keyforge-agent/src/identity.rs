@@ -6,17 +6,18 @@ use std::io::{Read, Write};
 use tracing::info;
 
 pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, AgentError> {
-    let mut config_dir = dirs::config_dir()
+    let mut config_dir_path = dirs::config_dir()
         .ok_or_else(|| AgentError::Identity("could not find config directory".into()))?;
-    config_dir.push(&config.config_dir_name);
+    config_dir_path.push(&config.config_dir_name);
 
-    if !config_dir.exists() {
-        std::fs::create_dir_all(&config_dir)
+    if !config_dir_path.exists() {
+        std::fs::create_dir_all(&config_dir_path)
             .map_err(|e| AgentError::Identity(format!("failed to create config dir: {e}")))?;
     }
-
-    let mut key_path = config_dir.clone();
-    key_path.push(&config.key_file_name);
+    let safe_config_dir = keyforge_boundary::SafePath::from_trusted_root_path(config_dir_path);
+    let key_rel = keyforge_boundary::SafePath::try_from_str(&config.key_file_name)
+        .map_err(|e| AgentError::Identity(e.to_string()))?;
+    let safe_key_path = safe_config_dir.join_trusted(&key_rel);
 
     let passphrase = if let Some(override_id) = &config.machine_id_override {
         override_id.clone()
@@ -27,25 +28,27 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
         if let Ok(id) = machine_uid::get() {
             id
         } else {
-            let mut uuid_path = config_dir.clone();
-            uuid_path.push("machine_id.uuid");
-            if uuid_path.exists() {
-                std::fs::read_to_string(&uuid_path).map_err(|e| {
-                    AgentError::Identity(format!("Failed to read fallback UUID: {e}"))
-                })?
+            let uuid_rel = keyforge_boundary::SafePath::try_from_str("machine_id.uuid")
+                .map_err(|e| AgentError::Identity(e.to_string()))?;
+            let safe_uuid_path = safe_config_dir.join_trusted(&uuid_rel);
+
+            if safe_uuid_path.as_path().exists() {
+                keyforge_infra::fs::io::read_to_string_limited(&safe_uuid_path, 1024).map_err(
+                    |e| AgentError::Identity(format!("Failed to read fallback UUID: {e}")),
+                )?
             } else {
                 let new_id = uuid::Uuid::new_v4().to_string();
-                std::fs::write(&uuid_path, &new_id).map_err(|e| {
+                keyforge_infra::fs::io::atomic_write(&safe_uuid_path, &new_id).map_err(|e| {
                     AgentError::Identity(format!("Failed to save fallback UUID: {e}"))
                 })?;
-                info!(path = ?uuid_path, "Generated new fallback machine UUID");
+                info!(path = ?safe_uuid_path.as_path(), "Generated new fallback machine UUID");
                 new_id
             }
         }
     };
 
-    if key_path.exists() {
-        let file = std::fs::File::open(&key_path)
+    if safe_key_path.as_path().exists() {
+        let file = std::fs::File::open(safe_key_path.as_path())
             .map_err(|e| AgentError::Identity(format!("failed to open key file: {e}")))?;
         let decryptor = age::Decryptor::new(file)
             .map_err(|e| AgentError::Identity(format!("age decryptor error: {e}")))?;
@@ -92,7 +95,7 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
                 .create(true)
                 .truncate(true)
                 .mode(0o600)
-                .open(&key_path)
+                .open(safe_key_path.as_path())
                 .map_err(|e| {
                     AgentError::Identity(format!("failed to create hardened key file: {e}"))
                 })?;
@@ -101,41 +104,44 @@ pub fn load_or_create_identity(config: &SystemConfig) -> Result<SigningKey, Agen
         }
         #[cfg(not(unix))]
         {
-            std::fs::write(&key_path, &output).map_err(|e| {
+            keyforge_infra::fs::io::atomic_write(&safe_key_path, &output).map_err(|e| {
                 AgentError::Identity(format!("failed to save encrypted key: {}", e))
             })?;
         }
 
-        info!(path = ?key_path, "generated new encrypted identity");
+        info!(path = ?safe_key_path.as_path(), "generated new encrypted identity");
         Ok(key)
     }
 }
 
 #[keyforge_testing_macros::kf_test]
 mod tests {
+    use keyforge_boundary::SafePath;
     use std::fs;
     use tempfile::tempdir;
 
     #[test]
-    fn test_identity_file_hardening() {
-        let dir = tempdir().unwrap();
-        let key_path = dir.path().join("agent.key.age");
+    fn test_identity_file_hardening() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let kb_rel = SafePath::try_from_str("agent.key.age")?;
+        let safe_key_path = SafePath::from_trusted_root(dir.path(), &kb_rel);
 
-        fs::write(&key_path, "dummy encrypted data").unwrap();
+        keyforge_infra::fs::io::atomic_write(&safe_key_path, "dummy encrypted data")?;
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&key_path).unwrap().permissions();
+            let mut perms = fs::metadata(safe_key_path.as_path())?.permissions();
             perms.set_mode(0o600);
-            fs::set_permissions(&key_path, perms).unwrap();
+            fs::set_permissions(safe_key_path.as_path(), perms)?;
 
-            let final_perms = fs::metadata(&key_path).unwrap().permissions();
+            let final_perms = fs::metadata(safe_key_path.as_path())?.permissions();
             assert_eq!(
                 final_perms.mode() & 0o777,
                 0o600,
                 "Identity file must be owner-readable only"
             );
         }
+        Ok(())
     }
 }

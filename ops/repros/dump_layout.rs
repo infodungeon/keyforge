@@ -5,7 +5,8 @@ use std::fs::File;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open("data/system/keyboards/models/szr35.mpk.zst")?;
     let decoder = zstd::Decoder::new(file)?;
-    let kb: KeyboardDefinition = rmp_serde::from_read(decoder)?;
+    let kb_dto: keyforge_protocol::KeyboardDefinitionDto = rmp_serde::from_read(decoder)?;
+    let kb: KeyboardDefinition = kb_dto.into();
 
     if let Some(layout) = kb.layouts.get("Colemak-DH") {
         println!("Colemak-DH Layout for SZR35:");

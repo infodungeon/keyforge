@@ -6,6 +6,7 @@ mod integration_tests {
     // Integration tests for filesystem utilities (io, listing, lock).
     // These tests require tempfile/filesystem access and validate contract/wiring.
 
+    use keyforge_boundary::SafePath;
     use keyforge_infra::fs::io::{atomic_write, read_to_string_limited};
     use keyforge_infra::fs::listing::{
         list_corpora, list_cost_matrices, list_keyboards, list_keymap_extras,
@@ -20,48 +21,58 @@ mod integration_tests {
     /// Intent: Verify `atomic_write` creates parent directories and writes content atomically.
     /// Expected Result: File is created with correct content, updates work correctly.
     #[test]
-    fn test_atomic_write() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_atomic_write() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("subdir/test.txt");
+        let root = temp.path().join("subdir");
+        let rel = SafePath::try_from_str("test.txt")?;
+        let safe_path = SafePath::from_trusted_root(&root, &rel);
 
         // Success with directory creation
-        atomic_write(&path, "hello").unwrap();
-        assert_eq!(fs::read_to_string(&path).unwrap(), "hello");
+        atomic_write(&safe_path, "hello")?;
+        assert_eq!(fs::read_to_string(&path)?, "hello");
 
         // Success with update
-        atomic_write(&path, "updated").unwrap();
-        assert_eq!(fs::read_to_string(&path).unwrap(), "updated");
+        atomic_write(&safe_path, "updated")?;
+        assert_eq!(fs::read_to_string(&path)?, "updated");
+        Ok(())
     }
 
     /// Intent: Verify `read_to_string_limited` respects size limits.
     /// Expected Result: Returns content when under limit, errors when over limit.
     #[test]
-    fn test_read_to_string_limited() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_read_to_string_limited() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("test.txt");
-        fs::write(&path, "hello world").unwrap();
+        fs::write(&path, "hello world")?;
+
+        let rel = SafePath::try_from_str("test.txt")?;
+        let safe_path = SafePath::from_trusted_root(temp.path(), &rel);
 
         // Success
-        let res = read_to_string_limited(&path, 100).unwrap();
+        let res = read_to_string_limited(&safe_path, 100)?;
         assert_eq!(res, "hello world");
 
-        let res = read_to_string_limited(&path, 5);
+        let res = read_to_string_limited(&safe_path, 5);
         assert!(res.is_err());
         assert!(format!("{:?}", res.err()).contains("exceeds size limit"));
+        Ok(())
     }
 
     /// Intent: Verify `atomic_write` fails gracefully when parent is a file.
     /// Expected Result: Returns error when path is invalid.
     #[test]
-    fn test_atomic_write_fail() {
+    fn test_atomic_write_fail() -> anyhow::Result<()> {
         // Attempt to write to a path where parent is a file (invalid)
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempfile::tempdir()?;
         let file_path = temp.path().join("file");
-        fs::write(&file_path, "not a dir").unwrap();
+        fs::write(&file_path, "not a dir")?;
 
-        let bad_path = file_path.join("blocked/test.txt");
-        let res = atomic_write(&bad_path, "data");
+        let rel = SafePath::try_from_str("blocked/test.txt")?;
+        let safe_bad_path = SafePath::from_trusted_root(&file_path, &rel);
+        let res = atomic_write(&safe_bad_path, "data");
         assert!(res.is_err());
+        Ok(())
     }
 
     // ============================================================================
@@ -83,7 +94,8 @@ mod integration_tests {
         fs::write(sys_kb.join("sys.mpk.zst"), "").unwrap();
         fs::write(user_kb.join("user.json"), "").unwrap();
 
-        let list = list_keyboards(root).unwrap();
+        let safe_root = SafePath::from_trusted_root_path(root.to_path_buf());
+        let list = list_keyboards(&safe_root).unwrap();
         assert_eq!(list.len(), 2);
         assert!(list.contains(&"sys".into()));
         assert!(list.contains(&"user".into()));
@@ -96,7 +108,7 @@ mod integration_tests {
         fs::write(sys_corp.join("1grams.mpk.zst"), "").unwrap();
         fs::write(user_corp.join("1grams.json"), "").unwrap();
 
-        let list = list_corpora(root).unwrap();
+        let list = list_corpora(&safe_root).unwrap();
         assert_eq!(list.len(), 2);
         assert!(list.contains(&"en/std".into()));
         assert!(list.contains(&"custom".into()));
@@ -109,7 +121,7 @@ mod integration_tests {
         fs::write(sys_cm.join("cm_sys.mpk.zst"), "").unwrap();
         fs::write(user_cm.join("cm_user.json"), "").unwrap();
 
-        let list = list_cost_matrices(root).unwrap();
+        let list = list_cost_matrices(&safe_root).unwrap();
         assert!(list.contains(&"cm_sys".into()));
         assert!(list.contains(&"cm_user".into()));
 
@@ -121,7 +133,7 @@ mod integration_tests {
         fs::write(sys_extra.join("extra_sys.mpk.zst"), "").unwrap();
         fs::write(user_extra.join("extra_user.json"), "").unwrap();
 
-        let list = list_keymap_extras(root).unwrap();
+        let list = list_keymap_extras(&safe_root).unwrap();
         assert!(list.contains(&"extra_sys".into()));
         assert!(list.contains(&"extra_user".into()));
     }
@@ -133,10 +145,11 @@ mod integration_tests {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path();
 
-        assert!(list_keyboards(root).unwrap().is_empty());
-        assert!(list_corpora(root).unwrap().is_empty());
-        assert!(list_cost_matrices(root).unwrap().is_empty());
-        assert!(list_keymap_extras(root).unwrap().is_empty());
+        let safe_root = SafePath::from_trusted_root_path(root.to_path_buf());
+        assert!(list_keyboards(&safe_root).unwrap().is_empty());
+        assert!(list_corpora(&safe_root).unwrap().is_empty());
+        assert!(list_cost_matrices(&safe_root).unwrap().is_empty());
+        assert!(list_keymap_extras(&safe_root).unwrap().is_empty());
     }
 
     // ============================================================================

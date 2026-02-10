@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -17,12 +17,12 @@ use super::traits::{AcceptanceCriteria, MutationOperator, TimeKeeper};
 use crate::errors::EvolutionError;
 use crate::ProgressCallback;
 use keyforge_model::constants::{
-    DEFAULT_REPORT_DIVISOR, MIN_REPORT_INTERVAL, SCORE_SCALE, TEMP_UNDERFLOW_THRESHOLD,
+    DEFAULT_REPORT_DIVISOR, MIN_REPORT_INTERVAL, TEMP_UNDERFLOW_THRESHOLD,
 };
 use keyforge_model::types::{
     IterationCount, PatienceCount, ReheatCount, ScalingFactor, Seed, Temperature,
 };
-use keyforge_model::{KeyCode, Layout};
+use keyforge_model::{KeyCode, Layout, Score};
 use keyforge_physics::ScoringEngine;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -33,7 +33,7 @@ use std::thread;
 use std::time::Instant;
 
 struct ProgressReporter {
-    tx: mpsc::SyncSender<(IterationCount, f32, Vec<KeyCode>, f32)>,
+    tx: mpsc::SyncSender<(IterationCount, Score, Vec<KeyCode>, f32)>,
     report_interval: IterationCount,
     last_report_time: Instant,
     last_report_step: IterationCount,
@@ -41,12 +41,13 @@ struct ProgressReporter {
 
 impl ProgressReporter {
     fn new(
-        tx: mpsc::SyncSender<(IterationCount, f32, Vec<KeyCode>, f32)>,
+        tx: mpsc::SyncSender<(IterationCount, Score, Vec<KeyCode>, f32)>,
         total_steps: IterationCount,
         start_time: Instant,
     ) -> Self {
-        let report_interval =
-            IterationCount::new((total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL));
+        let report_interval = IterationCount::new(
+            (total_steps.raw() / DEFAULT_REPORT_DIVISOR).max(MIN_REPORT_INTERVAL),
+        );
 
         Self {
             tx,
@@ -68,15 +69,18 @@ impl ProgressReporter {
             };
 
             let ips = if elapsed > 0.0 {
-                steps_done as f32 / elapsed
+                let steps_done_i64 = i64::try_from(steps_done).unwrap_or(i64::MAX);
+                let steps_done_float =
+                    Score::from_scaled_i64(steps_done_i64).to_f32() * 1_000_000.0;
+                steps_done_float / elapsed
             } else {
                 0.0
             };
 
-            let score_f32 = state.best_score as f32 / SCORE_SCALE;
+            let score = Score::from_scaled_i64(state.best_score);
             let layout_snapshot = state.best_layout().keys().to_vec();
 
-            let _ = self.tx.try_send((step, score_f32, layout_snapshot, ips));
+            let _ = self.tx.try_send((step, score, layout_snapshot, ips));
 
             if step.raw() > 0 {
                 self.last_report_time = now;
@@ -126,8 +130,8 @@ impl AnnealingConfig {
                 "Temperatures must be non-negative".into(),
             ));
         }
-        if reheat_factor.raw() <= 0.0 {
-            return Err(EvolutionError::Config("Reheat factor must be > 0.0".into()));
+        if reheat_factor.raw() <= 0 {
+            return Err(EvolutionError::Config("Reheat factor must be > 0".into()));
         }
         Ok(Self {
             steps,
@@ -189,7 +193,7 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         let cooling_rate = self.calculate_cooling_rate();
         let start_time = self.time_keeper.now();
         let abort_flag = Arc::new(std::sync::atomic::AtomicU8::new(0)); // 0=Run, 1=Stop, 2=Abort
-        let (tx, rx) = mpsc::sync_channel::<(IterationCount, f32, Vec<KeyCode>, f32)>(1);
+        let (tx, rx) = mpsc::sync_channel::<(IterationCount, Score, Vec<KeyCode>, f32)>(1);
         let status_ref = abort_flag.clone();
 
         let mut reporter = ProgressReporter::new(tx, self.config.steps, start_time);
@@ -259,9 +263,8 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
         initial_layout: Option<Layout>,
     ) -> Result<SearchState, EvolutionError> {
         let layout = initial_layout.unwrap_or_else(|| {
-            #[allow(clippy::cast_possible_truncation)]
             let keys: Vec<KeyCode> = (0..self.engine.key_count())
-                .map(|i| KeyCode::new(i as u16))
+                .map(|i| KeyCode::new(u16::try_from(i).unwrap_or(0)))
                 .collect();
             Layout::new_unchecked(keys)
         });
@@ -272,9 +275,10 @@ impl<'a, M: MutationOperator, A: AcceptanceCriteria, T: TimeKeeper> Optimizer<'a
 
     fn calculate_cooling_rate(&self) -> f32 {
         if self.config.steps.raw() > 0 && self.config.start_temp.raw() > f32::EPSILON {
-            #[allow(clippy::cast_precision_loss)]
-            let steps_f32 = self.config.steps.raw() as f32;
-            (self.config.end_temp.raw() / self.config.start_temp.raw()).powf(1.0 / steps_f32)
+            let total_steps_i64 = i64::try_from(self.config.steps.raw()).unwrap_or(i64::MAX);
+            let total_steps_float = Score::from_scaled_i64(total_steps_i64).to_f32() * 1_000_000.0;
+            (self.config.end_temp.raw() / self.config.start_temp.raw())
+                .powf(1.0 / total_steps_float)
         } else {
             0.0
         }
@@ -328,25 +332,30 @@ mod tests {
     };
     use crate::supervisor::AnnealingConfig;
     use crate::{OptimizationControl, ProgressCallback};
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit};
+    use keyforge_model::types::{
+        ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex, SpatialUnit,
+    };
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
+    use keyforge_protocol::CostModelDto;
     use rand::Rng;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
     use std::time::{Duration, Instant};
 
     #[derive(Clone)]
-    struct ReportingCallback(Arc<AtomicUsize>);
+    struct ReportingCallback {
+        counter: Arc<AtomicUsize>,
+    }
     impl ProgressCallback for ReportingCallback {
         fn on_progress(
             &self,
             _epoch: usize,
-            _score: f32,
+            _score: Score,
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
-            self.0.fetch_add(1, Ordering::SeqCst);
+            self.counter.fetch_add(1, Ordering::SeqCst);
             OptimizationControl::Continue
         }
     }
@@ -357,7 +366,7 @@ mod tests {
         fn on_progress(
             &self,
             _epoch: usize,
-            _score: f32,
+            _score: Score,
             _layout: &[KeyCode],
             _ips: f32,
         ) -> OptimizationControl {
@@ -423,34 +432,39 @@ mod tests {
     fn setup_test_engine(size: usize) -> Box<dyn ScoringEngine> {
         let keys: Vec<_> = (0..size)
             .map(|i| KeyNode {
-                index: i,
+                index: KeyIndex::new(u16::try_from(i).unwrap_or(0)),
                 label: format!("k{i}"),
                 hand: HandIndex::new(u8::try_from(i % 2).unwrap_or(0)),
                 finger: FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)),
                 row: RowIndex::new(i8::try_from(i / 10).unwrap_or(0)),
                 col: ColIndex::new(i8::try_from(i % 10).unwrap_or(0)),
-                x: SpatialUnit::from_f32((i % 10) as f32),
-                y: SpatialUnit::from_f32((i / 10) as f32),
+                x: SpatialUnit::from_f32(f32::from(u8::try_from(i % 10).unwrap_or(0))),
+                y: SpatialUnit::from_f32(f32::from(u8::try_from(i / 10).unwrap_or(0))),
                 is_home: false,
                 ..Default::default()
             })
             .collect();
         let kb = {
-            use keyforge_model::types::RowIndex;
             Arc::new(
-                Keyboard::new(keys, RowIndex::new(1), "test".into()).expect("Failed to create keyboard"),
+                Keyboard::new(keys, RowIndex::new(1), "test".into())
+                    .expect("Failed to create keyboard"),
             )
         };
         let mut corpus_val = Corpus::default();
         let mut bigrams = Vec::new();
         for i in 0..size.saturating_sub(1) {
-            bigrams.push((i as u16, (i + 1) as u16, 100));
+            bigrams.push((
+                u16::try_from(i).unwrap_or(0),
+                u16::try_from(i + 1).unwrap_or(0),
+                100,
+            ));
         }
         corpus_val.bigrams = Arc::from(bigrams);
         let corpus = Arc::new(corpus_val);
         let cost_json = r#"{"meta": {"version": "2.0", "description": "Test", "unit": "pts"}, "models": {"model_a_row_staggered": {"description": "Test", "static_costs": {"universal_hand": {"thumb": {"pos_1": 1.0}, "index": {"base": {"0": 1.0}}, "middle": {"base": {"0": 1.0}}, "ring": {"base": {"0": 1.0}}, "pinky": {"base": {"0": 1.0}}}}}}, "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}}"#;
-        let cost_model: Arc<CostModel> =
-            Arc::new(serde_json::from_str(cost_json).expect("Failed to parse cost model"));
+        let dto: CostModelDto =
+            serde_json::from_str(cost_json).expect("Failed to parse cost model");
+        let cost_model: Arc<CostModel> = Arc::new(dto.into());
         let rubric = Arc::new(Rubric::default());
 
         EngineFactory::new_generic(&EngineCompilationContext {
@@ -464,7 +478,7 @@ mod tests {
     }
 
     #[test]
-    fn test_optimizer_basic_loop() {
+    fn test_optimizer_basic_loop() -> anyhow::Result<()> {
         let engine = setup_test_engine(10);
         let mutation = GroupMutation {
             unlocked_indices: vec![0, 1, 2],
@@ -479,9 +493,8 @@ mod tests {
             Seed::new(42),
             PatienceCount::new(5),
             ReheatCount::new(2),
-            ScalingFactor::new(2.0),
-        )
-        .unwrap();
+            ScalingFactor::new(2),
+        )?;
         let mut optimizer = Optimizer::new(
             engine.as_ref(),
             config,
@@ -489,16 +502,18 @@ mod tests {
             acceptance,
             RealTimeKeeper,
         );
-        optimizer.run(None, crate::NoOpCallback).unwrap();
+        optimizer.run(None, crate::NoOpCallback)?;
+        Ok(())
     }
 
     #[test]
-    fn test_ips_underflow() {
+    fn test_ips_underflow() -> anyhow::Result<()> {
         let (tx, _rx) = std::sync::mpsc::sync_channel(1);
         let mut reporter = ProgressReporter::new(tx, IterationCount::new(100), Instant::now());
         let keys = vec![KeyCode::new(0); 10];
         let layout = Layout::new_unchecked(keys);
-        let state = SearchState::new(layout, 0, Temperature::new(1.0)).unwrap();
+        let state = SearchState::new(layout, 0, Temperature::new(1.0))?;
         reporter.report(IterationCount::new(0), &state, &ZeroTime);
+        Ok(())
     }
 }

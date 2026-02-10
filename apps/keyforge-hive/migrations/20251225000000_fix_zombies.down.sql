@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_jobs_stale;
+ALTER TABLE jobs DROP COLUMN IF EXISTS retry_count;
+ALTER TABLE jobs DROP COLUMN IF EXISTS started_at;

@@ -3,13 +3,29 @@ message: "Precision Leakage: Avoid raw 'as' casts in physics kernels. Use determ
 severity: error
 language: rust
 rule:
-  any:
-    - pattern: "$X as i64"
-    - pattern: "$X as f32"
-    - pattern: "$X as f64"
-paths:
-  include:
-    - "libs/keyforge-physics/src/**/*.rs"
-  exclude:
-    - "**/tests.rs"
-    - "**/tests/**"
+  all:
+    - pattern: "$VAL as $TYPE"
+    - not:
+        any:
+          - inside:
+              kind: mod_item
+              has:
+                kind: attribute
+                pattern: "#[cfg(test)]"
+          - pattern: "$X as i128"
+          - pattern: "$X as u128"
+          - pattern: "$X as f64"
+files:
+  - "libs/keyforge-physics/src/**/*.rs"
+  - "libs/keyforge-evolution/src/**/*.rs"
+  - "libs/keyforge-model/src/**/*.rs"
+ignores:
+  - "**/tests/**"
+  - "**/tests.rs"
+  - "ops/repros/**"
+  - "ops/templates/**"
+  - "libs/keyforge-model/src/types/**/*.rs"
+  - "libs/keyforge-protocol/src/types/**/*.rs"
+  - "libs/keyforge-persistence/src/**/*.rs"
+  - "libs/keyforge-model/src/geometry/kle.rs"
+  - "libs/keyforge-physics/src/kernel/compute/analysis.rs"

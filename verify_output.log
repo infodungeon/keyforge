@@ -1,0 +1,322 @@
+cargo fmt
+cd apps/keyforge-ui && npm run format
+
+> keyforge-ui@0.8.0 format
+> prettier --write .
+
+.vscode/extensions.json 28ms (unchanged)
+index.html 47ms (unchanged)
+package.json 5ms (unchanged)
+postcss.config.js 11ms (unchanged)
+README.md 44ms (unchanged)
+src-tauri/capabilities/default.json 3ms (unchanged)
+src-tauri/gen/schemas/acl-manifests.json 144ms (unchanged)
+src-tauri/gen/schemas/capabilities.json 2ms (unchanged)
+src-tauri/gen/schemas/desktop-schema.json 96ms (unchanged)
+src-tauri/gen/schemas/linux-schema.json 122ms (unchanged)
+src-tauri/tauri.conf.json 5ms (unchanged)
+src/api/client.ts 77ms (unchanged)
+src/api/constants.ts 13ms (unchanged)
+src/api/error.ts 23ms (unchanged)
+src/api/events.ts 11ms (unchanged)
+src/api/services/AssetService.ts 35ms (unchanged)
+src/api/services/BaseService.ts 16ms (unchanged)
+src/api/services/JobService.ts 22ms (unchanged)
+src/api/services/WorkerService.ts 19ms (unchanged)
+src/api/tauri.ts 41ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm_bg.wasm.d.ts 9ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.d.ts 9ms (unchanged)
+src/api/wasm-pkg/keyforge_wasm.js 84ms (unchanged)
+src/api/wasm-pkg/package.json 1ms (unchanged)
+src/api/web.ts 36ms (unchanged)
+src/api/worker.ts 16ms (unchanged)
+src/App.tsx 24ms (unchanged)
+src/components/ArenaCanvas.tsx 14ms (unchanged)
+src/components/AuthWidget.tsx 13ms (unchanged)
+src/components/Charts.tsx 13ms (unchanged)
+src/components/CommandPalette.tsx 33ms (unchanged)
+src/components/ContextControls.tsx 7ms (unchanged)
+src/components/CorpusManager.tsx 12ms (unchanged)
+src/components/Header.tsx 10ms (unchanged)
+src/components/HistoryTable.tsx 12ms (unchanged)
+src/components/Inspector.tsx 36ms (unchanged)
+src/components/KeyboardDesigner.tsx 32ms (unchanged)
+src/components/KeyboardMap.tsx 48ms (unchanged)
+src/components/KeyPicker.tsx 46ms (unchanged)
+src/components/KeyTester.tsx 35ms (unchanged)
+src/components/LiveGraph.tsx 17ms (unchanged)
+src/components/modals/ExportModal.tsx 21ms (unchanged)
+src/components/NavRail.tsx 13ms (unchanged)
+src/components/NetworkBar.tsx 6ms (unchanged)
+src/components/OptimizerConfig.tsx 16ms (unchanged)
+src/components/panels/analyze/ButterflyChart.tsx 13ms (unchanged)
+src/components/panels/analyze/MetricGrid.tsx 14ms (unchanged)
+src/components/panels/analyze/ViolationSection.tsx 8ms (unchanged)
+src/components/panels/analyze/ViolationTable.tsx 6ms (unchanged)
+src/components/panels/AnalyzePanel.tsx 25ms (unchanged)
+src/components/panels/ArenaPanel.tsx 24ms (unchanged)
+src/components/panels/OptimizePanel.tsx 7ms (unchanged)
+src/components/SmartSuggestions.tsx 25ms (unchanged)
+src/components/StatusBar.tsx 9ms (unchanged)
+src/components/ui/Badge.tsx 4ms (unchanged)
+src/components/ui/Button.tsx 4ms (unchanged)
+src/components/ui/Card.tsx 2ms (unchanged)
+src/components/ui/Input.tsx 3ms (unchanged)
+src/components/ui/Label.tsx 2ms (unchanged)
+src/components/ui/Select.tsx 4ms (unchanged)
+src/components/VisualBuilder.tsx 46ms (unchanged)
+src/components/WorkspaceSelector.tsx 4ms (unchanged)
+src/context/AnalysisContext.tsx 30ms (unchanged)
+src/context/ArenaContext.tsx 40ms (unchanged)
+src/context/BackendContext.tsx 5ms (unchanged)
+src/context/KeyboardContext.tsx 7ms (unchanged)
+src/context/LibraryContext.tsx 35ms (unchanged)
+src/context/SessionContext.tsx 24ms (unchanged)
+src/context/SystemContext.tsx 19ms (unchanged)
+src/context/ToastContext.tsx 12ms (unchanged)
+src/hooks/useAutoFocus.ts 3ms (unchanged)
+src/hooks/useJobDispatch.ts 18ms (unchanged)
+src/hooks/useUndo.ts 9ms (unchanged)
+src/index.css 50ms (unchanged)
+src/main.tsx 3ms (unchanged)
+src/services/coverage.ts 25ms (unchanged)
+src/services/keycode.ts 16ms (unchanged)
+src/services/ngrams.ts 7ms (unchanged)
+src/services/stats.ts 31ms (unchanged)
+src/types.ts 8ms (unchanged)
+src/types/generated/AnalysisReport.ts 5ms (unchanged)
+src/types/generated/AssetManifestEntry.ts 3ms (unchanged)
+src/types/generated/BiometricSample.ts 7ms (unchanged)
+src/types/generated/ColIndex.ts 2ms (unchanged)
+src/types/generated/Config.ts 7ms (unchanged)
+src/types/generated/CorpusSource.ts 3ms (unchanged)
+src/types/generated/CostMatrixSource.ts 1ms (unchanged)
+src/types/generated/FingerIndex.ts 3ms (unchanged)
+src/types/generated/HandIndex.ts 4ms (unchanged)
+src/types/generated/index.ts 6ms (unchanged)
+src/types/generated/JobConfig.ts 5ms (unchanged)
+src/types/generated/JobIdentifier.ts 2ms (unchanged)
+src/types/generated/JobIdError.ts 3ms (unchanged)
+src/types/generated/JobQueueResponse.ts 4ms (unchanged)
+src/types/generated/JobRequest.ts 9ms (unchanged)
+src/types/generated/JobResponse.ts 2ms (unchanged)
+src/types/generated/JobStatus.ts 3ms (unchanged)
+src/types/generated/KeyAction.ts 4ms (unchanged)
+src/types/generated/KeyboardDefinition.ts 5ms (unchanged)
+src/types/generated/KeyboardGeometry.ts 5ms (unchanged)
+src/types/generated/KeyboardMeta.ts 2ms (unchanged)
+src/types/generated/KeyCode.ts 1ms (unchanged)
+src/types/generated/KeycodeDefinition.ts 3ms (unchanged)
+src/types/generated/KeycodeRegistry.ts 2ms (unchanged)
+src/types/generated/KeyConstraint.ts 3ms (unchanged)
+src/types/generated/KeyIndex.ts 1ms (unchanged)
+src/types/generated/KeyNode.ts 5ms (unchanged)
+src/types/generated/Layout.ts 2ms (unchanged)
+src/types/generated/LayoutDefinitions.ts 4ms (unchanged)
+src/types/generated/MetricViolation.ts 1ms (unchanged)
+src/types/generated/ModelError.ts 3ms (unchanged)
+src/types/generated/NodeRequest.ts 4ms (unchanged)
+src/types/generated/NodeResponse.ts 3ms (unchanged)
+src/types/generated/NodeTelemetry.ts 3ms (unchanged)
+src/types/generated/OptimizationResult.ts 3ms (unchanged)
+src/types/generated/ParameterMetadata.ts 2ms (unchanged)
+src/types/generated/ParamType.ts 2ms (unchanged)
+src/types/generated/PhysicsError.ts 5ms (unchanged)
+src/types/generated/PopulationResponse.ts 3ms (unchanged)
+src/types/generated/ResultSubmission.ts 3ms (unchanged)
+src/types/generated/RowIndex.ts 1ms (unchanged)
+src/types/generated/Score.ts 2ms (unchanged)
+src/types/generated/ScoringWeights.ts 4ms (unchanged)
+src/types/generated/SearchConfig.ts 3ms (unchanged)
+src/types/generated/SearchParams.ts 3ms (unchanged)
+src/types/generated/SpaceHandPreference.ts 3ms (unchanged)
+src/types/generated/SwapSuggestion.ts 2ms (unchanged)
+src/types/generated/SystemMetrics.ts 6ms (unchanged)
+src/types/generated/TuningProfile.ts 2ms (unchanged)
+src/types/generated/UserStatsStore.ts 5ms (unchanged)
+src/utils.test.ts 22ms (unchanged)
+src/utils.ts 3ms (unchanged)
+src/views/AnalyzeView.tsx 27ms (unchanged)
+src/views/ArenaView.tsx 5ms (unchanged)
+src/views/ConstructView.tsx 3ms (unchanged)
+src/views/LayoutView.tsx 52ms (unchanged)
+src/views/OptimizeView.tsx 34ms (unchanged)
+src/views/SettingsView.tsx 60ms (unchanged)
+src/views/TesterView.tsx 2ms (unchanged)
+src/vite-env.d.ts 3ms (unchanged)
+tailwind.config.js 7ms (unchanged)
+tsconfig.json 5ms (unchanged)
+tsconfig.node.json 2ms (unchanged)
+vite.config.ts 13ms (unchanged)
+cargo clippy --workspace -- -D warnings
+   Compiling keyforge-infra v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-infra)
+    Checking keyforge-security v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-security)
+    Checking keyforge-compute v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-compute)
+    Checking keyforge-persistence v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-persistence)
+    Checking keyforge-assets v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assets)
+    Checking keyforge-assetmgr v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-assetmgr)
+    Checking keyforge-tui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-tui)
+    Checking keyforge-repros v0.1.0 (/home/robert/projects/keyforge/ops/repros)
+    Checking keyforge-testing v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-testing)
+    Checking keyforge-wasm v0.9.0 (/home/robert/projects/keyforge/libs/keyforge-wasm)
+    Checking keyforge-hive v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-hive)
+    Checking keyforge-agent v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-agent)
+    Checking keyforge-ui v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-ui/src-tauri)
+    Checking keyforge-cli v0.9.0 (/home/robert/projects/keyforge/apps/keyforge-cli)
+error[E0053]: method `on_progress` has an incompatible type for trait
+   --> apps/keyforge-ui/src-tauri/src/commands/search.rs:202:16
+    |
+202 |         score: f32,
+    |                ^^^ expected `keyforge_model::Score`, found `f32`
+    |
+    = note: expected signature `fn(&commands::search::TauriProgressCallback, _, keyforge_model::Score, &_, _) -> keyforge_compute::OptimizationControl`
+               found signature `fn(&commands::search::TauriProgressCallback, _, f32, &_, _) -> keyforge_compute::OptimizationControl`
+help: change the parameter type to match the trait
+    |
+202 -         score: f32,
+202 +         score: keyforge_model::Score,
+    |
+
+error[E0053]: method `on_progress` has an incompatible type for trait
+  --> apps/keyforge-agent/src/agent/telemetry.rs:39:16
+   |
+39 |         score: f32,
+   |                ^^^ expected `keyforge_model::Score`, found `f32`
+   |
+   = note: expected signature `fn(&agent::telemetry::WorkerLogger, _, keyforge_model::Score, &_, _) -> keyforge_compute::OptimizationControl`
+              found signature `fn(&agent::telemetry::WorkerLogger, _, f32, &_, _) -> keyforge_compute::OptimizationControl`
+help: change the parameter type to match the trait
+   |
+39 -         score: f32,
+39 +         score: keyforge_model::Score,
+   |
+
+error[E0277]: `?` couldn't convert the error to `agent::errors::AgentError`
+  --> apps/keyforge-agent/src/agent/network/outbox.rs:39:80
+   |
+39 |         let rel = SafePath::try_from_str(&format!("{}.json", submission.nonce))?;
+   |                   -------------------------------------------------------------^ the trait `std::convert::From<keyforge_model::error::ModelError>` is not implemented for `agent::errors::AgentError`
+   |                   |
+   |                   this can't be annotated with `?` because it has type `Result<_, keyforge_model::error::ModelError>`
+   |
+note: `agent::errors::AgentError` needs to implement `From<keyforge_model::error::ModelError>`
+  --> apps/keyforge-agent/src/agent/errors.rs:22:1
+   |
+22 | pub enum AgentError {
+   | ^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = help: the following other types implement trait `std::convert::From<T>`:
+             `agent::errors::AgentError` implements `std::convert::From<keyforge_infra::InfraError>`
+             `agent::errors::AgentError` implements `std::convert::From<keyforge_model::ForgeError>`
+             `agent::errors::AgentError` implements `std::convert::From<keyforge_physics::PhysicsError>`
+             `agent::errors::AgentError` implements `std::convert::From<reqwest::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<rmp_serde::decode::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<serde_json::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<std::io::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<toml::de::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<url::ParseError>`
+
+error[E0277]: `?` couldn't convert the error to `agent::errors::AgentError`
+  --> apps/keyforge-agent/src/agent/network/outbox.rs:52:80
+   |
+52 |         let rel = SafePath::try_from_str(&format!("{}.json", submission.nonce))?;
+   |                   -------------------------------------------------------------^ the trait `std::convert::From<keyforge_model::error::ModelError>` is not implemented for `agent::errors::AgentError`
+   |                   |
+   |                   this can't be annotated with `?` because it has type `Result<_, keyforge_model::error::ModelError>`
+   |
+note: `agent::errors::AgentError` needs to implement `From<keyforge_model::error::ModelError>`
+  --> apps/keyforge-agent/src/agent/errors.rs:22:1
+   |
+22 | pub enum AgentError {
+   | ^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+   = help: the following other types implement trait `std::convert::From<T>`:
+             `agent::errors::AgentError` implements `std::convert::From<keyforge_infra::InfraError>`
+             `agent::errors::AgentError` implements `std::convert::From<keyforge_model::ForgeError>`
+             `agent::errors::AgentError` implements `std::convert::From<keyforge_physics::PhysicsError>`
+             `agent::errors::AgentError` implements `std::convert::From<reqwest::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<rmp_serde::decode::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<serde_json::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<std::io::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<toml::de::Error>`
+             `agent::errors::AgentError` implements `std::convert::From<url::ParseError>`
+
+error[E0004]: non-exhaustive patterns: `keyforge_infra::InfraError::Internal(_)` not covered
+   --> apps/keyforge-agent/src/agent/errors.rs:114:15
+    |
+114 |         match e {
+    |               ^ pattern `keyforge_infra::InfraError::Internal(_)` not covered
+    |
+note: `keyforge_infra::InfraError` defined here
+   --> /home/robert/projects/keyforge/libs/keyforge-infra/src/error.rs:19:1
+    |
+ 19 | pub enum InfraError {
+    | ^^^^^^^^^^^^^^^^^^^
+...
+ 67 |     Internal(String),
+    |     -------- not covered
+    = note: the matched value is of type `keyforge_infra::InfraError`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+126 ~             InfraError::Model(e) => Self::from(e),
+127 ~             keyforge_infra::InfraError::Internal(_) => todo!(),
+    |
+
+error[E0004]: non-exhaustive patterns: `keyforge_infra::InfraError::Internal(_)` not covered
+  --> apps/keyforge-ui/src-tauri/src/error.rs:87:15
+   |
+87 |         match e {
+   |               ^ pattern `keyforge_infra::InfraError::Internal(_)` not covered
+   |
+note: `keyforge_infra::InfraError` defined here
+  --> /home/robert/projects/keyforge/libs/keyforge-infra/src/error.rs:19:1
+   |
+19 | pub enum InfraError {
+   | ^^^^^^^^^^^^^^^^^^^
+...
+67 |     Internal(String),
+   |     -------- not covered
+   = note: the matched value is of type `keyforge_infra::InfraError`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+   |
+98 ~             InfraError::Model(e) => CommandError::Internal(e.to_string()),
+99 ~             keyforge_infra::InfraError::Internal(_) => todo!(),
+   |
+
+Some errors have detailed explanations: E0004, E0053, E0277.
+For more information about an error, try `rustc --explain E0004`.
+error: could not compile `keyforge-agent` (lib) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+Some errors have detailed explanations: E0004, E0053.
+error: could not compile `keyforge-ui` (lib) due to 2 previous errors
+error: docs for function which may panic missing `# Panics` section
+  --> apps/keyforge-hive/src/infra/queue/wrappers.rs:29:5
+   |
+29 |     pub fn new(data_path: &Path) -> Self {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> apps/keyforge-hive/src/infra/queue/wrappers.rs:31:19
+   |
+31 |           let rel = keyforge_model::types::path::SafePath::try_from_str("user/dlq")
+   |  ___________________^
+32 | |             .expect("canonical path must be valid");
+   | |___________________________________________________^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#missing_panics_doc
+   = note: `-D clippy::missing-panics-doc` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::missing_panics_doc)]`
+
+error: used `expect()` on a `Result` value
+  --> apps/keyforge-hive/src/infra/queue/wrappers.rs:31:19
+   |
+31 |           let rel = keyforge_model::types::path::SafePath::try_from_str("user/dlq")
+   |  ___________________^
+32 | |             .expect("canonical path must be valid");
+   | |___________________________________________________^
+   |
+   = note: if this value is an `Err`, it will panic
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#expect_used
+   = note: requested on the command line with `-D clippy::expect-used`
+
+error: could not compile `keyforge-hive` (lib) due to 2 previous errors
+error: Recipe `lint` failed on line 175 with exit code 101

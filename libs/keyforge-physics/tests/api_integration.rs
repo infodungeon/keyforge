@@ -2,16 +2,17 @@
 mod integration_tests {
     use super::*;
     // libs/keyforge-physics/tests/api_integration.rs
-    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode};
+    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, KeyIndex};
     use keyforge_model::{
         Corpus, CostModel, EngineRequest, KeyNode, Keyboard, Layout, Rubric, SearchConfig,
     };
+    use keyforge_protocol::CostModelDto;
     use std::sync::Arc;
 
     fn setup_kb_wiring() -> Keyboard {
         let keys: Vec<KeyNode> = (0..3)
             .map(|i| KeyNode {
-                index: i,
+                index: KeyIndex(i),
                 label: format!("k{i}"),
                 hand: HandIndex::new(0),
                 finger: FingerIndex::new_unchecked(i as u8),
@@ -41,7 +42,8 @@ mod integration_tests {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-        serde_json::from_str(json).unwrap()
+        let dto: CostModelDto = serde_json::from_str(json).unwrap();
+        dto.into()
     }
 
     #[test]
@@ -80,11 +82,11 @@ mod integration_tests {
 
         // Test score wrapper
         let result = keyforge_compute::score(&req).unwrap();
-        assert!(result.score > 0.0);
+        assert!(result.score > keyforge_model::types::Score::ZERO);
 
         // Test analyze wrapper
         let report = keyforge_compute::analyze(&req).unwrap();
-        assert!(report.score > 0.0);
+        assert!(report.score > keyforge_model::types::Score::ZERO);
 
         // Test identify
         if let Some(initial) = &req.initial_layout {

@@ -13,27 +13,3 @@
 // limitations under the License.
 
 //! Internal utilities for the keyforge-model crate.
-
-pub mod json;
-
-/// Helper for serde `skip_serializing_if` to satisfy `ts-rs` parser.
-///
-/// This is required because `ts-rs` sometimes struggles to infer optionality
-/// from `Option<T>` alone when generating interaction definitions.
-#[allow(clippy::ref_option)]
-pub(crate) fn is_none<T>(option: &Option<T>) -> bool {
-    option.is_none()
-}
-
-#[keyforge_testing_macros::kf_test]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_none() {
-        let none: Option<i32> = None;
-        let some = Some(10);
-        assert!(is_none(&none));
-        assert!(!is_none(&some));
-    }
-}

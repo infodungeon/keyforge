@@ -5,6 +5,7 @@
 mod tests {
     use keyforge_agent::agent::calibration;
     use keyforge_agent::models::CalibrationConfig;
+    use keyforge_boundary::SafePath;
     use keyforge_infra::net::client::ClientConfig;
     use keyforge_infra::{AssetManager, HiveClient};
     use std::fs;
@@ -42,12 +43,17 @@ mod tests {
             ..Default::default()
         })
         .expect("Failed to create mock client");
-        let asset_mgr = AssetManager::new(client, data_root.clone());
+        let asset_mgr =
+            AssetManager::new(client, SafePath::from_trusted_root_path(data_root.clone()));
 
         // 2. Perform Calibration
-        let ips = calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default())
-            .await
-            .unwrap();
+        let ips = calibration::calibrate(
+            &asset_mgr,
+            &SafePath::from_trusted_root_path(data_root.clone()),
+            &CalibrationConfig::default(),
+        )
+        .await
+        .unwrap();
 
         // 3. Verify
         assert!(ips > 0.0);
@@ -68,9 +74,16 @@ mod tests {
         })
         .expect("Failed to create mock client");
 
-        let asset_mgr = AssetManager::new(client, data_root.join("non-existent"));
-        let res =
-            calibration::calibrate(&asset_mgr, &data_root, &CalibrationConfig::default()).await;
+        let asset_mgr = AssetManager::new(
+            client,
+            SafePath::from_trusted_root_path(data_root.join("non-existent")),
+        );
+        let res = calibration::calibrate(
+            &asset_mgr,
+            &SafePath::from_trusted_root_path(data_root.clone()),
+            &CalibrationConfig::default(),
+        )
+        .await;
 
         assert!(res.is_err());
     }

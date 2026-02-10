@@ -18,7 +18,8 @@ use crate::builder::SessionBuilder;
 use crate::session::ScoringSession;
 use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::job::JobIdentifier;
-use keyforge_protocol::JobRequest;
+use keyforge_protocol::{CostModelDto, JobRequest};
+use std::sync::Arc;
 
 /// Orchestrates the preparation of an optimization job.
 #[derive(Debug)]
@@ -37,27 +38,41 @@ impl OptimizationUseCase {
     ) -> Result<(JobIdentifier, ScoringSession), keyforge_model::error::ForgeError> {
         // 1. Identify the job (Deterministic Hash)
         let geometry = req.config.to_domain_geometry();
-        let weights = req.config.to_domain_weights();
+        let weights = req
+            .config
+            .to_domain_weights()
+            .map_err(keyforge_model::error::ForgeError::InvalidData)?;
         let params = req.config.to_domain_params();
         let pinned = req.config.to_domain_pinned_keys();
-        let corpora = req.config.to_domain_corpus_sources();
+        let mut corpora = req.config.to_domain_corpus_sources();
         let cost_matrix = req.config.to_domain_cost_matrix();
 
-        let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&corpora);
+        // 1.5. Resolve hashes for content-addressable Job ID
+        for src in &mut corpora {
+            if src.hash.is_none() {
+                src.hash = Some(
+                    loader
+                        .get_hash(keyforge_model::AssetCategory::Corpus, &src.id)
+                        .await?,
+                );
+            }
+        }
 
-        let id = JobIdentifier::try_from_parts(
+        let corpora_hash = keyforge_model::calculate_corpora_hash(&corpora);
+        tracing::debug!("Resolved corpora hash: {}", corpora_hash);
+
+        let id = keyforge_model::JobIdentifier::calculate(
             &geometry,
+            &corpora,
             &weights,
             &params,
-            &pinned,
-            &corpora_fingerprint,
             &cost_matrix,
-        )
-        .map_err(|e| keyforge_model::error::ForgeError::Validation(e.to_string()))?;
+            &pinned,
+        );
 
         // 2. Build the session
-        let kb_def = loader
-            .load::<keyforge_model::geometry::KeyboardDefinition>(&req.config.definition.meta.name)
+        let kb_def_dto = loader
+            .load::<keyforge_protocol::KeyboardDefinitionDto>(&req.config.definition.meta.name)
             .await
             .map_err(|e| {
                 keyforge_model::error::ForgeError::Io(format!(
@@ -65,18 +80,21 @@ impl OptimizationUseCase {
                     req.config.definition.meta.name, e
                 ))
             })?;
+        let kb_def: Arc<keyforge_model::geometry::KeyboardDefinition> =
+            Arc::new((*kb_def_dto).clone().into());
 
         let keyforge_protocol::config::CostMatrixSourceDto::Predefined(cost_model_name) =
             &req.config.cost_matrix;
 
-        let cost_model = loader
-            .load::<keyforge_model::CostModel>(cost_model_name)
+        let cost_model_dto = loader
+            .load::<CostModelDto>(cost_model_name)
             .await
             .map_err(|e| {
                 keyforge_model::error::ForgeError::Io(format!(
                     "Failed to load cost model {cost_model_name}: {e}"
                 ))
             })?;
+        let cost_model = Arc::new((*cost_model_dto).clone().into());
 
         let session = SessionBuilder::new(loader)
             .with_keyboard_def(kb_def)

@@ -16,8 +16,9 @@
 use crate::constants::{CLI_CONFIG_FILENAME, CONFIG_DIR_NAME};
 use crate::error::{CliError, CliResult as Result};
 use clap::{Args, Subcommand};
+use keyforge_boundary::SafePath;
+use keyforge_infra::fs::io::atomic_write;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 #[derive(Args, Debug, Clone)]
 pub struct AuthArgs {
@@ -49,12 +50,18 @@ struct CliConfig {
     api_key: Option<String>,
 }
 
-fn get_config_path() -> Result<PathBuf> {
-    let mut path =
+fn get_config_path() -> Result<SafePath> {
+    let base =
         dirs::config_dir().ok_or_else(|| CliError::Other("Could not find config dir".into()))?;
-    path.push(CONFIG_DIR_NAME);
-    std::fs::create_dir_all(&path).map_err(CliError::Io)?;
-    path.push(CLI_CONFIG_FILENAME);
+    let rel_dir =
+        SafePath::try_from_str(CONFIG_DIR_NAME).map_err(|e| CliError::Other(e.to_string()))?;
+    let dir = SafePath::from_trusted_root(&base, &rel_dir);
+
+    std::fs::create_dir_all(dir.as_path()).map_err(CliError::Io)?;
+
+    let path = dir
+        .join(CLI_CONFIG_FILENAME)
+        .map_err(|e| CliError::Other(e.to_string()))?;
     Ok(path)
 }
 
@@ -66,16 +73,16 @@ fn save_key(key: &str) -> Result<()> {
     let json = serde_json::to_string_pretty(&config)?;
 
     // Write file
-    std::fs::write(&path, json).map_err(CliError::Io)?;
+    atomic_write(&path, json).map_err(|e| CliError::Io(std::io::Error::other(e.to_string())))?;
 
     // Harden permissions on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = std::fs::metadata(&path) {
+        if let Ok(metadata) = std::fs::metadata(path.as_path()) {
             let mut perms = metadata.permissions();
             perms.set_mode(0o600); // User Read/Write ONLY
-            if let Err(e) = std::fs::set_permissions(&path, perms) {
+            if let Err(e) = std::fs::set_permissions(path.as_path(), perms) {
                 eprintln!("⚠️  Warning: Failed to set secure permissions on config file: {e}");
             }
         }
@@ -92,10 +99,14 @@ pub fn load_key() -> Option<String> {
 
     // 2. Check Config File
     let path = get_config_path().ok()?;
-    if !path.exists() {
+    if !path.as_path().exists() {
         return None;
     }
-    let content = std::fs::read_to_string(path).ok()?;
+    let content = keyforge_infra::fs::io::read_to_string_limited(
+        &path,
+        keyforge_model::constants::MAX_INPUT_FILE_SIZE,
+    )
+    .ok()?;
     let config: CliConfig = serde_json::from_str(&content).ok()?;
     config.api_key
 }
@@ -105,8 +116,9 @@ pub async fn run(args: AuthArgs) -> Result<()> {
         AuthCommands::Register { username } => {
             let client = reqwest::Client::new();
             let url = format!("{}/auth/register", args.hive);
+            let hive = &args.hive;
 
-            eprintln!("🌐 Registering '{}' at {}...", username, args.hive);
+            eprintln!("🌐 Registering '{username}' at {hive}...");
 
             let res = client
                 .post(&url)
@@ -130,10 +142,8 @@ pub async fn run(args: AuthArgs) -> Result<()> {
                     "Username '{username}' is already taken."
                 )));
             } else {
-                return Err(CliError::Other(format!(
-                    "Registration failed: {}",
-                    res.status()
-                )));
+                let status = res.status();
+                return Err(CliError::Other(format!("Registration failed: {status}")));
             }
         }
         AuthCommands::Login { key } => {

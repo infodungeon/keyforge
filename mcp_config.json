@@ -1,38 +1,34 @@
 {
   "mcpServers": {
     "narsil": {
-      "command": "python3",
+      "command": "/home/robert/.cargo/bin/narsil-mcp",
       "args": [
-        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py",
-        "/home/robert/.cargo/bin/narsil-mcp",
         "--repos",
-        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge",
+        "/home/robert/projects/keyforge",
         "--call-graph",
         "--persist",
         "--git"
       ]
     },
     "arbor": {
-      "command": "python3",
+      "command": "/home/robert/.cargo/bin/arbor",
       "args": [
-        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py",
-        "/home/robert/.cargo/bin/arbor",
-        "bridge"
+        "bridge",
+        "/home/robert/projects/keyforge"
       ]
     },
     "github": {
-      "command": "python3",
+      "command": "node",
       "args": [
-        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py",
-        "github"
-      ]
+        "/home/robert/.npm-global/lib/node_modules/@modelcontextprotocol/server-github/dist/index.js"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${KF_GH_AUTH_BLOB}"
+      }
     },
     "swarm": {
-      "command": "python3",
-      "args": [
-        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/scripts/mcp_bridge.py",
-        "/home/robert/Documents/KeyboardLayouts/DataDrivenAnalysis/keyforge/ops/mcp/swarm_router.py"
-      ]
+      "command": "/home/robert/projects/gemini/mcp-servers/swarm-mcp/swarm_router.py",
+      "args": []
     }
   }
 }

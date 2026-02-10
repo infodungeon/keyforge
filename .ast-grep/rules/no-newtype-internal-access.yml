@@ -3,12 +3,21 @@ message: "Encapsulation Bypass: Avoid direct access to newtype internal fields (
 severity: error
 language: rust
 rule:
-  any:
-    - pattern: "$X.0"
-    - pattern: "$X.1"
-paths:
-  exclude:
-    - "**/tests.rs"
-    - "**/tests/**"
-    - "libs/keyforge-model/src/types/*.rs"
-    - "libs/keyforge-protocol/src/types.rs"
+  all:
+    - any:
+        - pattern: "$X.0"
+        - pattern: "$X.1"
+    - not:
+        inside:
+          kind: mod_item
+          has:
+            kind: attribute
+            pattern: "#[cfg(test)]"
+ignores:
+  - "**/tests.rs"
+  - "**/tests/**"
+  - "libs/keyforge-boundary/src/**/*.rs"
+  - "libs/keyforge-model/src/types/**/*.rs"
+  - "libs/keyforge-protocol/src/types/**/*.rs"
+  - "libs/keyforge-persistence/src/**/*.rs"
+  - "libs/keyforge-adapter/src/conversion/**/*.rs"

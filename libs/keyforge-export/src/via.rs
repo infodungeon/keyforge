@@ -76,23 +76,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_via_generate_multi_layer() {
+    fn test_via_generate_multi_layer() -> anyhow::Result<()> {
         let exporter = ViaExporter;
         let layers = vec![
             vec!["A".to_string(), "B".to_string()],
             vec!["TRNS".to_string(), "NO".to_string()],
         ];
-        let result = exporter.generate("Test Layout", &layers, None).unwrap();
-        let json: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let result = exporter.generate("Test Layout", &layers, None)?;
+        let json: serde_json::Value = serde_json::from_str(&result)?;
 
         assert_eq!(json["name"], "Test Layout");
-        assert_eq!(json["layers"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            json["layers"]
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("missing layers"))?
+                .len(),
+            2
+        );
         assert_eq!(json["layers"][1][0], "KC_TRNS");
         assert_eq!(json["layers"][1][1], "KC_NO");
+        Ok(())
     }
 
     #[test]
-    fn test_via_generate_edge_cases() {
+    fn test_via_generate_edge_cases() -> anyhow::Result<()> {
         let exporter = ViaExporter;
 
         // 1. Empty layers
@@ -104,10 +111,11 @@ mod tests {
             "mo(1)".to_string(), // contains (
             ".".to_string(),     // non-alphanumeric
         ]];
-        let result = exporter.generate("Test", &layers, None).unwrap();
-        let json: serde_json::Value = serde_json::from_str(&result).unwrap();
+        let result = exporter.generate("Test", &layers, None)?;
+        let json: serde_json::Value = serde_json::from_str(&result)?;
         assert_eq!(json["layers"][0][0], "KC_A");
         assert_eq!(json["layers"][0][1], "MO(1)");
         assert_eq!(json["layers"][0][2], ".");
+        Ok(())
     }
 }

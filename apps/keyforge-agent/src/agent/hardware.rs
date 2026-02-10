@@ -89,9 +89,13 @@ fn detect_l2_cache_kb() -> Option<i32> {
     // On Linux we could read /sys/devices/system/cpu/cpu0/cache/index2/size
     #[cfg(target_os = "linux")]
     {
-        if let Ok(content) =
-            std::fs::read_to_string("/sys/devices/system/cpu/cpu0/cache/index2/size")
-        {
+        // SAFETY: ARCH-005 Exception: Hardware detection requires direct filesystem access
+        // to system sysfs nodes. This is platform-specific initialization code,
+        // not part of a pure physics or evolution kernel.
+        let path_str = "/sys/devices/system/cpu/cpu0/cache/index2/size";
+        let safe_sys_path =
+            keyforge_boundary::SafePath::from_trusted_root_path(std::path::PathBuf::from(path_str));
+        if let Ok(content) = keyforge_infra::fs::io::read_to_string_limited(&safe_sys_path, 1024) {
             let s = content.trim();
             if let Some(stripped) = s.strip_suffix('K') {
                 if let Ok(kb) = stripped.parse::<i32>() {

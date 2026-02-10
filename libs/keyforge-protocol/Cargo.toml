@@ -19,6 +19,8 @@ thiserror.workspace = true
 utoipa.workspace = true
 strum.workspace = true
 ts-rs = { workspace = true, optional = true }
+hex.workspace = true
+sha2.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 
 tracing.workspace = true
@@ -27,6 +29,7 @@ tracing.workspace = true
 keyforge-testing = { path = "../keyforge-testing" }
 serde_json.workspace = true
 proptest.workspace = true
+anyhow.workspace = true
 
 [features]
 default = []

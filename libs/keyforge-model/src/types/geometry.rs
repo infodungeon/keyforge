@@ -14,27 +14,11 @@
 
 //! Keyboard geometry types.
 
-use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
-use utoipa::ToSchema;
 
 /// Represents a logical row index on a keyboard.
 /// Positive values are usually bottom-to-top, but logical mapping varies by keyboard.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Default,
-    Serialize,
-    Deserialize,
-    ToSchema,
-)]
-#[schema(as = i8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct RowIndex(i8);
 
 impl RowIndex {
@@ -84,21 +68,7 @@ impl Sub<RowIndex> for RowIndex {
 }
 
 /// Represents a logical column index on a keyboard.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Default,
-    Serialize,
-    Deserialize,
-    ToSchema,
-)]
-#[schema(as = i8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct ColIndex(i8);
 
 impl ColIndex {

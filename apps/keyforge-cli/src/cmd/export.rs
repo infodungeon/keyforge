@@ -14,17 +14,15 @@
 // limitations under the License.
 
 use clap::{Args, Subcommand, ValueEnum};
+use keyforge_boundary::SafePath;
 use keyforge_compute::AssetLoader;
 use keyforge_export::{qmk::QmkExporter, via::ViaExporter, zmk::ZmkExporter, Exporter};
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_infra::FsProvider;
 use keyforge_model::constants::{ASSET_KEYCODES, MAX_INPUT_FILE_SIZE};
-use keyforge_model::geometry::kle::to_kle_json;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use std::error::Error;
-use std::fs;
-use std::path::PathBuf;
 
 #[derive(Args, Debug, Clone)]
 pub struct ExportArgs {
@@ -42,7 +40,7 @@ pub enum ExportCommands {
         #[arg(short, long, value_enum)]
         format: FirmwareFormat,
         #[arg(short, long)]
-        output: Option<PathBuf>,
+        output: Option<SafePath>,
     },
 }
 
@@ -65,13 +63,16 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
             eprintln!("💾 Exporting '{layout}' to {format:?}...");
 
             let root = loader.root();
-            let path = root.join(keyboard);
+            let rel_kb = SafePath::try_from_str(&keyboard)
+                .map_err(|e| format!("Invalid keyboard name: {e}"))?;
+            let path = SafePath::from_trusted_root(root.as_path(), &rel_kb);
 
             let content = read_to_string_limited(&path, MAX_INPUT_FILE_SIZE)
-                .map_err(|e| format!("Failed to read keyboard file {}: {e}", path.display()))?;
+                .map_err(|e| format!("Failed to read keyboard file {path}: {e}"))?;
 
-            let def: KeyboardDefinition = serde_json::from_str(&content)
+            let def_dto: keyforge_protocol::KeyboardDefinitionDto = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse keyboard JSON: {e}"))?;
+            let def: KeyboardDefinition = def_dto.into();
 
             let Some(layout_str) = def.layouts.get(&layout) else {
                 return Err(format!("Layout '{layout}' not found in keyboard definition.").into());
@@ -83,45 +84,31 @@ pub async fn run(args: ExportArgs, loader: &FsProvider) -> Result<(), Box<dyn Er
                 .collect();
 
             // Load Keycode Registry for data-driven export
-            let registry = loader.load::<KeycodeRegistry>(ASSET_KEYCODES).await.ok();
+            let registry_dto = loader
+                .load::<keyforge_protocol::KeycodeRegistryDto>(ASSET_KEYCODES)
+                .await
+                .ok();
+            let registry: Option<KeycodeRegistry> = registry_dto.map(|dto| (*dto).clone().into());
 
-            let code = if let FirmwareFormat::Kle = format {
-                // Special handling for KLE: Merge layout legends into geometry
-                let mut geom = def.geometry.clone();
-                if geom.keys().len() != keys.len() {
-                    eprintln!(
-                        "⚠️  Warning: Layout key count ({}) does not match geometry key count ({}). Export may be incorrect.",
-                        keys.len(),
-                        geom.keys().len()
-                    );
-                }
-                for (i, key) in geom.keys.iter_mut().enumerate() {
-                    if let Some(legend) = keys.get(i) {
-                        key.label.clone_from(legend);
-                    }
-                }
-                to_kle_json(&geom)?
-            } else {
+            let code = {
                 let exporter: Box<dyn Exporter> = match format {
                     FirmwareFormat::Qmk => Box::new(QmkExporter),
                     FirmwareFormat::Zmk => Box::new(ZmkExporter),
                     FirmwareFormat::Via => Box::new(ViaExporter),
-                    FirmwareFormat::Kle => unreachable!(),
+                    FirmwareFormat::Kle => {
+                        return Err("KLE export is currently not supported in CLI.".into())
+                    }
                 };
-                exporter.generate(&layout, &[keys], registry.as_deref())?
+                exporter.generate(&layout, &[keys], registry.as_ref())?
             };
 
             if let Some(out_path) = output {
-                if out_path.exists() {
-                    eprintln!(
-                        "⚠️  Warning: Output file {} already exists. Overwriting...",
-                        out_path.display()
-                    );
+                if out_path.as_path().exists() {
+                    eprintln!("⚠️  Warning: Output file {out_path} already exists. Overwriting...");
                 }
-                fs::write(&out_path, code).map_err(|e| {
-                    format!("Failed to write export to {}: {e}", out_path.display())
-                })?;
-                eprintln!("✅ Exported to {}", out_path.display());
+                keyforge_infra::fs::io::atomic_write(&out_path, code)
+                    .map_err(|e| format!("Failed to write export to {out_path}: {e}"))?;
+                eprintln!("✅ Exported to {out_path}");
             } else {
                 println!("{code}");
             }

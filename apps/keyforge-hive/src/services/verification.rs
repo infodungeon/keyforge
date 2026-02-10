@@ -185,13 +185,14 @@ impl VerificationService {
         let layout_struct = if let Some(cached) = self.layout_cache.get(&sub.layout) {
             cached
         } else {
-            let registry = self
+            let registry_dto = self
                 .assets
-                .load::<KeycodeRegistry>(keycodes_file)
+                .load::<keyforge_protocol::KeycodeRegistryDto>(keycodes_file)
                 .await
                 .map_err(|e| {
                     AppError::Validation(format!("Failed to load keycodes for verification: {e}"))
                 })?;
+            let registry: KeycodeRegistry = (*registry_dto).clone().into();
 
             let parsed = keyforge_adapter::conversion::parse_layout_string_strict(
                 &sub.layout,

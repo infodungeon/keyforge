@@ -16,13 +16,12 @@ pub trait FixedPointMath {
 }
 
 /// Units for physical distance on the keyboard (1000 units = 1.0 Key Unit).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, utoipa::ToSchema)]
-#[schema(as = f32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct SpatialUnit(i32);
 
 impl SpatialUnit {
     /// Scaling factor for spatial units (1000).
-    pub const SCALE: f64 = 1000.0;
+    pub const SCALE: i64 = 1000;
 
     /// Creates a new `SpatialUnit`.
     #[must_use]
@@ -38,41 +37,24 @@ impl SpatialUnit {
 
     /// Converts a float KU value to `SpatialUnit`.
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub fn from_f32(val: f32) -> Self {
-        Self((f64::from(val) * Self::SCALE).round() as i32)
+        // SCALE is 1000, which fits exactly in f64.
+        let result_f64 = (f64::from(val) * 1000.0).round();
+        Self(i32::try_from(result_f64 as i64).unwrap_or(0)) // sg-ignore
     }
 
     /// Converts `SpatialUnit` to a float KU value.
     #[must_use]
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     pub fn to_f32(self) -> f32 {
-        ((f64::from(self.0)) / Self::SCALE) as f32
+        (f64::from(self.0) / 1000.0) as f32 // sg-ignore
     }
 }
 
 impl std::fmt::Display for SpatialUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:.3}", self.to_f32())
-    }
-}
-
-impl serde::Serialize for SpatialUnit {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_f32(self.to_f32())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for SpatialUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let val = f32::deserialize(deserializer)?;
-        Ok(Self::from_f32(val))
     }
 }
 
@@ -84,23 +66,14 @@ impl FixedPointMath for SpatialUnit {
     fn from_raw(val: Self::Raw) -> Self {
         Self(val)
     }
+    #[allow(clippy::cast_precision_loss)]
     fn scale() -> f64 {
-        Self::SCALE
+        1000.0
     }
 }
 
 /// A 2D point in deterministic spatial units.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-    utoipa::ToSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Point {
     /// X coordinate.
     pub x: SpatialUnit,

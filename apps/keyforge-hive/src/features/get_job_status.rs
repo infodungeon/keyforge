@@ -82,8 +82,7 @@ pub(crate) async fn handle(
             });
             let layout = best_layout
                 .clone()
-                .and_then(|l| serde_json::from_str::<keyforge_model::Layout>(&l).ok())
-                .map(LayoutDto::from)
+                .and_then(|l| serde_json::from_str::<LayoutDto>(&l).ok())
                 .unwrap_or_default();
 
             JobStatusDto::Completed {

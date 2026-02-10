@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::error::ForgeError;
-use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 /// Categories of assets supported by the `KeyForge` system.
@@ -46,7 +45,7 @@ impl AssetCategory {
 }
 
 /// A trait for data structures that can be managed as system or user assets.
-pub trait Asset: DeserializeOwned + Send + Sync + 'static + Debug {
+pub trait Asset: Send + Sync + 'static + Debug {
     /// Returns the category of this asset type.
     fn category() -> AssetCategory;
 
@@ -71,7 +70,7 @@ pub trait Asset: DeserializeOwned + Send + Sync + 'static + Debug {
 mod tests {
     use super::*;
 
-    #[derive(serde::Deserialize, Debug)]
+    #[derive(Debug)]
     struct MockAsset;
     impl Asset for MockAsset {
         fn category() -> AssetCategory {
@@ -105,17 +104,5 @@ mod tests {
         let c2 = c;
         assert_eq!(c, c2);
         assert_eq!(AssetCategory::Rubric.as_str(), "rubrics");
-    }
-
-    #[test]
-    fn test_dummy_asset_extension() {
-        #[derive(Debug, serde::Deserialize, serde::Serialize)]
-        struct DummyAsset;
-        impl Asset for DummyAsset {
-            fn category() -> AssetCategory {
-                AssetCategory::Rubric
-            }
-        }
-        assert_eq!(DummyAsset::default_extension(), "json");
     }
 }

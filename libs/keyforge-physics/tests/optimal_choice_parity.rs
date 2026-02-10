@@ -2,9 +2,10 @@
 mod integration_tests {
     use super::*;
     // libs/keyforge-physics/tests/optimal_choice_parity.rs
-    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, RowIndex, SpatialUnit};
+    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
+    use keyforge_protocol::CostModelDto;
     use std::sync::Arc;
 
     fn mock_cost_model() -> CostModel {
@@ -26,21 +27,22 @@ mod integration_tests {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-        serde_json::from_str(json).unwrap()
+        let dto: CostModelDto = serde_json::from_str(json).unwrap();
+        dto.into()
     }
 
     #[test]
     fn test_optimal_choice_monogram() {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0), // cost 100
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(1), // cost 200
@@ -80,24 +82,24 @@ mod integration_tests {
     fn test_optimal_choice_bigram() {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
-                x: SpatialUnit::from_f32(0.0),
+                x: keyforge_model::types::SpatialUnit::from_f32(0.0),
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
-                x: SpatialUnit::from_f32(1.0),
+                x: keyforge_model::types::SpatialUnit::from_f32(1.0),
                 ..Default::default()
             },
             KeyNode {
-                index: 2,
+                index: KeyIndex(2),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
-                x: SpatialUnit::from_f32(10.0), // Far away
+                x: keyforge_model::types::SpatialUnit::from_f32(10.0), // Far away
                 ..Default::default()
             },
         ];
@@ -108,7 +110,7 @@ mod integration_tests {
         corpus_val.bigrams = Arc::from(vec![(97, 98, 1000)]);
         let corpus = Arc::new(corpus_val);
 
-        let rubric = Rubric::builder().travel_lat(1.0).build();
+        let rubric = Rubric::builder().travel_lat(1_000_000).build();
         let rubric_arc = Arc::new(rubric);
 
         let cm = Arc::new(mock_cost_model());
@@ -137,25 +139,25 @@ mod integration_tests {
     fn test_optimal_choice_trigram() {
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::PINKY,
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
                 ..Default::default()
             },
             KeyNode {
-                index: 2,
+                index: KeyIndex(2),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 ..Default::default()
             },
             KeyNode {
-                index: 3,
+                index: keyforge_model::types::KeyIndex(3),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 ..Default::default()
@@ -168,7 +170,10 @@ mod integration_tests {
         corpus_val.trigrams = Arc::from(vec![(97, 98, 99, 1000)]);
         let corpus = Arc::new(corpus_val);
 
-        let rubric = Rubric::builder().roll_bonus(100.0).redirect(500.0).build();
+        let rubric = Rubric::builder()
+            .roll_bonus(100_000_000)
+            .redirect(500_000_000)
+            .build();
         let rubric_arc = Arc::new(rubric);
 
         let cm = Arc::new(mock_cost_model());

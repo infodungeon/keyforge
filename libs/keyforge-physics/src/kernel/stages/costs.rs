@@ -37,10 +37,8 @@ impl CompilationStage for CostStage<'_> {
 
         let mut key_costs = Vec::with_capacity(key_count);
         for k in self.kb.keys() {
-            let static_cost = Score::from_f32(resolve_key_cost(k, &phys_model.static_costs)?)
-                .map_err(|e| PhysicsError::InvalidInput { message: e })?;
-            let finger_effort = Score::from_f32(self.rubric.finger_effort()[k.finger.as_usize()])
-                .map_err(|e| PhysicsError::InvalidInput { message: e })?;
+            let static_cost = resolve_key_cost(k, &phys_model.static_costs)?;
+            let finger_effort = self.rubric.finger_effort()[k.finger.as_usize()];
 
             key_costs.push(static_cost.checked_add(finger_effort).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
@@ -72,19 +70,19 @@ impl CompilationStage for CostStage<'_> {
 fn resolve_key_cost(
     key: &KeyNode,
     static_costs: &std::collections::HashMap<String, HandDefinition>,
-) -> Result<f32, PhysicsError> {
+) -> Result<Score, PhysicsError> {
     let hand = get_hand_def(key, static_costs)?;
     let finger_def = get_finger_def(key, hand)?;
 
-    match finger_def {
-        FingerDefinition::Standard(reach) => Ok(resolve_standard_finger(key, reach)),
-        FingerDefinition::Thumb(positions) => Ok(positions
-            .values()
-            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-            .copied()
-            .unwrap_or(0.0)),
-        FingerDefinition::Fallback(_) => Ok(0.0),
-    }
+    let val = match finger_def {
+        FingerDefinition::Standard(reach) => resolve_standard_finger(key, reach),
+        FingerDefinition::Thumb(positions) => {
+            positions.values().min().copied().unwrap_or(Score::ZERO)
+        }
+        FingerDefinition::Fallback => Score::ZERO,
+    };
+
+    Ok(val)
 }
 
 fn get_hand_def<'a>(
@@ -128,7 +126,10 @@ fn get_finger_def<'a>(
     })
 }
 
-fn resolve_standard_finger(key: &KeyNode, reach: &keyforge_model::cost_model::FingerReach) -> f32 {
+fn resolve_standard_finger(
+    key: &KeyNode,
+    reach: &keyforge_model::cost_model::FingerReach,
+) -> Score {
     const ZONE_INNER_THRESHOLD: u8 = 1;
     const ZONE_OUTER_THRESHOLD: u8 = 1;
 
@@ -141,23 +142,25 @@ fn resolve_standard_finger(key: &KeyNode, reach: &keyforge_model::cost_model::Fi
 
     // Fallback to base if specifically requested zone is empty
     let target_zone = if zone.is_empty() { &reach.base } else { zone };
-    target_zone.get(&key.row).copied().unwrap_or(0.0)
+    target_zone.get(&key.row).copied().unwrap_or(Score::ZERO)
 }
 
 #[keyforge_testing_macros::kf_test]
+#[keyforge_testing_macros::kf_test]
 mod tests {
     use super::*;
-    use keyforge_model::types::{ColIndex, RowIndex};
+    use keyforge_model::types::{ColIndex, KeyIndex, RowIndex};
     use std::collections::HashMap;
 
     #[test]
-    fn test_resolve_key_cost_logic() {
+    fn test_resolve_key_cost_logic() -> anyhow::Result<()> {
         let mut static_costs = std::collections::HashMap::new();
         let mut hand_def = HandDefinition {
             fingers: std::collections::HashMap::new(),
         };
         let mut base_zone = keyforge_model::cost_model::RowCosts::new();
-        base_zone.insert(RowIndex::new(0), 10.0);
+        let sc = |v: i64| Score::from_scaled_i64(v);
+        base_zone.insert(RowIndex::new(0), sc(10_000_000));
 
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_zone,
@@ -171,7 +174,7 @@ mod tests {
         static_costs.insert("universal_hand".to_string(), hand_def);
 
         let key = KeyNode {
-            index: 0,
+            index: KeyIndex::new(0),
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(1),
             row: RowIndex::new(0),
@@ -179,20 +182,22 @@ mod tests {
             ..Default::default()
         };
 
-        let cost = resolve_key_cost(&key, &static_costs).unwrap();
-        assert_eq!(cost, 10.0);
+        let cost = resolve_key_cost(&key, &static_costs)?;
+        assert_eq!(cost.raw(), 10_000_000);
+        Ok(())
     }
 
     #[test]
-    fn test_resolve_key_cost_zones() {
+    fn test_resolve_key_cost_zones() -> anyhow::Result<()> {
         let mut static_costs = std::collections::HashMap::new();
         let mut fingers = std::collections::HashMap::new();
+        let sc = |v: i64| Score::from_scaled_i64(v);
 
         let mut base_r0 = keyforge_model::cost_model::RowCosts::new();
-        base_r0.insert(RowIndex::new(0), 1.0);
+        base_r0.insert(RowIndex::new(0), sc(1_000_000));
 
         let mut inner_r0 = keyforge_model::cost_model::RowCosts::new();
-        inner_r0.insert(RowIndex::new(0), 5.0);
+        inner_r0.insert(RowIndex::new(0), sc(5_000_000));
 
         let zones = keyforge_model::cost_model::FingerReach {
             base: base_r0,
@@ -209,7 +214,7 @@ mod tests {
             col: ColIndex::new(0),
             ..Default::default()
         };
-        assert_eq!(resolve_key_cost(&k_base, &static_costs).unwrap(), 1.0);
+        assert_eq!(resolve_key_cost(&k_base, &static_costs)?.raw(), 1_000_000);
 
         // Index finger, col 2 (inner)
         let k_inner = KeyNode {
@@ -217,7 +222,7 @@ mod tests {
             col: ColIndex::new(2),
             ..Default::default()
         };
-        assert_eq!(resolve_key_cost(&k_inner, &static_costs).unwrap(), 5.0);
+        assert_eq!(resolve_key_cost(&k_inner, &static_costs)?.raw(), 5_000_000);
 
         // Index finger, col -128 (inner, via unsigned_abs)
         let k_min = KeyNode {
@@ -225,6 +230,7 @@ mod tests {
             col: ColIndex::new(-128),
             ..Default::default()
         };
-        assert_eq!(resolve_key_cost(&k_min, &static_costs).unwrap(), 5.0);
+        assert_eq!(resolve_key_cost(&k_min, &static_costs)?.raw(), 5_000_000);
+        Ok(())
     }
 }

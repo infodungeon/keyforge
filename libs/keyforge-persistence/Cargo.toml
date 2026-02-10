@@ -17,6 +17,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
+keyforge-boundary.workspace = true
 keyforge-model = { path = "../keyforge-model" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-infra = { path = "../keyforge-infra" }
@@ -35,3 +36,4 @@ server = []
 tokio.workspace = true
 serde_json.workspace = true
 keyforge-compute = { path = "../keyforge-compute" }
+anyhow.workspace = true

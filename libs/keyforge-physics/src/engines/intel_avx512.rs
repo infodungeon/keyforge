@@ -68,7 +68,7 @@ impl ScoringEngine for Avx512ScoringEngine {
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map, _, _) =
                 s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 layout_slice,
@@ -103,7 +103,7 @@ impl ScoringEngine for Avx512ScoringEngine {
 
         crate::kernel::compute::state::with_scratch(|s| {
             let key_count = self.ctx.key_count;
-            let (starts, counts, indices, offsets, used, _char_usage, _flat_map) =
+            let (starts, counts, indices, offsets, used, _char_usage, _flat_map, _, _) =
                 s.get_mut_scratch();
             let pm = PosMap::from_scratch(
                 validated.as_slice(),
@@ -149,7 +149,7 @@ unsafe fn score_layout_avx512(
     scratch: &mut PhysicsScratch,
     _: &EngineConfig,
 ) -> Result<i64, PhysicsError> {
-    let (starts, counts, indices, offsets, used, _, flat_map) = scratch.get_mut_scratch();
+    let (starts, counts, indices, offsets, used, _, flat_map, _, _) = scratch.get_mut_scratch();
     let pm = PosMap::from_scratch(
         layout.as_slice(),
         ctx.key_count,
@@ -162,7 +162,7 @@ unsafe fn score_layout_avx512(
     for &code in pm.used_keys() {
         let cand = pm.get(code);
         if !cand.is_empty() {
-            flat_map[code.raw() as usize] = cand[0];
+            flat_map[code.as_usize()] = cand[0];
         }
     }
     let e_ctx = crate::kernel::EvaluationContext {
@@ -199,11 +199,10 @@ unsafe fn score_monograms_avx512(
 ) -> Result<i64, PhysicsError> {
     let mut total_score = 0i64;
     for &code in ctx.pos_map.used_keys() {
-        let freq = ctx.engine.corpus.char_freqs[code.raw() as usize];
-        let p = flat_map[code.raw() as usize];
+        let freq = ctx.engine.corpus.char_freqs[code.as_usize()];
+        let p = flat_map[code.as_usize()];
         let cost = ctx.engine.geometry.key_costs[p.as_usize()];
-        #[allow(clippy::cast_possible_wrap)]
-        let f_i64 = freq as i64;
+        let f_i64 = i64::try_from(freq).unwrap_or(i64::MAX);
         total_score = total_score
             .checked_add(cost.raw().checked_mul(f_i64).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
@@ -228,19 +227,13 @@ unsafe fn score_bigrams_avx512(
         _mm256_loadu_si256, _mm512_add_epi64, _mm512_cvtepu32_epi64, _mm512_mask_i32gather_epi64,
         _mm512_mullo_epi64, _mm512_reduce_add_epi64, _mm512_setzero_si512,
     };
-    let key_count = u16::try_from(ctx.engine.key_count).unwrap_or(u16::MAX);
-    let key_count_usize = usize::from(key_count);
+    let key_count = ctx.engine.key_count;
     for &code1 in ctx.pos_map.used_keys() {
-        let p1 = flat_map[code1.raw() as usize].as_usize();
-        let start = ctx.engine.corpus.bigram_starts[code1.raw() as usize];
-        let end = ctx.engine.corpus.bigram_starts[code1.raw() as usize + 1];
+        let p1 = flat_map[code1.as_usize()].as_usize();
+        let start = ctx.engine.corpus.bigram_starts[code1.as_usize()];
+        let end = ctx.engine.corpus.bigram_starts[code1.as_usize() + 1];
         let mut row_sum = _mm512_setzero_si512();
-        let costs_ptr = ctx
-            .engine
-            .geometry
-            .cost_matrix
-            .as_ptr()
-            .add(p1 * key_count_usize);
+        let costs_ptr = ctx.engine.geometry.cost_matrix.as_ptr().add(p1 * key_count);
         let freqs_ptr = ctx.engine.corpus.bigram_freqs.as_ptr();
         let others_ptr = ctx.engine.corpus.bigram_others.as_ptr();
         let mut k = start;
@@ -248,15 +241,13 @@ unsafe fn score_bigrams_avx512(
             let mut mask = 0u8;
             let mut indices = [0i32; 8];
             for i in 0..8 {
-                // SAFETY: others_ptr is derived from a ValidatedLayout, and k+i < end ensures we stay within bounds of the bigram data.
-                let p2 = unsafe { flat_map[others_ptr.add(k + i).read().raw() as usize] };
-                if p2.as_usize() < key_count_usize {
+                let p2 = unsafe { flat_map[others_ptr.add(k + i).read().as_usize()] };
+                if p2.as_usize() < key_count {
                     mask |= 1 << i;
                     indices[i] = i32::from(p2.raw());
                 }
             }
             let p2_v = _mm256_loadu_si256(indices.as_ptr().cast());
-            // SAFETY: costs_ptr points to a row in the cost matrix. p2_v contains valid indices within that row.
             let cost_v = _mm512_mask_i32gather_epi64(
                 _mm512_setzero_si512(),
                 mask,
@@ -265,7 +256,6 @@ unsafe fn score_bigrams_avx512(
                 8,
             );
             #[allow(clippy::cast_ptr_alignment)]
-            // SAFETY: freqs_ptr is valid up to 'end'. We check k + 8 <= end.
             let freq_v = _mm512_cvtepu32_epi64(_mm256_loadu_si256(freqs_ptr.add(k).cast()));
             row_sum = _mm512_add_epi64(row_sum, _mm512_mullo_epi64(cost_v, freq_v));
             k += 8;
@@ -276,19 +266,22 @@ unsafe fn score_bigrams_avx512(
                 context: "AVX-512 Bigram".into(),
             })?;
         while k < end {
-            // SAFETY: Manual fallback loop for remaining bigrams. Bounds are guaranteed by 'end'.
-            let p2 = unsafe { flat_map[others_ptr.add(k).read().raw() as usize] };
-            if p2.as_usize() < key_count_usize {
-                total_score = total_score
-                    .checked_add(
-                        // SAFETY: others_ptr and freqs_ptr are valid at offset k.
-                        i64::from(unsafe { freqs_ptr.add(k).read() })
-                            * ctx.engine.geometry.cost_matrix[p1 * key_count_usize + p2.as_usize()]
-                                .raw(),
-                    )
-                    .ok_or_else(|| PhysicsError::ScoreOverflow {
+            let p2 = unsafe { flat_map[others_ptr.add(k).read().as_usize()] };
+            if p2.as_usize() < key_count {
+                let freq_i128 = i128::from(unsafe { freqs_ptr.add(k).read() });
+                let cost_i128 = i128::from(
+                    ctx.engine.geometry.cost_matrix[p1 * key_count + p2.as_usize()].raw(),
+                );
+                let contribution = i64::try_from(
+                    (freq_i128 * cost_i128).clamp(i128::from(i64::MIN), i128::from(i64::MAX)),
+                )
+                .unwrap_or(0);
+
+                total_score = total_score.checked_add(contribution).ok_or_else(|| {
+                    PhysicsError::ScoreOverflow {
                         context: "AVX-512 Bigram rem".into(),
-                    })?;
+                    }
+                })?;
             }
             k += 1;
         }
@@ -315,20 +308,20 @@ unsafe fn score_trigrams_avx512(
     let flow_table = build_flow_table_avx512(ctx);
     let mut type_map = vec![255u8; 65536].into_boxed_slice();
     for &code in ctx.pos_map.used_keys() {
-        let p = flat_map[code.raw() as usize];
+        let p = flat_map[code.as_usize()];
         if p.as_usize() < key_count_usize {
-            type_map[code.raw() as usize] = pos_types[p.as_usize()];
+            type_map[code.as_usize()] = pos_types[p.as_usize()];
         }
     }
     for &code1 in ctx.pos_map.used_keys() {
-        let t1 = type_map[code1.raw() as usize];
+        let t1 = type_map[code1.as_usize()];
         if t1 == 255 {
             continue;
         }
         let (start, end, t1_off) = (
-            ctx.engine.corpus.trigram_starts[code1.raw() as usize],
-            ctx.engine.corpus.trigram_starts[code1.raw() as usize + 1],
-            (t1 as usize) * 100,
+            ctx.engine.corpus.trigram_starts[code1.as_usize()],
+            ctx.engine.corpus.trigram_starts[code1.as_usize() + 1],
+            usize::from(t1) * 100,
         );
         let mut row_sum = _mm512_setzero_si512();
         let (o1_ptr, o2_ptr, f_ptr) = (
@@ -340,11 +333,10 @@ unsafe fn score_trigrams_avx512(
         while k + 8 <= end {
             let mut idx = [0i32; 8];
             for i in 0..8 {
-                // SAFETY: o1_ptr and o2_ptr are within corpus bounds [start, end).
                 let (t2, t3) = unsafe {
                     (
-                        type_map[o1_ptr.add(k + i).read().raw() as usize],
-                        type_map[o2_ptr.add(k + i).read().raw() as usize],
+                        type_map[o1_ptr.add(k + i).read().as_usize()],
+                        type_map[o2_ptr.add(k + i).read().as_usize()],
                     )
                 };
                 idx[i] = if t2 != 255 && t3 != 255 {
@@ -353,8 +345,6 @@ unsafe fn score_trigrams_avx512(
                     0
                 };
             }
-            // SAFETY: flow_table is indexed by (t1, t2, t3) where each is < 10. idx[i] < 100 and t1_off is t1 * 100.
-            // Total index < 1000, which matches flow_table size.
             let cost_v = unsafe {
                 _mm512_mask_i32gather_epi64(
                     _mm512_setzero_si512(),
@@ -364,7 +354,6 @@ unsafe fn score_trigrams_avx512(
                     8,
                 )
             };
-            // SAFETY: f_ptr is valid up to 'end'. We check k + 8 <= end.
             let freq_v = _mm512_cvtepu32_epi64(_mm256_loadu_si256(f_ptr.add(k).cast()));
             row_sum = _mm512_add_epi64(row_sum, _mm512_mullo_epi64(cost_v, freq_v));
             k += 8;
@@ -375,19 +364,17 @@ unsafe fn score_trigrams_avx512(
                 context: "AVX-512 Tri".into(),
             })?;
         for ki in k..end {
-            // SAFETY: ki < end ensures we are within corpus bounds.
             let (t2, t3) = unsafe {
                 (
-                    type_map[o1_ptr.add(ki).read().raw() as usize],
-                    type_map[o2_ptr.add(ki).read().raw() as usize],
+                    type_map[o1_ptr.add(ki).read().as_usize()],
+                    type_map[o2_ptr.add(ki).read().as_usize()],
                 )
             };
             if t2 != 255 && t3 != 255 {
                 total_score = total_score
                     .checked_add(
-                        // SAFETY: ki < end ensures f_ptr validity. Table lookup is within 1000 element bounds.
                         i64::from(unsafe { f_ptr.add(ki).read() })
-                            * flow_table[t1_off + (t2 as usize) * 10 + (t3 as usize)],
+                            * flow_table[t1_off + usize::from(t2) * 10 + usize::from(t3)],
                     )
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
                         context: "AVX-512 Tri rem".into(),
@@ -400,12 +387,11 @@ unsafe fn score_trigrams_avx512(
 
 fn build_flow_table_avx512(ctx: &crate::kernel::EvaluationContext<'_>) -> Box<[i64]> {
     let mut flow_table = vec![0i64; 1000].into_boxed_slice();
-    for t1 in 0..10 {
-        for t2 in 0..10 {
-            for t3 in 0..10 {
-                #[allow(clippy::cast_possible_truncation)]
-                let (t1_u, t2_u, t3_u) = (t1 as u8, t2 as u8, t3 as u8);
-                flow_table[t1 * 100 + t2 * 10 + t3] =
+    for t1 in 0u8..10 {
+        for t2 in 0u8..10 {
+            for t3 in 0u8..10 {
+                let (t1_u, t2_u, t3_u) = (t1, t2, t3);
+                flow_table[usize::from(t1) * 100 + usize::from(t2) * 10 + usize::from(t3)] =
                     crate::kernel::mechanics::calculate_flow_cost(
                         keyforge_model::types::HandIndex::new(t1_u / 5),
                         keyforge_model::types::HandIndex::new(t2_u / 5),
@@ -428,14 +414,16 @@ fn build_flow_table_avx512(ctx: &crate::kernel::EvaluationContext<'_>) -> Box<[i
 mod tests {
     use super::*;
     #[test]
-    fn test_avx512_parity() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_avx512_parity() -> anyhow::Result<()> {
         use crate::kernel::compiler::Compiler;
-        use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+        use keyforge_model::types::{
+            ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex,
+        };
         use keyforge_model::{Corpus, KeyNode, Keyboard, Rubric};
         use std::sync::Arc;
         let keys = vec![
             KeyNode {
-                index: 0,
+                index: KeyIndex::new(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0),
@@ -443,7 +431,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 1,
+                index: KeyIndex::new(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 row: RowIndex::new(0),
@@ -451,7 +439,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: 2,
+                index: KeyIndex::new(2),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
                 row: RowIndex::new(0),
@@ -481,7 +469,7 @@ mod tests {
             score_layout_scalar(
                 &ctx,
                 &ValidatedLayout::new(layout.keys(), 3)?,
-                &mut PhysicsScratch::try_new().unwrap()
+                &mut PhysicsScratch::try_new()?
             )?
         );
         Ok(())

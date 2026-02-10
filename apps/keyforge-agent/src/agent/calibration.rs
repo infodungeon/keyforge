@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use keyforge_boundary::SafePath;
 use keyforge_infra::AssetManager;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::{Corpus, CostModel, KeyCode, Keyboard, Layout, Rubric};
 use keyforge_physics::{EngineCompilationContext, EngineFactory};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
@@ -50,16 +50,17 @@ fn default_cost_model() -> Result<CostModel, AgentError> {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-    serde_json::from_str(json)
-        .map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))
+    let dto: keyforge_protocol::CostModelDto = serde_json::from_str(json)
+        .map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))?;
+    Ok(dto.into())
 }
 
 pub async fn calibrate(
     assets: &AssetManager,
-    data_root: &Path,
+    data_root: &SafePath,
     config: &crate::models::CalibrationConfig,
 ) -> Result<f64, AgentError> {
-    let cal_path = data_root.join("user/calibration.json");
+    let cal_path = data_root.as_path().join("user/calibration.json");
 
     if cal_path.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&cal_path).await {
@@ -82,8 +83,9 @@ pub async fn calibrate(
         .await
         .map_err(|e| AgentError::Calibration(format!("Failed to read keyboard: {e}")))?;
 
-    let def: KeyboardDefinition = serde_json::from_str(&content)
+    let def_dto: keyforge_protocol::KeyboardDefinitionDto = serde_json::from_str(&content)
         .map_err(|e| AgentError::Calibration(format!("Invalid keyboard JSON: {e}")))?;
+    let def: KeyboardDefinition = def_dto.into();
 
     let keyboard = Arc::new(Keyboard::new(
         def.geometry.keys().to_vec(),
@@ -172,7 +174,7 @@ pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<
     let mut keys = Vec::with_capacity(config.key_count);
     for i in 0..config.key_count {
         keys.push(keyforge_model::geometry::KeyNode {
-            index: i,
+            index: i.into(),
             x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
             y: keyforge_model::types::SpatialUnit::default(),
             ..Default::default()

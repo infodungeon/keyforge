@@ -27,7 +27,7 @@ fn setup_test_ctx(keys: Vec<KeyNode>, bigrams: Vec<(u16, u16, u32)>) -> EngineCo
 fn setup_basic_kb() -> Vec<KeyNode> {
     vec![
         KeyNode {
-            index: 0,
+            index: KeyIndex::new(0),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(1),
             row: RowIndex::new(0),
@@ -35,7 +35,7 @@ fn setup_basic_kb() -> Vec<KeyNode> {
             ..Default::default()
         },
         KeyNode {
-            index: 1,
+            index: KeyIndex::new(1),
             hand: HandIndex::new(0),
             finger: FingerIndex::new(2),
             row: RowIndex::new(0),
@@ -56,7 +56,7 @@ proptest! {
     ) {
         let keys: Vec<KeyNode> = (0..layout_codes.len())
             .map(|i| KeyNode {
-                index: i,
+                index: KeyIndex::new(i as u16),
                 hand: HandIndex::new(hand),
                 finger: FingerIndex::new(finger),
                 row: RowIndex::new(row),
@@ -75,7 +75,7 @@ proptest! {
         let validated = ValidatedLayout::new(layout.keys(), layout.len()).unwrap();
 
         let mut scratch = PhysicsScratch::try_new().unwrap();
-        let (starts, counts, indices, offsets, used, _, _) = scratch.get_mut_scratch();
+        let (starts, counts, indices, offsets, used, _, _, _, _) = scratch.get_mut_scratch();
         let pm = PosMap::from_scratch(layout.keys(), layout.len(), starts, counts, indices, offsets, used);
 
         let delta = calculate_swap_delta(&ctx, &validated, &pm, 0, 1).unwrap();
@@ -106,7 +106,7 @@ mod manual_tests {
         let validated = ValidatedLayout::new(layout.keys(), 2).unwrap();
 
         let mut scratch = PhysicsScratch::try_new().unwrap();
-        let (starts, counts, indices, offsets, used, _, _) = scratch.get_mut_scratch();
+        let (starts, counts, indices, offsets, used, _, _, _, _) = scratch.get_mut_scratch();
         let pm = PosMap::from_scratch(layout.keys(), 2, starts, counts, indices, offsets, used);
 
         // Score before: a at 0, b at 1. cost(0,1) * freq(ab)

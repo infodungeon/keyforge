@@ -38,7 +38,7 @@ pub use keyforge_evolution::{EvolutionError, NoOpCallback, OptimizationControl, 
 
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{
-    AnalysisReport, EngineRequest, KeyCode, Layout, OptimizationResult, ScoringResult,
+    AnalysisReport, EngineRequest, KeyCode, Layout, OptimizationResult, Score, ScoringResult,
     SearchConfig, SwapSuggestion,
 };
 use keyforge_physics::{EngineFactory, ScoringEngine};
@@ -95,11 +95,7 @@ pub fn score(req: &EngineRequest) -> Result<ScoringResult, keyforge_physics::Phy
         .unwrap_or_else(|| Layout::new_unchecked(vec![KeyCode::EMPTY; engine.key_count()]));
 
     let score = engine.score(&layout)?;
-    Ok(ScoringResult {
-        score: score.to_f32(),
-        raw_score: score.raw(),
-        layout,
-    })
+    Ok(ScoringResult { score, layout })
 }
 
 /// Performs a one-off analysis operation for the given request.
@@ -248,8 +244,8 @@ impl Runtime {
     ///
     /// Returns `keyforge_physics::PhysicsError` if evaluation fails.
     #[instrument(skip(self, layout))]
-    pub fn score(&self, layout: &Layout) -> Result<f32, keyforge_physics::PhysicsError> {
-        Ok(self.engine.score(layout)?.to_f32())
+    pub fn score(&self, layout: &Layout) -> Result<Score, keyforge_physics::PhysicsError> {
+        self.engine.score(layout)
     }
 
     /// Generates a comprehensive ergonomics analysis for a layout.

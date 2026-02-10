@@ -153,8 +153,16 @@ impl Agent {
                             }
                         };
 
+                        let weights = match job.to_domain_weights() {
+                            Ok(w) => w,
+                            Err(e) => {
+                                error!("Job {} Invalid weights: {}", job_id, e);
+                                return;
+                            }
+                        };
+
                         let builder = builder
-                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&job.to_domain_weights()))
+                            .with_rubric(keyforge_adapter::conversion::to_domain_rubric(&weights))
                             .with_biometrics(job.biometrics.to_vec())
                             .with_config(keyforge_model::SearchConfig::Annealing {
                                 steps: job.params.get_search_steps(),
@@ -188,8 +196,9 @@ impl Agent {
                             &job
                         ).await {
                             Ok(opt_res) => {
-                                info!("✅ Job {} Completed. Score: {:.4}", job_id, opt_res.score);
-                                let layout_str = serde_json::to_string(&opt_res.layout).unwrap_or_default();
+                                info!("✅ Job {} Completed. Score: {}", job_id, opt_res.score);
+                                let layout_dto: keyforge_protocol::LayoutDto = opt_res.layout.into();
+                                let layout_str = serde_json::to_string(&layout_dto).unwrap_or_default();
 
                                 let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
                                 let nonce = rand::random();
@@ -199,7 +208,7 @@ impl Agent {
                                     &private_key,
                                     &job_id,
                                     &layout_str,
-                                    opt_res.raw_score,
+                                    opt_res.score.raw(),
                                     timestamp,
                                     nonce
                                 ) {
@@ -214,8 +223,8 @@ impl Agent {
                                     version: 1,
                                     job_id: job_id.clone(),
                                     layout: layout_str,
-                                    score: opt_res.score,
-                                    raw_score: opt_res.raw_score,
+                                    score: opt_res.score.to_f32(),
+                                    raw_score: opt_res.score.raw(),
                                     node_id,
                                     timestamp,
                                     nonce,

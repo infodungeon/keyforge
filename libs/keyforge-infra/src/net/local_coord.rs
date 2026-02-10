@@ -118,4 +118,9 @@ impl DistributedCoordinator for LocalDistributedCoordinator {
             Ok(true)
         }
     }
+
+    async fn release_profile_update(&self, _cpu_signature: &str) -> InfraResult<()> {
+        // No-op in local mode as try_reserve_profile_update always returns true
+        Ok(())
+    }
 }

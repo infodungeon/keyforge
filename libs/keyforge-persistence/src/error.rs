@@ -24,6 +24,10 @@ pub enum PersistenceError {
     #[error("Serialization Error: {0}")]
     Serde(#[from] serde_json::Error),
 
+    /// Errors occurring during binary serialization with postcard.
+    #[error("Postcard Error: {0}")]
+    Postcard(#[from] postcard::Error),
+
     /// A project or session file could not be found.
     #[error("Project not found: {0}")]
     ProjectNotFound(String),

@@ -13,18 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cli_parsers::resolve_path;
 use crate::constants::DEFAULT_HIVE_URL;
 use clap::Args;
+use keyforge_boundary::SafePath;
 use keyforge_infra::fs::io::read_to_string_limited;
 use keyforge_model::constants::{
     ASSET_DEFAULT_COST_MATRIX, DEFAULT_KEYBOARD_ID, MAX_INPUT_FILE_SIZE,
 };
 use keyforge_model::geometry::KeyboardDefinition;
-use keyforge_model::job::JobIdentifier;
 use keyforge_model::CostMatrixSource;
 use std::convert::TryFrom;
-use std::path::Path;
 
 #[derive(Args, Debug, Clone)]
 pub struct QueryArgs {
@@ -39,7 +37,7 @@ pub struct QueryArgs {
 
 use keyforge_model::Validator;
 
-pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(args: QueryArgs, root: &SafePath) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("🔍 Calculating Job Hash for criteria…");
 
     // Resolve Defaults
@@ -52,13 +50,16 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
         .cost
         .unwrap_or_else(|| ASSET_DEFAULT_COST_MATRIX.to_string());
 
-    let kb_path = resolve_path(&kb_input, Some("keyboards"), root)?;
+    let kb_rel =
+        SafePath::try_from_str(&kb_input).map_err(|e| format!("Invalid keyboard path: {e}"))?;
+    let kb_path = SafePath::from_trusted_root(root.as_path(), &kb_rel);
 
     let kb_content = read_to_string_limited(&kb_path, MAX_INPUT_FILE_SIZE)
-        .map_err(|e| format!("Failed to read keyboard file: {e}"))?;
+        .map_err(|e| format!("Failed to read keyboard file {kb_path}: {e}"))?;
 
-    let kb_def = KeyboardDefinition::parse(&kb_content, None)
-        .map_err(|e| format!("Failed to parse keyboard definition: {e}"))?;
+    let kb_def_dto: keyforge_protocol::KeyboardDefinitionDto = serde_json::from_str(&kb_content)
+        .map_err(|e| format!("Failed to parse keyboard definition JSON: {e}"))?;
+    let kb_def: KeyboardDefinition = kb_def_dto.into();
 
     let corpora_input = args
         .shared
@@ -68,7 +69,6 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
     for s in corpora_input {
         domain_corpora.push(s.parse::<keyforge_model::config::CorpusSource>()?);
     }
-    let corpora_fingerprint = keyforge_infra::util::common::calculate_fingerprint(&domain_corpora);
     let constraints = args.shared.pinned_keys;
 
     let config = keyforge_model::config::Config::try_from(args.config)?;
@@ -77,22 +77,30 @@ pub async fn run(args: QueryArgs, root: &Path) -> Result<(), Box<dyn std::error:
 
     let cost_source = CostMatrixSource::Predefined(cost_input);
 
-    let proto_geometry: keyforge_model::geometry::KeyboardGeometry =
-        serde_json::from_value(serde_json::to_value(&kb_def.geometry)?)?;
+    let job_config = keyforge_protocol::JobConfig {
+        definition: kb_def.clone().into(),
+        weights: config.weights.into(),
+        params: config.search.into(),
+        pinned_keys: keyforge_protocol::LimitedVec(
+            constraints.into_iter().map(Into::into).collect(),
+        ),
+        corpora: keyforge_protocol::LimitedVec(
+            domain_corpora.iter().cloned().map(Into::into).collect(),
+        ),
+        cost_matrix: cost_source.into(),
+        biometrics: keyforge_protocol::LimitedVec(vec![]),
+        parent_job_id: None,
+        baseline_score: None,
+        parents: keyforge_protocol::LimitedVec(vec![]),
+    };
 
-    let job_id = JobIdentifier::try_from_parts(
-        &proto_geometry,
-        &config.weights,
-        &config.search,
-        &constraints,
-        &corpora_fingerprint,
-        &cost_source,
-    )
-    .map_err(|e| format!("Failed to compute job id: {e}"))?
-    .hash;
+    let job_id = job_config
+        .id()
+        .map_err(|e| format!("Failed to compute job id: {e}"))?;
 
     eprintln!("   Job ID: {job_id}");
-    eprintln!("   Hive:   {}", args.hive);
+    let hive = &args.hive;
+    eprintln!("   Hive:   {hive}");
 
     let url = format!("{}/jobs/{}/population", args.hive, job_id);
 

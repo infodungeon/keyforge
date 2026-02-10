@@ -2,12 +2,13 @@
 
 use keyforge_model::error::ForgeError;
 use keyforge_model::geometry::{KeyNode, KeyboardDefinition, KeyboardGeometry, KeyboardMeta};
-use keyforge_model::mapping::Projection;
 use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex};
 use keyforge_model::Asset;
 use keyforge_protocol::CorpusSourceDto;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use super::projection::{JsonProjection, Projection};
 
 /// Database-aligned DTO for a Keyboard metadata row.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -23,6 +24,7 @@ pub struct HiveKeyboardMetaRow {
 /// Database-aligned DTO for a Keyboard Key row.
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct HiveKeyRow {
+    // ast-grep-ignore
     pub idx: i32,
     pub x: f32,
     pub y: f32,
@@ -100,12 +102,13 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
         for row in source.keys {
             let idx = row.idx;
             #[allow(clippy::cast_possible_truncation)]
-            let kidx = KeyIndex::new(u16::try_from(idx)
-                .map_err(|_| ForgeError::Projection("Key index overflow".into()))?);
+            let kidx = KeyIndex::new(
+                u16::try_from(idx)
+                    .map_err(|_| ForgeError::Projection("Key index overflow".into()))?,
+            );
 
             keys.push(KeyNode {
-                index: usize::try_from(idx)
-                    .map_err(|_| ForgeError::Projection("Key index negative".into()))?,
+                index: kidx,
                 label: format!("k{idx}"),
                 x: keyforge_model::types::SpatialUnit::from_f32(row.x),
                 y: keyforge_model::types::SpatialUnit::from_f32(row.y),
@@ -131,15 +134,17 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
             }
         }
 
+        let geometry = KeyboardGeometry::new(
+            keys,
+            prime_slots,
+            med_slots,
+            low_slots,
+            RowIndex::new(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
+        );
+
         let mut def = KeyboardDefinition {
             meta,
-            geometry: KeyboardGeometry {
-                keys,
-                prime_slots,
-                med_slots,
-                low_slots,
-                home_row: RowIndex::new(i8::try_from(source.meta.home_row.unwrap_or(0)).unwrap_or(0)),
-            },
+            geometry,
             layouts: HashMap::new(),
         };
 
@@ -150,32 +155,31 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
 
 impl Projection<HiveJobProjection> for keyforge_protocol::JobConfig {
     fn project(source: HiveJobProjection) -> Result<Self, ForgeError> {
-        let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
-        let params = keyforge_model::config::SearchParams::project(
-            source.row.params_json.unwrap_or_default(),
-        )?;
+        let weights: keyforge_protocol::ScoringWeightsDto =
+            JsonProjection::project(source.row.weights_json)?;
+        let params: keyforge_protocol::SearchParamsDto =
+            JsonProjection::project(source.row.params_json.unwrap_or_default())?;
 
-        let pinned_keys: Vec<keyforge_model::config::KeyConstraint> =
-            serde_json::from_str(&source.row.pinned_keys).map_err(ForgeError::from)?;
-        let cost_matrix: keyforge_model::config::CostMatrixSource =
-            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::from)?;
+        let pinned_keys_dtos: Vec<keyforge_protocol::KeyConstraintDto> =
+            serde_json::from_str(&source.row.pinned_keys)
+                .map_err(|e| ForgeError::Serde(e.to_string()))?;
+
+        let cost_matrix_dto: keyforge_protocol::CostMatrixSourceDto =
+            serde_json::from_str(&source.row.cost_matrix)
+                .map_err(|e| ForgeError::Serde(e.to_string()))?;
 
         Ok(Self {
             definition: source.definition.into(),
-            weights: weights.into(),
-            params: params.into(),
-            pinned_keys: pinned_keys
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<_>>()
-                .into(),
+            weights,
+            params,
+            pinned_keys: pinned_keys_dtos.into(),
             corpora: vec![CorpusSourceDto {
                 id: source.row.corpus_name,
                 weight: keyforge_model::constants::DEFAULT_CORPUS_WEIGHT,
                 hash: None,
             }]
             .into(),
-            cost_matrix: cost_matrix.into(),
+            cost_matrix: cost_matrix_dto,
             biometrics: vec![].into(),
             parent_job_id: source.row.parent_job_id,
             baseline_score: None,
@@ -194,15 +198,17 @@ pub type HiveConfigTuple = (
 
 impl Projection<HiveJobConfigProjection> for HiveConfigTuple {
     fn project(source: HiveJobConfigProjection) -> Result<Self, ForgeError> {
-        let weights = keyforge_model::config::ScoringWeights::project(source.row.weights_json)?;
-        let cost_matrix =
-            serde_json::from_str(&source.row.cost_matrix).map_err(ForgeError::from)?;
+        let weights_dto: keyforge_protocol::ScoringWeightsDto =
+            JsonProjection::project(source.row.weights_json)?;
+        let cost_matrix_dto: keyforge_protocol::CostMatrixSourceDto =
+            serde_json::from_str(&source.row.cost_matrix)
+                .map_err(|e| ForgeError::Serde(e.to_string()))?;
 
         Ok((
             source.definition.geometry,
-            weights,
+            weights_dto.into(),
             source.row.corpus_name,
-            cost_matrix,
+            cost_matrix_dto.into(),
         ))
     }
 }
@@ -213,7 +219,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_job_projection_logic() {
+    fn test_job_projection_logic() -> anyhow::Result<()> {
         let row = HiveJobRow {
             id: "test-job".to_string(),
             keyboard_id: 1,
@@ -238,7 +244,8 @@ mod tests {
         let definition = KeyboardDefinition::default();
         let projection = HiveJobProjection { row, definition };
 
-        let config = keyforge_protocol::JobConfig::project(projection).unwrap();
+        let config = keyforge_protocol::JobConfig::project(projection)?;
         assert_eq!(config.corpora[0].id, "en");
+        Ok(())
     }
 }

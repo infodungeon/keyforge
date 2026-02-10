@@ -11,11 +11,8 @@ rule:
     - has:
         kind: primitive_type
         regex: "^(usize|i32|u32)$"
-paths:
-  include:
-    - "libs/keyforge-model/src/**/*.rs"
-    - "libs/keyforge-protocol/src/**/*.rs"
-  exclude:
-    - "**/tests.rs"
-    - "**/tests/**"
-    - "**/generated/**"
+ignores:
+  - "**/tests.rs"
+  - "**/tests/**"
+  - "**/generated/**"
+  - "libs/keyforge-persistence/src/**/*.rs" # Storage often uses raw indices

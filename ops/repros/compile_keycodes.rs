@@ -1,5 +1,4 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-use keyforge_model::keycodes::KeycodeDefinition;
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -16,11 +15,11 @@ fn main() {
     file.read_to_string(&mut json_data)
         .expect("Failed to read JSON file");
 
-    let defs: Vec<KeycodeDefinition> =
+    let registry_dto: keyforge_protocol::KeycodeRegistryDto =
         serde_json::from_str(&json_data).expect("Failed to parse JSON");
 
     // 2. Encode to MessagePack
-    let mpk_data = rmp_serde::to_vec(&defs).expect("Failed to encode to MessagePack");
+    let mpk_data = rmp_serde::to_vec(&registry_dto).expect("Failed to encode to MessagePack");
 
     // 3. Compress with Zstd
     let mut compressed = Vec::new();

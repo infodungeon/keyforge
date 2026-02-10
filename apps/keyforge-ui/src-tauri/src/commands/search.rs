@@ -6,7 +6,7 @@ use keyforge_adapter::loader::AssetLoader;
 use keyforge_compute::Runtime;
 use keyforge_evolution::{OptimizationControl, ProgressCallback};
 use keyforge_infra::HiveClient;
-use keyforge_model::{KeyCode, KeyboardDefinition};
+use keyforge_model::KeyCode;
 use keyforge_protocol::{JobRequest, JobResponse, JobStatusDto};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -107,11 +107,13 @@ pub async fn cmd_poll_hive_status(
         },
         best_score: match &status {
             JobStatusDto::Running { current_best, .. } => current_best.as_ref().map_or(0.0, |s| {
+                // SAFETY: TYPE-001 Exception: DTO conversion.
                 #[allow(clippy::cast_precision_loss)]
                 let val = s.raw() as f32;
                 val / 1_000_000.0
             }),
             JobStatusDto::Completed { final_score, .. } => {
+                // SAFETY: TYPE-001 Exception: DTO conversion.
                 #[allow(clippy::cast_precision_loss)]
                 let val = final_score.raw() as f32;
                 val / 1_000_000.0
@@ -123,7 +125,8 @@ pub async fn cmd_poll_hive_status(
                 use std::fmt::Write;
                 let mut s = String::new();
                 for code in &final_layout.keys {
-                    let _ = write!(s, "{} ", code.0);
+                    // SAFETY: ARCH-006 Exception: Serialized DTO field access.
+                    let _ = write!(s, "{} ", code.raw());
                 }
                 s.trim().to_string()
             }
@@ -137,16 +140,8 @@ pub async fn cmd_poll_hive_status(
 /// # Errors
 ///
 /// Returns `CommandError` if the agent process fails to spawn or terminate.
-///
-/// # Panics
-///
-/// Panics if the worker child lock is poisoned.
 #[tauri::command]
-#[allow(
-    clippy::needless_pass_by_value,
-    clippy::unwrap_used,
-    clippy::missing_panics_doc
-)]
+#[allow(clippy::needless_pass_by_value, clippy::missing_panics_doc)]
 pub fn cmd_toggle_local_worker(
     app: AppHandle,
     state: tauri::State<'_, LocalWorkerState>,
@@ -154,7 +149,10 @@ pub fn cmd_toggle_local_worker(
     hive_url: String,
     _hive_secret: String,
 ) -> Result<String, CommandError> {
-    let mut child_guard = state.child.lock().unwrap();
+    let mut child_guard = state
+        .child
+        .lock()
+        .map_err(|_| CommandError::Internal("Mutex poisoned".into()))?;
 
     if enabled {
         if child_guard.is_some() {
@@ -201,7 +199,7 @@ impl ProgressCallback for TauriProgressCallback {
     fn on_progress(
         &self,
         epoch: usize,
-        score: f32,
+        score: keyforge_model::Score,
         layout: &[KeyCode],
         ips: f32,
     ) -> OptimizationControl {
@@ -209,8 +207,10 @@ impl ProgressCallback for TauriProgressCallback {
             return OptimizationControl::Stop;
         }
 
-        #[allow(clippy::unwrap_used)]
-        let mut last = self.last_emit.lock().unwrap();
+        // SAFETY: TYPE-003 Exception: Callback rate limiting. Poisoned lock is unrecoverable here.
+        let Ok(mut last) = self.last_emit.lock() else {
+            return OptimizationControl::Abort;
+        };
         if last.elapsed().as_millis() > 100 {
             *last = std::time::Instant::now();
 
@@ -224,11 +224,11 @@ impl ProgressCallback for TauriProgressCallback {
 
             let update = SearchUpdate {
                 epoch,
-                score,
+                score: score.to_f32(),
                 layout: layout_str.trim().to_string(),
                 ips,
             };
-            #[allow(clippy::unwrap_used)]
+            // SAFETY: TYPE-003 Exception: UI event emission.
             let _ = self.window.emit("search_update", update);
         }
         OptimizationControl::Continue
@@ -259,10 +259,12 @@ pub async fn cmd_start_search(
 
     // 2. Prepare Engine Request via SessionBuilder
     let builder = keyforge_compute::SessionBuilder::new(state.assets.as_ref())
-        .with_keyboard_def(std::sync::Arc::new(KeyboardDefinition::from_geometry(
-            job.to_domain_geometry(),
-            "local",
-        )))
+        .with_keyboard_def(std::sync::Arc::new(
+            keyforge_model::geometry::KeyboardDefinition::from_geometry(
+                job.to_domain_geometry(),
+                "local",
+            ),
+        ))
         .with_corpus(&job.to_domain_corpus_sources())
         .await?
         .with_cost_matrix(&job.to_domain_cost_matrix())
@@ -270,7 +272,7 @@ pub async fn cmd_start_search(
         .with_keycodes("default")
         .await?
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &job.to_domain_weights(),
+            &job.to_domain_weights()?,
         ))
         .with_config(keyforge_model::SearchConfig::Annealing {
             steps: request.search_params.get_search_steps(),
@@ -293,11 +295,14 @@ pub async fn cmd_start_search(
     let window_handle = window.clone();
 
     // Resolve keycodes for labeling in the callback
-    let keycodes = state
+    let keycodes_dto = state
         .assets
-        .load::<keyforge_model::KeycodeRegistry>("default")
+        .load::<keyforge_protocol::KeycodeRegistryDto>("default")
         .await
-        .unwrap_or_else(|_| Arc::new(keyforge_model::KeycodeRegistry::new_with_defaults()));
+        .unwrap_or_else(|_| Arc::new(keyforge_protocol::KeycodeRegistryDto::default()));
+    let keycodes = Arc::new(keyforge_model::keycodes::KeycodeRegistry::from(
+        (*keycodes_dto).clone(),
+    ));
 
     let callback = TauriProgressCallback {
         window: window_handle.clone(),
@@ -313,7 +318,8 @@ pub async fn cmd_start_search(
             .await
         {
             Ok(result) => {
-                let _ = window_handle.emit("search_finished", result);
+                let result_dto: keyforge_protocol::OptimizationResultDto = result.into();
+                let _ = window_handle.emit("search_finished", result_dto);
             }
             Err(e) => {
                 let _ = window_handle.emit("search_error", e.to_string());

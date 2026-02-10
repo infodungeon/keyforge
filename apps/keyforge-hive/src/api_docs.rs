@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use keyforge_model::{
-    CorpusSource, KeyNode, KeyboardDefinition, KeyboardGeometry, ScoringWeights, SearchParams,
-};
 use keyforge_protocol::{
     JobConfig, JobQueueResponse, JobRequest, JobResponse, NodeRequest, NodeResponse,
     PopulationResponse, ResultSubmission, TuningProfile,
@@ -41,8 +38,10 @@ use utoipa::OpenApi;
             JobRequest, JobResponse, JobQueueResponse, JobConfig,
             PopulationResponse, ResultSubmission,
             NodeRequest, NodeResponse, TuningProfile,
-            KeyboardDefinition, KeyboardGeometry, KeyNode,
-            ScoringWeights, SearchParams, CorpusSource,
+            keyforge_protocol::KeyboardDefinitionDto, keyforge_protocol::KeyboardGeometryDto,
+            keyforge_protocol::KeyNodeDto,
+            keyforge_protocol::ScoringWeightsDto, keyforge_protocol::SearchParamsDto,
+            keyforge_protocol::CorpusSourceDto,
             crate::features::submit_layout::LayoutSubmission,
             crate::features::submit_layout::SubmissionResponse,
             crate::features::list_submissions::SubmissionEntry,

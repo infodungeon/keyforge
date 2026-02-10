@@ -3,12 +3,14 @@
 // tests/system/tests/physics_scenarios.rs
 mod tests {
     use keyforge_adapter::conversion;
+    use keyforge_boundary::SafePath;
     use keyforge_compute::AssetLoader;
     use keyforge_infra::FsProvider;
     use keyforge_model::config::{CorpusSource, ScoringWeights};
     use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
-    use keyforge_model::{CostModel, Keyboard, KeyboardDefinition, KeycodeRegistry};
+    use keyforge_model::{Keyboard, KeyboardDefinition, KeycodeRegistry};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
+    use keyforge_protocol::CostModelDto;
     use std::path::PathBuf;
     use std::sync::Arc;
 
@@ -41,16 +43,17 @@ mod tests {
             hash: None,
         }];
 
-        let provider = FsProvider::new(data_dir.clone());
+        let provider = FsProvider::new(SafePath::from_trusted_root_path(data_dir.clone()));
 
         let corpus = provider
             .load_corpus(&sources)
             .await
             .expect("Failed to load corpus");
-        let cost_data: Arc<CostModel> = provider
+        let cost_data_dto: Arc<CostModelDto> = provider
             .load(ASSET_COST_MATRIX)
             .await
             .expect("Failed to load cost matrix");
+        let cost_data = Arc::new((*cost_data_dto).clone().into());
         let def: Arc<KeyboardDefinition> = provider
             .load("corne")
             .await
@@ -59,7 +62,7 @@ mod tests {
         let weights = ScoringWeights::default();
         let keyboard = Arc::new(
             Keyboard::new(
-                def.geometry.keys().clone(),
+                def.geometry.keys().to_vec(),
                 def.geometry.home_row(),
                 def.meta.kb_type.clone(),
             )
@@ -90,7 +93,7 @@ mod tests {
         let score2 = engine.score(&layout).unwrap();
 
         assert!(
-            (report1.score - report2.score).abs() < 0.001,
+            (report1.score.raw() - report2.score.raw()).abs() < 1000,
             "Report scores diverged!"
         );
         assert_eq!(score1, score2, "Engine scores diverged!");

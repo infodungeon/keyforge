@@ -2,7 +2,7 @@
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// You    may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/
 //
@@ -47,13 +47,15 @@ impl SearchState {
 
         // Optimize pos_map size to actual key range
         let max_code = layout.keys().iter().map(|k| k.raw()).max().unwrap_or(0);
-        let map_size = (max_code as usize) + 1;
+        let map_size = usize::from(max_code) + 1;
 
         // Initialize for required range
         let mut pos_map = vec![keyforge_model::types::KeyIndex::SENTINEL; map_size];
         for (i, &code) in layout.keys().iter().enumerate() {
-            if (code.raw() as usize) < map_size {
-                pos_map[code.raw() as usize] = keyforge_model::types::KeyIndex::new(i as u16);
+            let code_usize = usize::from(code.raw());
+            if code_usize < map_size {
+                pos_map[code_usize] =
+                    keyforge_model::types::KeyIndex::new(u16::try_from(i).unwrap_or(0));
             }
         }
 
@@ -75,7 +77,7 @@ impl SearchState {
 
     /// Returns the current position map.
     #[must_use]
-    pub fn pos_map(&self) -> &[keyforge_model::types::KeyIndex] {
+    pub fn pos_map(&self) -> &[keyforge_model::KeyIndex] {
         &self.pos_map
     }
 
@@ -110,8 +112,8 @@ impl SearchState {
                 })?;
 
                 // Safety: Update pos_map only if within tracked range
-                let idx_ca = code_a.raw() as usize;
-                let idx_cb = code_b.raw() as usize;
+                let idx_ca = usize::from(code_a.raw());
+                let idx_cb = usize::from(code_b.raw());
                 if idx_ca < self.pos_map.len() {
                     self.pos_map[idx_ca] = a;
                 }
@@ -141,9 +143,9 @@ impl SearchState {
                     EvolutionError::Internal(format!("Set A failed in group swap: {e}"))
                 })?;
 
-                let idx_ca = code_a.raw() as usize;
-                let idx_cb = code_b.raw() as usize;
-                let idx_cc = code_c.raw() as usize;
+                let idx_ca = usize::from(code_a.raw());
+                let idx_cb = usize::from(code_b.raw());
+                let idx_cc = usize::from(code_c.raw());
 
                 if idx_ca < self.pos_map.len() {
                     self.pos_map[idx_ca] = b;
@@ -160,8 +162,10 @@ impl SearchState {
     }
 
     pub fn reheat_from_best(&mut self, start_temp: Temperature, reheat_factor: ScalingFactor) {
-        self.temperature = Temperature::new(start_temp.raw() * reheat_factor.raw());
+        self.temperature = start_temp * reheat_factor;
+
         self.current_layout = self.best_layout.clone();
+
         self.current_score = self.best_score;
     }
 }
@@ -172,37 +176,43 @@ mod tests {
     use keyforge_model::types::{KeyCode, KeyIndex};
 
     #[test]
-    fn test_search_state_mutation_swap() {
+    fn test_search_state_mutation_swap() -> anyhow::Result<()> {
         let layout = Layout::new_unchecked(vec![KeyCode::new(10), KeyCode::new(20)]);
-        let mut state = SearchState::new(layout, 100, Temperature::new(1.0)).unwrap();
+        let mut state =
+            SearchState::new(layout, 100, Temperature::new(1.0)).map_err(|e| anyhow::anyhow!(e))?;
 
         state
             .apply_mutation(MutationAction::Swap(KeyIndex::new(0), KeyIndex::new(1)))
-            .unwrap();
+            .map_err(|e| anyhow::anyhow!(e))?;
 
         assert_eq!(state.layout().keys()[0], KeyCode::new(20));
         assert_eq!(state.layout().keys()[1], KeyCode::new(10));
         assert_eq!(state.pos_map()[20], KeyIndex::new(0));
         assert_eq!(state.pos_map()[10], KeyIndex::new(1));
+        Ok(())
     }
 
     #[test]
-    fn test_reheat_logic() {
+    fn test_reheat_logic() -> anyhow::Result<()> {
         let layout = Layout::new_unchecked(vec![KeyCode::new(10)]);
-        let mut state = SearchState::new(layout, 100, Temperature::new(0.1)).unwrap();
+        let mut state =
+            SearchState::new(layout, 100, Temperature::new(0.1)).map_err(|e| anyhow::anyhow!(e))?;
         state.best_score = 50; // Manual override for test
 
-        state.reheat_from_best(Temperature::new(1.0), ScalingFactor::new(0.5));
+        state.reheat_from_best(Temperature::new(1.0), ScalingFactor::new(1));
 
-        assert!((state.temperature.raw() - 0.5).abs() < f32::EPSILON);
+        assert_eq!(state.temperature, Temperature::new(1.0));
         assert_eq!(state.current_score, 50);
+        Ok(())
     }
 
     #[test]
-    fn test_state_reheat_zero_temp() {
+    fn test_state_reheat_zero_temp() -> anyhow::Result<()> {
         let layout = Layout::new_unchecked(vec![KeyCode::new(10)]);
-        let mut state = SearchState::new(layout, 100, Temperature::new(0.1)).unwrap();
-        state.reheat_from_best(Temperature::new(0.0), ScalingFactor::new(0.5));
-        assert!((state.temperature.raw() - 0.0).abs() < f32::EPSILON);
+        let mut state =
+            SearchState::new(layout, 100, Temperature::new(0.1)).map_err(|e| anyhow::anyhow!(e))?;
+        state.reheat_from_best(Temperature::new(0.0), ScalingFactor::new(1));
+        assert_eq!(state.temperature, Temperature::new(0.0));
+        Ok(())
     }
 }

@@ -41,7 +41,9 @@ fn main() {
   }
 }"#;
 
-    let model: CostModel = serde_json::from_str(json_data).expect("Failed to deserialize CostModel");
+    let dto: keyforge_protocol::CostModelDto =
+        serde_json::from_str(json_data).expect("Failed to deserialize CostModel");
+    let model: CostModel = dto.into();
 
     println!("Loaded Model Version: {}", model.meta.version);
     

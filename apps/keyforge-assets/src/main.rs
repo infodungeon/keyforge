@@ -36,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
     // Create app using the generic provider
     let app = keyforge_assets::create_app(provider);
 
+    // SAFETY: CLI entry point
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], args.port));
     info!("🚀 Asset Server listening on http://{}", addr);
 

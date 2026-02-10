@@ -26,6 +26,7 @@ regex.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
 keyforge-testing-macros.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
 keyforge-testing = { path = "../../libs/keyforge-testing" }

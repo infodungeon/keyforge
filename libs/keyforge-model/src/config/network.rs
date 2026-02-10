@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use crate::validator::Validator;
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use zeroize::Zeroize;
 
 /// Configuration for Cross-Origin Resource Sharing (CORS).
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default, Zeroize)]
+#[derive(Debug, Clone, Default, Zeroize)]
 pub struct CorsConfig {
     /// Allowed origins. Can be a comma-separated list of URLs or "*" for permissive access.
     /// If empty, defaults to restricted mode (e.g. localhost only).

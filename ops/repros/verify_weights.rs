@@ -25,13 +25,14 @@ fn mock_cost_model() -> CostModel {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-    serde_json::from_str(json).unwrap()
+    let dto: keyforge_protocol::CostModelDto = serde_json::from_str(json).unwrap();
+    dto.into()
 }
 
 fn main() {
-    let keys: Vec<KeyNode> = (0..2)
+    let keys: Vec<KeyNode> = (0u16..2)
         .map(|i| KeyNode {
-            index: i,
+            index: i.into(),
             hand: HandIndex::new(0),
             finger: FingerIndex::new_unchecked(1), // All index
             x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
@@ -66,7 +67,7 @@ fn main() {
     let score_def = engine_def.score(&layout).unwrap();
 
     // 2. Custom Rubric (High SFB Base)
-    let rubric_custom = Arc::new(Rubric::builder().sfb_base(5000.0).build());
+    let rubric_custom = Arc::new(Rubric::builder().sfb_base(5_000_000_000).build());
     let engine_custom = EngineFactory::new_generic(&EngineCompilationContext {
         keyboard,
         corpus,

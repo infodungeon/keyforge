@@ -1,4 +1,6 @@
 --- 100x BOUNCER AUDIT FAILED---
 libs/keyforge-evolution/src/ghost.rs:22: Potential primitive obsession in parameter 'steps'. Use Newtypes.
+libs/keyforge-physics/src/kernel/compute/analysis.rs:40: Potential primitive obsession in parameter 'scale'. Use Newtypes.
+libs/keyforge-physics/src/kernel/compute/analysis.rs:40: Potential primitive obsession in parameter 'total_freq'. Use Newtypes.
 libs/keyforge-physics/src/kernel/compute/delta/trigram.rs:9: Potential primitive obsession in parameter 'idx_a'. Use Newtypes.
 libs/keyforge-physics/src/kernel/compute/delta/trigram.rs:9: Potential primitive obsession in parameter 'idx_b'. Use Newtypes.

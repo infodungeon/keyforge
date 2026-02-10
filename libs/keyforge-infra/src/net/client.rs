@@ -199,6 +199,7 @@ impl HiveClient {
 }
 
 fn normalize_url(url: &str) -> String {
+    // SAFETY: strip_suffix returns None if suffix not found, which is handled by unwrap_or
     url.strip_suffix('/').unwrap_or(url).to_string()
 }
 
@@ -215,13 +216,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hive_client_config() {
+    fn test_hive_client_config() -> anyhow::Result<()> {
         let mut config = ClientConfig::default();
         config.secret = Some("secret123".into());
 
-        let client = HiveClient::new(config).unwrap();
+        let client = HiveClient::new(config)?;
         assert!(client.url("test").contains(DEFAULT_HIVE_URL));
         assert!(client.asset_url("test").contains("3001"));
+        Ok(())
     }
 
     #[test]
@@ -234,11 +236,12 @@ mod tests {
     }
 
     #[test]
-    fn test_hive_client_builders() {
-        let client = HiveClient::new(ClientConfig::default()).unwrap();
+    fn test_hive_client_builders() -> anyhow::Result<()> {
+        let client = HiveClient::new(ClientConfig::default())?;
         let _ = client.get("jobs");
         let _ = client.post("jobs");
         let _ = client.inner();
+        Ok(())
     }
 
     #[test]

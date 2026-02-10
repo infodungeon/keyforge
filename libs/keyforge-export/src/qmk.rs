@@ -128,19 +128,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_qmk_generate_multi_layer() {
+    fn test_qmk_generate_multi_layer() -> anyhow::Result<()> {
         let exporter = QmkExporter;
         let layers = vec![
             vec!["A".to_string(), "B".to_string()],
             vec!["TRNS".to_string(), "NO".to_string()],
         ];
-        let result = exporter.generate("Test Layout", &layers, None).unwrap();
+        let result = exporter.generate("Test Layout", &layers, None)?;
 
         assert!(result.contains("keymaps[][MATRIX_ROWS][MATRIX_COLS]"));
         assert!(result.contains("[0] = LAYOUT("));
         assert!(result.contains("[1] = LAYOUT("));
         assert!(result.contains("_______"));
         assert!(result.contains("XXXXXXX"));
+        Ok(())
     }
 
     #[test]
@@ -167,15 +168,16 @@ mod tests {
     }
 
     #[test]
-    fn test_qmk_generate_long_lines() {
+    fn test_qmk_generate_long_lines() -> anyhow::Result<()> {
         let exporter = QmkExporter;
         let layers = vec![vec!["A".to_string(); 20]];
-        let result = exporter.generate("Long", &layers, None).unwrap();
+        let result = exporter.generate("Long", &layers, None)?;
         assert!(result.contains("\n    ")); // Newline inserted after 12 keys
+        Ok(())
     }
 
     #[test]
-    fn test_qmk_generate_errors() {
+    fn test_qmk_generate_errors() -> anyhow::Result<()> {
         let exporter = QmkExporter;
 
         // 1. Too many keys
@@ -187,9 +189,8 @@ mod tests {
         let layers = vec![vec!["A".repeat(300); MAX_KEYS]];
         let res = exporter.generate("big", &layers, None);
         assert!(res.is_err());
-        assert!(res
-            .unwrap_err()
-            .to_string()
-            .contains("Output size limit exceeded"));
+        let err_msg = res.map_err(|e| e.to_string()).unwrap_err();
+        assert!(err_msg.contains("Output size limit exceeded"));
+        Ok(())
     }
 }

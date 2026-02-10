@@ -12,8 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::path::{Path, PathBuf};
+
+mod safe_path_serde {
+    use super::{Deserialize, Deserializer};
+    use keyforge_boundary::SafePath;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SafePath, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        SafePath::try_from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
 
 /// Minimal bootstrap config that tells Hive where its canonical `data/` root lives.
 ///
@@ -26,7 +39,8 @@ pub struct HiveBootstrapConfig {
     /// Expected layout:
     /// - `${data_root}/system/...` (read-only system assets)
     /// - `${data_root}/user/...`   (server-side writable workspace, if applicable)
-    pub data_root: PathBuf,
+    #[serde(with = "safe_path_serde")]
+    pub data_root: keyforge_boundary::SafePath,
 }
 
 impl HiveBootstrapConfig {
@@ -55,7 +69,8 @@ impl HiveBootstrapConfig {
 
     /// Loads the bootstrap configuration from the specified TOML file.
     pub fn load(path: &Path) -> Result<Self, String> {
-        let raw = std::fs::read_to_string(path)
+        let safe_path = keyforge_boundary::SafePath::from_trusted_root_path(path.to_path_buf());
+        let raw = keyforge_infra::fs::io::read_to_string_limited(&safe_path, 1024 * 1024)
             .map_err(|e| format!("Failed to read bootstrap config {}: {e}", path.display()))?;
         toml::from_str(&raw)
             .map_err(|e| format!("Failed to parse bootstrap config {}: {e}", path.display()))

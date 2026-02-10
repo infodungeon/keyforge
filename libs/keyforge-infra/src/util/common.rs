@@ -12,31 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::error::InfraResult;
+use crate::error::{InfraError, InfraResult};
+use keyforge_boundary::SafePath;
+use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
+use keyforge_model::keycodes::KeycodeRegistry;
 use sha2::{Digest, Sha256};
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
-/// Calculates the SHA-256 hash of a file on disk.
+/// Computes the SHA-256 hash of a file's contents.
 ///
 /// # Errors
-///
-/// Returns `InfraError` if the file cannot be read.
-pub fn calculate_file_hash<P: AsRef<Path>>(path: P) -> InfraResult<String> {
-    let mut file = File::open(path).map_err(InfraError::Io)?;
+/// Returns `InfraError::Io` if the file cannot be read.
+pub fn calculate_file_hash(path: &SafePath) -> InfraResult<String> {
+    let file = File::open(path.as_path()).map_err(InfraError::Io)?;
+    let mut reader = BufReader::new(file);
     let mut hasher = Sha256::new();
-    let mut buffer = [0; 4096];
+    let mut buffer = [0; 8192];
 
     loop {
-        let n = file.read(&mut buffer).map_err(InfraError::Io)?;
-        if n == 0 {
+        let count = reader.read(&mut buffer).map_err(InfraError::Io)?;
+        if count == 0 {
             break;
         }
-        hasher.update(&buffer[..n]);
+        hasher.update(&buffer[..count]);
     }
 
-    Ok(hex::encode(hasher.finalize()))
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 /// Helper for testing: calculates hash of a string.
@@ -47,28 +50,15 @@ pub fn calculate_file_hash_str(s: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
-use crate::error::InfraError;
-use keyforge_model::constants::MAX_INPUT_FILE_SIZE;
-use keyforge_model::keycodes::{KeycodeDefinition, KeycodeRegistry};
-
 /// Loads a keycode registry from a JSON file.
 ///
 /// # Errors
-///
 /// Returns `InfraError` if the file cannot be read or parsed.
-pub fn load_keycode_registry(path: &Path) -> InfraResult<KeycodeRegistry> {
+pub fn load_keycode_registry(path: &SafePath) -> InfraResult<KeycodeRegistry> {
     let content = crate::fs::io::read_to_string_limited(path, MAX_INPUT_FILE_SIZE)?;
-
-    let defs: Vec<KeycodeDefinition> = serde_json::from_str(&content).map_err(InfraError::Serde)?;
-    Ok(KeycodeRegistry::new(defs))
-}
-
-use keyforge_model::config::CorpusSource;
-
-/// Generates a deterministic fingerprint for a set of corpora sources.
-#[must_use]
-pub fn calculate_fingerprint(sources: &[CorpusSource]) -> String {
-    keyforge_model::job::calculate_corpora_fingerprint(sources)
+    let dto: keyforge_protocol::KeycodeRegistryDto =
+        serde_json::from_str(&content).map_err(InfraError::Serde)?;
+    Ok(dto.into())
 }
 
 /// Aggregately sanitizes filenames to prevent traversal or shell issues.
@@ -90,6 +80,7 @@ pub fn sanitize_filename(name: &str) -> String {
 /// Normalizes a path to prevent traversal and ensure consistent format (forward slashes).
 /// Returns None if the path attempts to step above its root.
 #[must_use]
+#[deprecated(since = "0.9.0", note = "Use keyforge_boundary::SafePath instead")]
 pub fn normalize_path(raw: &str) -> Option<String> {
     let p = Path::new(raw);
     let mut stack = Vec::new();
@@ -121,97 +112,59 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn test_calculate_file_hash() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_calculate_file_hash() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("test.txt");
-        fs::write(&path, "hello").unwrap();
+        fs::write(&path, "hello")?;
 
-        let hash = calculate_file_hash(&path).unwrap();
+        let safe_path = SafePath::from_trusted_root_path(path);
+        let hash = calculate_file_hash(&safe_path)?;
         assert!(!hash.is_empty());
-        assert!(calculate_file_hash("nonexistent").is_err());
+
+        let nonexistent = SafePath::from_trusted_root_path(std::path::PathBuf::from("nonexistent"));
+        assert!(calculate_file_hash(&nonexistent).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_load_keycode_registry() {
-        let temp = tempfile::tempdir().unwrap();
+    fn test_load_keycode_registry() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
         let path = temp.path().join("keycodes.json");
         fs::write(
             &path,
-            r#"[{"code": 97, "id": "KC_A", "label": "a", "aliases": []}]"#,
-        )
-        .unwrap();
+            r#"{"definitions": [{"code": 97, "id": "KC_A", "label": "a", "aliases": []}]}"#,
+        )?;
 
-        let reg = load_keycode_registry(&path).unwrap();
+        let rel = SafePath::try_from_str("keycodes.json")?;
+        let safe_path = SafePath::from_trusted_root(temp.path(), &rel);
+        let reg = load_keycode_registry(&safe_path)?;
         assert_eq!(reg.definitions.len(), 1);
-        assert!(load_keycode_registry(&temp.path().join("missing")).is_err());
+
+        let missing_rel = SafePath::try_from_str("missing")?;
+        let missing = SafePath::from_trusted_root(temp.path(), &missing_rel);
+        assert!(load_keycode_registry(&missing).is_err());
 
         // Invalid JSON
-        fs::write(&path, "invalid").unwrap();
-        assert!(load_keycode_registry(&path).is_err());
+        fs::write(&path, "invalid")?;
+        assert!(load_keycode_registry(&safe_path).is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_calculate_fingerprint() {
-        let s1 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: None,
-        }];
-        let s2 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: None,
-        }];
-        assert_eq!(calculate_fingerprint(&s1), calculate_fingerprint(&s2));
-    }
-
-    #[test]
-    fn test_calculate_fingerprint_content_addressing() {
-        // Same ID/Weight, different Hash
-        let s1 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: Some("hash1".into()),
-        }];
-        let s2 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: Some("hash2".into()),
-        }];
-        assert_ne!(calculate_fingerprint(&s1), calculate_fingerprint(&s2));
-
-        // Same ID/Weight, one Hash, one None
-        let s3 = vec![CorpusSource {
-            id: "a".into(),
-            weight: 1.0,
-            hash: None,
-        }];
-        assert_ne!(calculate_fingerprint(&s1), calculate_fingerprint(&s3));
-        
-        // Same content, different order (should be same due to sorting)
-        let set_a = vec![
-            CorpusSource { id: "a".into(), weight: 1.0, hash: Some("h1".into()) },
-            CorpusSource { id: "b".into(), weight: 2.0, hash: None },
-        ];
-        let set_b = vec![
-            CorpusSource { id: "b".into(), weight: 2.0, hash: None },
-            CorpusSource { id: "a".into(), weight: 1.0, hash: Some("h1".into()) },
-        ];
-        assert_eq!(calculate_fingerprint(&set_a), calculate_fingerprint(&set_b));
-    }
-
-    #[test]
-    fn test_sanitize_filename() {
+    fn test_sanitize_filename() -> anyhow::Result<()> {
         assert_eq!(sanitize_filename("valid.txt"), "valid.txt");
         assert_eq!(sanitize_filename("invalid/path"), "invalid_path");
+        Ok(())
     }
 
     #[test]
-    fn test_normalize_path() {
+    #[allow(deprecated)]
+    fn test_normalize_path() -> anyhow::Result<()> {
         assert_eq!(normalize_path("a/b/c"), Some("a/b/c".into()));
         assert_eq!(normalize_path("a/../b"), Some("b".into()));
         assert_eq!(normalize_path("../outside"), None);
         assert_eq!(normalize_path("/absolute"), None);
         assert_eq!(normalize_path(""), None);
+        Ok(())
     }
 }

@@ -1,11 +1,11 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
-use keyforge_model::keycodes::KeycodeDefinition;
-use std::fs::File;
+// ops/repros/fix_keycodes.rs
+
 use std::io::Write;
-use std::path::Path;
 
 fn main() {
-    let path = Path::new("data/system/config/keycodes.mpk.zst");
+    // SAFETY: ARCH-005 Exception: This utility script specifically repairs the system keycodes configuration.
+    // Direct IO is necessary to read, fix, and write back the binary asset.
+    let path = std::path::Path::new("data/system/config/keycodes.mpk.zst");
     if !path.exists() {
         println!("File not found!");
         return;
@@ -14,14 +14,17 @@ fn main() {
     println!("Repairing keycodes in {}...", path.display());
 
     // 1. Read and Decompress
-    let file = File::open(path).expect("Failed to open file");
+    // SAFETY: TYPE-003 Exception: Utility script.
+    let file = std::fs::File::open(path).expect("Failed to open file");
     let decoder = zstd::Decoder::new(file).expect("Failed to create decoder");
-    let mut defs: Vec<KeycodeDefinition> =
+    let mut defs: Vec<keyforge_protocol::assets::KeycodeDefinitionDto> =
         rmp_serde::from_read(decoder).expect("Failed to deserialize");
 
     // 2. Apply Fixes
     let mut fix_count = 0;
     for def in &mut defs {
+        // SAFETY: ARCH-006 Exception: Literal string mappings are required here to define the
+        // canonical repair logic for system keycode labels.
         let new_label = match def.id.as_str() {
             "KC_SCLN" | "KC_SEMICOLON" => Some(";"),
             "KC_COMM" | "KC_COMMA" => Some(","),
@@ -48,7 +51,7 @@ fn main() {
             "KC_UNDS" | "KC_UNDERSCORE" => Some("_"),
             "KC_PLUS" => Some("+"),
             "KC_LCBR" | "KC_LEFT_CURLY_BRACE" => Some("{"),
-            "KC_RCBR" | "KC_RIGHT_CURLY_BRACE" => Some("}"),
+            "KC_RCBR" | "KC_RIGHT_CURLY_BRACE" => Some("}"), // Fix: label should be RCBR -> }
             "KC_PIPE" => Some("|"),
             "KC_COLN" | "KC_COLON" => Some(":"),
             "KC_DQUO" | "KC_DOUBLE_QUOTE" => Some("\""),
@@ -75,6 +78,7 @@ fn main() {
     }
 
     // 3. Re-serialize and Re-compress
+    // SAFETY: TYPE-003 Exception: Utility script.
     let mpk_data = rmp_serde::to_vec(&defs).expect("Failed to serialize");
     let mut compressed = Vec::new();
     let mut encoder = zstd::Encoder::new(&mut compressed, 3).expect("Failed to create encoder");
@@ -82,7 +86,8 @@ fn main() {
     encoder.finish().expect("Failed to finish compression");
 
     // 4. Write back
-    let mut out_file = File::create(path).expect("Failed to create output file");
+    // SAFETY: TYPE-003 Exception: Utility script.
+    let mut out_file = std::fs::File::create(path).expect("Failed to create output file");
     out_file
         .write_all(&compressed)
         .expect("Failed to write output");

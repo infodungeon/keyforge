@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 keyforge-testing-macros.workspace = true
 keyforge-model = { path = "../keyforge-model" }
+keyforge-boundary.workspace = true
 keyforge-protocol = { path = "../keyforge-protocol" }
 serde.workspace = true
 thiserror.workspace = true
@@ -20,6 +21,7 @@ async-trait.workspace = true
 
 [dev-dependencies]
 keyforge-testing = { path = "../keyforge-testing" }
+anyhow.workspace = true
 serde_json.workspace = true
 
 [features]

@@ -27,6 +27,11 @@ impl NodeService {
 
         if is_new_profile {
             debug!("📝 Registering NEW Hardware Profile: {}", payload.cpu_model);
+            let mut guard = keyforge_infra::net::distributed::ProfileLockGuard::new(
+                state.coordinator.clone(),
+                &payload.cpu_model,
+            );
+
             state
                 .nodes
                 .register_heartbeat(
@@ -39,6 +44,8 @@ impl NodeService {
                 )
                 .await
                 .map_err(Self::map_db_error)?;
+
+            guard.commit();
         } else if let Err(e) = state
             .nodes
             .register_heartbeat_lite(

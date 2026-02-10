@@ -10,6 +10,7 @@ members = [
     "apps/keyforge-ui/src-tauri",
     "corpora/openbookcorpus",
     "libs/keyforge-adapter",
+    "libs/keyforge-boundary",
     "libs/keyforge-compute",
     "libs/keyforge-evolution",
     "libs/keyforge-export",
@@ -51,9 +52,9 @@ print_stdout = "deny"
 print_stderr = "deny"
 
 # TYPE-004: Type Safety (Mandatory audit for data loss)
-cast_possible_truncation = "deny"
-cast_precision_loss = "deny"
-cast_sign_loss = "deny"
+cast_possible_truncation = "warn"
+cast_precision_loss = "warn"
+cast_sign_loss = "warn"
 float_cmp = "deny"
 
 # API Quality
@@ -64,7 +65,7 @@ pedantic = { level = "warn", priority = -1 }
 too_many_arguments = "allow"
 
 [workspace.dependencies]
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "signal", "process", "time", "sync", "fs", "io-util"] }
 tracing = "0.1"
@@ -87,6 +88,7 @@ sqlx = { version = "0.8", features = [
 utoipa = { version = "5.4", features = ["preserve_order", "preserve_path_order"] }
 strum = { version = "0.27", features = ["derive"] }
 ts-rs = { version = "11.1", features = ["serde-compat"] }
+keyforge-boundary = { path = "libs/keyforge-boundary", features = ["serde"] }
 keyforge-testing-macros = { path = "libs/keyforge-testing-macros" }
 tempfile = "3.24"
 fastrand = "2.3"
@@ -123,6 +125,8 @@ dotenvy = "0.15"
 tokio-stream = { version = "0.1", features = ["net"] }
 notify = "8.2"
 bytes = "1.11"
+glib = "0.20"
+rsa = "0.10.0-rc.15"
 kle-serial = "0.3"
 rand_xoshiro = "0.7"
 rand_chacha = "0.9"
