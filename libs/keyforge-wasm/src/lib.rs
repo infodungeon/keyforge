@@ -144,8 +144,9 @@ impl KeyforgeEngine {
     /// Returns an error if the JSON value cannot be deserialized into a `CostModel`.
     #[wasm_bindgen(js_name = injectCostModel)]
     pub fn inject_cost_model(&self, name: &str, json_val: JsValue) -> Result<(), JsValue> {
-        let model: CostModel = from_value(json_val).map_err(|e| map_serde_error(&e))?;
-        self.loader.inject(name, model);
+        let model_dto: keyforge_protocol::CostModelDto =
+            from_value(json_val).map_err(|e| map_serde_error(&e))?;
+        self.loader.inject(name, model_dto);
         Ok(())
     }
 
@@ -202,11 +203,12 @@ impl KeyforgeEngine {
             .await
             .map_err(to_js_error)?;
 
-        let cost_model = self
+        let cost_model_dto = self
             .loader
-            .load::<CostModel>(&cost_model_name)
+            .load::<keyforge_protocol::CostModelDto>(&cost_model_name)
             .await
             .map_err(to_js_error)?;
+        let cost_model: Arc<CostModel> = Arc::new((*cost_model_dto).clone().into());
 
         let keyboard = Arc::new(
             keyforge_model::Keyboard::new(
@@ -248,7 +250,7 @@ mod tests {
             "layouts": {}
         }"#;
         let val: serde_json::Value = serde_json::from_str(kb_json)?;
-        let js_val = to_value(&val).map_err(|e| anyhow::anyhow!(e))?;
+        let js_val = to_value(&val).map_err(|e| anyhow::anyhow!("{}", e))?;
 
         assert!(engine.inject_keyboard("test", js_val).is_err());
         Ok(())

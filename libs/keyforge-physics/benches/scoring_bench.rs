@@ -8,8 +8,9 @@ use std::sync::Arc;
 
 fn bench_scoring(c: &mut Criterion) {
     let keys = vec![KeyNode::default()];
-    let kb =
-        Arc::new(Keyboard::new(keys, keyforge_model::types::RowIndex(0), "test".into()).unwrap());
+    let kb = Arc::new(
+        Keyboard::new(keys, keyforge_model::types::RowIndex::new(0), "test".into()).unwrap(),
+    );
     let cp = Arc::new(Corpus::default());
     let rubric = Arc::new(Rubric::default());
     let cm = Arc::new(CostModel::default());

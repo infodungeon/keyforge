@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_to_domain_keynode_conversion() -> anyhow::Result<()> {
         let proto_key = KeyNode {
-            index: 0,
+            index: KeyIndex(0),
             label: "A".to_string(),
             x: keyforge_model::types::SpatialUnit::from_f32(10.0),
             y: keyforge_model::types::SpatialUnit::from_f32(20.0),
@@ -140,7 +140,7 @@ mod tests {
         let proto_geo = KeyboardGeometry::new(
             vec![
                 KeyNode {
-                    index: 0,
+                    index: KeyIndex(0),
                     label: "A".to_string(),
                     hand: HandIndex::new(0),
                     finger: FingerIndex::new(1),
@@ -150,7 +150,7 @@ mod tests {
                     ..Default::default()
                 },
                 KeyNode {
-                    index: 1,
+                    index: KeyIndex(1),
                     label: "B".to_string(),
                     hand: HandIndex::new(1),
                     finger: FingerIndex::new(2),

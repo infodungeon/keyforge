@@ -207,7 +207,8 @@ impl HermeticWorkspace {
             models,
             dynamic_rules: keyforge_model::cost_model::DynamicRules::default(),
         };
-        let cost_json = serde_json::to_string_pretty(&cost_model)?;
+        let cost_model_dto = keyforge_protocol::CostModelDto::from(cost_model);
+        let cost_json = serde_json::to_string_pretty(&cost_model_dto)?;
         self.write_file("user/weights/cost.json", &cost_json)
             .await?;
         self.write_file("user/weights/default.json", &cost_json)

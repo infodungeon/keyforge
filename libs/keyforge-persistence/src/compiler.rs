@@ -5,6 +5,7 @@ use keyforge_model::constants::paths::ASSET_KEYCODES;
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::EngineRequest;
+use keyforge_protocol::CostModelDto;
 use std::sync::Arc;
 
 /// Compiles a high-level `JobRequest` into a high-performance `EngineRequest`.
@@ -35,10 +36,13 @@ pub async fn compile_request<L: AssetLoader>(
 
     // 4. Load Cost Model
     let cost_model = match &config.cost_matrix {
-        keyforge_model::CostMatrixSource::Predefined(name) => loader
-            .load::<keyforge_model::cost_model::CostModel>(name)
-            .await
-            .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model {name}: {e}")))?,
+        keyforge_model::CostMatrixSource::Predefined(name) => {
+            let dto = loader
+                .load::<CostModelDto>(name)
+                .await
+                .map_err(|e| PersistenceError::AssetLoad(format!("Cost Model {name}: {e}")))?;
+            Arc::new((*dto).clone().into())
+        }
     };
 
     // 5. Translate to Physics entities using Adapter

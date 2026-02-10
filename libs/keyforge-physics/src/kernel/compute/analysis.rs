@@ -463,7 +463,7 @@ fn finalize_report(ctx: &EngineContext, mut acc: MetricsAccumulator, report: &mu
 mod tests {
     use super::*;
     use crate::kernel::compiler::Compiler;
-    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, RowIndex};
+    use keyforge_model::types::{ColIndex, FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -484,7 +484,7 @@ mod tests {
     fn test_analyze_layout_branches() -> anyhow::Result<()> {
         let mut keys = vec![
             KeyNode {
-                index: KeyIndex::new(0),
+                index: KeyIndex(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0),
@@ -493,7 +493,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: KeyIndex::new(1),
+                index: KeyIndex(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 row: RowIndex::new(0),
@@ -502,7 +502,7 @@ mod tests {
                 ..Default::default()
             },
             KeyNode {
-                index: KeyIndex::new(2),
+                index: KeyIndex(2),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::RING,
                 row: RowIndex::new(0),
@@ -513,7 +513,7 @@ mod tests {
         ];
         // Add a duplicate key for space load sharing
         keys.push(KeyNode {
-            index: KeyIndex::new(3),
+            index: KeyIndex(3),
             hand: HandIndex::LEFT,
             finger: FingerIndex::INDEX,
             row: RowIndex::new(1),

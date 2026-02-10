@@ -18,7 +18,8 @@ use crate::builder::SessionBuilder;
 use crate::session::ScoringSession;
 use keyforge_adapter::loader::AssetLoader;
 use keyforge_model::job::JobIdentifier;
-use keyforge_protocol::JobRequest;
+use keyforge_protocol::{CostModelDto, JobRequest};
+use std::sync::Arc;
 
 /// Orchestrates the preparation of an optimization job.
 #[derive(Debug)]
@@ -91,14 +92,15 @@ impl OptimizationUseCase {
         let keyforge_protocol::config::CostMatrixSourceDto::Predefined(cost_model_name) =
             &req.config.cost_matrix;
 
-        let cost_model = loader
-            .load::<keyforge_model::CostModel>(cost_model_name)
+        let cost_model_dto = loader
+            .load::<CostModelDto>(cost_model_name)
             .await
             .map_err(|e| {
                 keyforge_model::error::ForgeError::Io(format!(
                     "Failed to load cost model {cost_model_name}: {e}"
                 ))
             })?;
+        let cost_model = Arc::new((*cost_model_dto).clone().into());
 
         let session = SessionBuilder::new(loader)
             .with_keyboard_def(kb_def)

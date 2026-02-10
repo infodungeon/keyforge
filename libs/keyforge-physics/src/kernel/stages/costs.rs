@@ -79,7 +79,7 @@ fn resolve_key_cost(
         FingerDefinition::Thumb(positions) => {
             positions.values().min().copied().unwrap_or(Score::ZERO)
         }
-        FingerDefinition::Fallback(_) => Score::ZERO,
+        FingerDefinition::Fallback => Score::ZERO,
     };
 
     Ok(val)

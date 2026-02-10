@@ -115,12 +115,12 @@ mod tests {
         let kb_def = keyforge_model::KeyboardDefinition {
             geometry: keyforge_model::KeyboardGeometry::new(
                 vec![KeyNode {
-                    index: 0,
+                    index: KeyIndex(0),
                     x: SpatialUnit::from_f32(0.0),
                     y: SpatialUnit::from_f32(0.0),
                     ..Default::default()
                 }],
-                vec![KeyIndex::new(0)],
+                vec![KeyIndex(0)],
                 vec![],
                 vec![],
                 keyforge_model::types::RowIndex::new(0),
@@ -152,7 +152,8 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {}}
         }"#;
-        let cost_model: Arc<CostModel> = Arc::new(serde_json::from_str(cost_json)?);
+        let cost_model_dto: keyforge_protocol::CostModelDto = serde_json::from_str(cost_json)?;
+        let cost_model: Arc<CostModel> = Arc::new(cost_model_dto.into());
 
         let engine: Arc<dyn keyforge_physics::ScoringEngine> =
             keyforge_physics::EngineFactory::new_generic(

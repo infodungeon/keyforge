@@ -437,7 +437,9 @@ impl From<keyforge_model::cost_model::FingerDefinition> for FingerDefinitionDto 
             keyforge_model::cost_model::FingerDefinition::Thumb(map) => {
                 Self::Thumb(map.into_iter().map(|(k, v)| (k, v.to_f32())).collect())
             }
-            keyforge_model::cost_model::FingerDefinition::Fallback(v) => Self::Fallback(v),
+            keyforge_model::cost_model::FingerDefinition::Fallback => {
+                Self::Fallback(serde_json::Value::Null)
+            }
         }
     }
 }
@@ -450,7 +452,7 @@ impl From<FingerDefinitionDto> for keyforge_model::cost_model::FingerDefinition 
             FingerDefinitionDto::Thumb(map) => {
                 Self::Thumb(map.into_iter().map(|(k, v)| (k, sc(v))).collect())
             }
-            FingerDefinitionDto::Fallback(v) => Self::Fallback(v),
+            FingerDefinitionDto::Fallback(_) => Self::Fallback,
         }
     }
 }
@@ -606,6 +608,20 @@ impl From<CostModelDto> for keyforge_model::cost_model::CostModel {
             models: val.models.into_iter().map(|(k, v)| (k, v.into())).collect(),
             dynamic_rules: val.dynamic_rules.into(),
         }
+    }
+}
+
+impl keyforge_model::Asset for CostModelDto {
+    fn category() -> keyforge_model::AssetCategory {
+        keyforge_model::AssetCategory::CostModel
+    }
+
+    fn post_load(&mut self) -> Result<(), keyforge_model::error::ForgeError> {
+        // We can perform validation on the DTO or convert to domain and validate there
+        let domain: keyforge_model::cost_model::CostModel = self.clone().into();
+        domain
+            .validate()
+            .map_err(keyforge_model::error::ForgeError::InvalidData)
     }
 }
 

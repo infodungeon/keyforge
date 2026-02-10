@@ -55,7 +55,9 @@ async fn test_full_orchestration_flow() {
         .await
         .expect("Failed to load keycodes")
         .with_rubric(keyforge_adapter::conversion::to_domain_rubric(
-            &config_payload.to_domain_weights(),
+            &config_payload
+                .to_domain_weights()
+                .expect("Failed to convert weights"),
         ))
         .build()
         .expect("Failed to prepare session");

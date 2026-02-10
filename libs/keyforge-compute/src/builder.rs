@@ -20,7 +20,7 @@ use keyforge_model::config::{CorpusSource, CostMatrixSource};
 use keyforge_model::geometry::KeyboardDefinition;
 use keyforge_model::keycodes::KeycodeRegistry;
 use keyforge_model::{Corpus, CostModel, Rubric, SearchConfig};
-use keyforge_protocol::BiometricSample;
+use keyforge_protocol::{BiometricSample, CostModelDto};
 use std::fmt;
 use std::sync::Arc;
 
@@ -101,7 +101,8 @@ impl<'a, L: AssetLoader> SessionBuilder<'a, L> {
     pub async fn with_cost_matrix(mut self, source: &CostMatrixSource) -> LoaderResult<Self> {
         match source {
             CostMatrixSource::Predefined(name) => {
-                self.cost_model = Some(self.loader.load::<CostModel>(name).await?);
+                let dto = self.loader.load::<CostModelDto>(name).await?;
+                self.cost_model = Some(Arc::new((*dto).clone().into()));
             }
         }
         Ok(self)

@@ -31,21 +31,21 @@ mod builder_tests {
                 return Ok(any_kc.downcast::<T>().expect("Downcast failed"));
             }
 
-            // Special handling for cost model
-            if tid == std::any::TypeId::of::<CostModel>() {
-                let mut model = keyforge_model::cost_model::CostModel::default();
-                let mut hand_def = keyforge_model::cost_model::HandDefinition::default();
+            // Special handling for cost model (DTO)
+            if tid == std::any::TypeId::of::<keyforge_protocol::CostModelDto>() {
+                let mut model = keyforge_protocol::CostModelDto::default();
+                let mut hand_def = keyforge_protocol::HandDefinitionDto::default();
 
                 for finger in &["thumb", "index", "middle", "ring", "pinky"] {
                     hand_def.fingers.insert(
                         (*finger).to_string(),
-                        keyforge_model::cost_model::FingerDefinition::Standard(
-                            keyforge_model::cost_model::FingerReach::default(),
+                        keyforge_protocol::FingerDefinitionDto::Standard(
+                            keyforge_protocol::FingerReachDto::default(),
                         ),
                     );
                 }
 
-                let mut model_def = keyforge_model::cost_model::ModelDefinition::default();
+                let mut model_def = keyforge_protocol::ModelDefinitionDto::default();
                 model_def
                     .static_costs
                     .insert("universal_hand".to_string(), hand_def);

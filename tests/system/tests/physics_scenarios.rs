@@ -7,8 +7,10 @@ mod tests {
     use keyforge_infra::FsProvider;
     use keyforge_model::config::{CorpusSource, ScoringWeights};
     use keyforge_model::constants::{ASSET_COST_MATRIX, ASSET_KEYCODES};
-    use keyforge_model::{CostModel, Keyboard, KeyboardDefinition, KeycodeRegistry};
+    use keyforge_model::types::path::SafePath;
+    use keyforge_model::{Keyboard, KeyboardDefinition, KeycodeRegistry};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
+    use keyforge_protocol::CostModelDto;
     use std::path::PathBuf;
     use std::sync::Arc;
 
@@ -41,16 +43,17 @@ mod tests {
             hash: None,
         }];
 
-        let provider = FsProvider::new(data_dir.clone());
+        let provider = FsProvider::new(SafePath::from_trusted_root_path(data_dir.clone()));
 
         let corpus = provider
             .load_corpus(&sources)
             .await
             .expect("Failed to load corpus");
-        let cost_data: Arc<CostModel> = provider
+        let cost_data_dto: Arc<CostModelDto> = provider
             .load(ASSET_COST_MATRIX)
             .await
             .expect("Failed to load cost matrix");
+        let cost_data = Arc::new((*cost_data_dto).clone().into());
         let def: Arc<KeyboardDefinition> = provider
             .load("corne")
             .await

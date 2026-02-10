@@ -270,7 +270,7 @@ impl GhostScorer {
                 keyforge_model::cost_model::FingerDefinition::Thumb(pos) => {
                     pos.values().min().copied().unwrap_or(Score::ZERO)
                 }
-                keyforge_model::cost_model::FingerDefinition::Fallback(_) => Score::ZERO,
+                keyforge_model::cost_model::FingerDefinition::Fallback => Score::ZERO,
             })
             .ok_or_else(|| {
                 PhysicsError::Config(format!(

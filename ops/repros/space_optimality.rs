@@ -25,7 +25,8 @@ fn mock_cost_model() -> CostModel {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {}}
     }"#;
-    serde_json::from_str(json).unwrap()
+    let dto: keyforge_protocol::CostModelDto = serde_json::from_str(json).unwrap();
+    dto.into()
 }
 
 fn main() {

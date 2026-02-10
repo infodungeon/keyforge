@@ -337,6 +337,7 @@ mod tests {
     };
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory, ScoringEngine};
+    use keyforge_protocol::CostModelDto;
     use rand::Rng;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -461,8 +462,9 @@ mod tests {
         corpus_val.bigrams = Arc::from(bigrams);
         let corpus = Arc::new(corpus_val);
         let cost_json = r#"{"meta": {"version": "2.0", "description": "Test", "unit": "pts"}, "models": {"model_a_row_staggered": {"description": "Test", "static_costs": {"universal_hand": {"thumb": {"pos_1": 1.0}, "index": {"base": {"0": 1.0}}, "middle": {"base": {"0": 1.0}}, "ring": {"base": {"0": 1.0}}, "pinky": {"base": {"0": 1.0}}}}}}, "dynamic_rules": {"sequence_modifiers": {}, "penalties": {}, "constraints": {}}}"#;
-        let cost_model: Arc<CostModel> =
-            Arc::new(serde_json::from_str(cost_json).expect("Failed to parse cost model"));
+        let dto: CostModelDto =
+            serde_json::from_str(cost_json).expect("Failed to parse cost model");
+        let cost_model: Arc<CostModel> = Arc::new(dto.into());
         let rubric = Arc::new(Rubric::default());
 
         EngineFactory::new_generic(&EngineCompilationContext {

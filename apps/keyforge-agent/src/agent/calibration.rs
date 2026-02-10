@@ -50,8 +50,9 @@ fn default_cost_model() -> Result<CostModel, AgentError> {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-    serde_json::from_str(json)
-        .map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))
+    let dto: keyforge_protocol::CostModelDto = serde_json::from_str(json)
+        .map_err(|e| AgentError::Calibration(format!("Corrupt default cost model: {e}")))?;
+    Ok(dto.into())
 }
 
 pub async fn calibrate(

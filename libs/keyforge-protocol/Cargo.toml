@@ -27,6 +27,7 @@ tracing.workspace = true
 keyforge-testing = { path = "../keyforge-testing" }
 serde_json.workspace = true
 proptest.workspace = true
+anyhow.workspace = true
 
 [features]
 default = []

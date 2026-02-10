@@ -32,7 +32,8 @@ fn mock_cost_model() -> anyhow::Result<CostModel> {
 }}"#
     );
     // Note: The JSON still uses floats, which is fine because FixedWeight implements Deserialize from float.
-    Ok(serde_json::from_str(&json)?)
+    let dto: keyforge_protocol::CostModelDto = serde_json::from_str(&json)?;
+    Ok(dto.into())
 }
 
 fn setup_env() -> anyhow::Result<(Arc<Keyboard>, Arc<Corpus>, Arc<Rubric>, Arc<CostModel>)> {

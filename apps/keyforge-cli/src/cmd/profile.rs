@@ -87,7 +87,8 @@ pub fn run(args: &ProfileArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     let base_model = CostModel::default();
     let profile = BiometricProfiler::profile(&samples, &base_model);
-    let json = serde_json::to_string_pretty(&profile)?;
+    let dto = keyforge_protocol::CostModelDto::from(profile);
+    let json = serde_json::to_string_pretty(&dto)?;
 
     atomic_write(&args.output, json).map_err(|e| format!("Failed to write output file: {e}"))?;
 

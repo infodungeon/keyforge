@@ -31,7 +31,8 @@ mod integration_tests {
         },
         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
     }"#;
-        serde_json::from_str(json).unwrap()
+        let dto: keyforge_protocol::CostModelDto = serde_json::from_str(json).unwrap();
+        dto.into()
     }
 
     fn setup_env() -> (Arc<dyn ScoringEngine>, SearchConfig, Layout) {

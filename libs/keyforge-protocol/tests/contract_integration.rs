@@ -1,6 +1,9 @@
 #[keyforge_testing_macros::kf_test]
 // libs/keyforge-protocol/tests/contract_integration.rs
-use keyforge_model::{types::HandIndex, KeyNode};
+use keyforge_model::{
+    types::{HandIndex, KeyIndex},
+    KeyNode,
+};
 use keyforge_protocol::JobRequest;
 
 #[test]
@@ -10,7 +13,7 @@ fn test_contract_compatibility() {
 
     // Test conversion from domain model to DTO
     let node = KeyNode {
-        index: 0,
+        index: KeyIndex(0),
         label: "A".to_string(),
         x: keyforge_model::types::SpatialUnit::from_f32(0.0),
         y: keyforge_model::types::SpatialUnit::from_f32(0.0),
@@ -26,7 +29,7 @@ fn test_contract_compatibility() {
         .definition
         .geometry
         .prime_slots
-        .push(keyforge_model::types::KeyIndex::new(0).into());
+        .push(KeyIndex(0).into());
 
     let json = serde_json::to_string(&req).unwrap();
     let deserialized: JobRequest = serde_json::from_str(&json).unwrap();

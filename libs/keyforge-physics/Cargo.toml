@@ -34,5 +34,6 @@ keyforge-infra = { path = "../keyforge-infra" }
 keyforge-compute = { path = "../keyforge-compute" }
 keyforge-adapter = { path = "../keyforge-adapter" }
 keyforge-model = { path = "../keyforge-model", features = ["testing"] }
+keyforge-protocol = { path = "../keyforge-protocol" }
 keyforge-testing = { path = "../keyforge-testing" }
 serde_json.workspace = true

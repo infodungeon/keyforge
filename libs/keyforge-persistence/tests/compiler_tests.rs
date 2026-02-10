@@ -11,6 +11,7 @@ mod integration_tests {
     use keyforge_model::types::{KeyCode, KeyIndex};
     use keyforge_model::{config::Config, config::CorpusSource, Asset, Corpus};
     use keyforge_persistence::compiler::compile_request;
+    use keyforge_protocol::CostModelDto;
     use std::any::Any;
     use std::collections::HashMap;
     use std::path::Path;
@@ -31,7 +32,10 @@ mod integration_tests {
                 }
             }
 
-            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
+            if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModelDto>() {
+                if let Ok(arc) = self.assets.clone().downcast::<T>() {
+                    return Ok(arc);
+                }
                 let json = r#"{
                     "meta": { "version": "2.0", "description": "T", "unit": "pts" },
                     "models": { 
@@ -39,7 +43,7 @@ mod integration_tests {
                             "description": "t", 
                             "static_costs": {
                                 "universal_hand": {
-                                    "thumb": {"base": {"r0": 1.0}},
+                                    "thumb": {"pos_1": 1.0},
                                     "index": {"base": {"r0": 1.0}},
                                     "middle": {"base": {"r0": 1.0}},
                                     "ring": {"base": {"r0": 1.0}},
@@ -50,10 +54,10 @@ mod integration_tests {
                     },
                     "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                 }"#;
-                let model: CostModel = serde_json::from_str(json)
+                let dto: CostModelDto = serde_json::from_str(json)
                     .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))?;
-                let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
-                return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+                let any_dto = Arc::new(dto) as Arc<dyn Any + Send + Sync>;
+                return Ok(any_dto.downcast::<T>().expect("Downcast failed"));
             }
 
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeycodeRegistry>() {
@@ -130,7 +134,7 @@ mod integration_tests {
                     return Ok(any_kb.downcast::<T>().expect("Downcast failed"));
                 }
 
-                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModel>() {
+                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<CostModelDto>() {
                     let json = r#"{
                         "meta": { "version": "2.0", "description": "T", "unit": "pts" },
                         "models": { 
@@ -138,7 +142,7 @@ mod integration_tests {
                                 "description": "t", 
                                 "static_costs": {
                                     "universal_hand": {
-                                        "thumb": {"base": {"0": 1.0}},
+                                        "thumb": {"pos_1": 1.0},
                                         "index": {"base": {"0": 1.0}},
                                         "middle": {"base": {"0": 1.0}},
                                         "ring": {"base": {"0": 1.0}},
@@ -149,10 +153,10 @@ mod integration_tests {
                         },
                         "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
                     }"#;
-                    let model: CostModel = serde_json::from_str(json)
+                    let dto: CostModelDto = serde_json::from_str(json)
                         .map_err(|e| keyforge_model::error::ForgeError::Serde(e.to_string()))?;
-                    let any_model = Arc::new(model) as Arc<dyn Any + Send + Sync>;
-                    return Ok(any_model.downcast::<T>().expect("Downcast failed"));
+                    let any_dto = Arc::new(dto) as Arc<dyn Any + Send + Sync>;
+                    return Ok(any_dto.downcast::<T>().expect("Downcast failed"));
                 }
 
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<KeycodeRegistry>() {

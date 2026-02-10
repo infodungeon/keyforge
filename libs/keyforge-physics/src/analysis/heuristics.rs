@@ -18,7 +18,7 @@ pub fn suggest_swaps(
 mod tests {
     use super::*;
     use crate::{EngineCompilationContext, EngineFactory};
-    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, RowIndex};
+    use keyforge_model::types::{FingerIndex, HandIndex, KeyCode, KeyIndex, RowIndex};
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Rubric};
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -27,14 +27,14 @@ mod tests {
     {
         let keys = vec![
             KeyNode {
-                index: KeyIndex::new(0),
+                index: KeyIndex(0),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::INDEX,
                 row: RowIndex::new(0),
                 ..Default::default()
             },
             KeyNode {
-                index: KeyIndex::new(1),
+                index: KeyIndex(1),
                 hand: HandIndex::LEFT,
                 finger: FingerIndex::MIDDLE,
                 row: RowIndex::new(0),

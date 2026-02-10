@@ -287,7 +287,8 @@ impl UserRepo {
     pub fn save_personal_cost_model(&self, model: &keyforge_model::CostModel) -> InfraResult<()> {
         let rel = SafePath::try_from_str("user/personal_cost.json").map_err(InfraError::from)?;
         let output_path = SafePath::from_trusted_root(self.root.as_path(), &rel);
-        let json = serde_json::to_string_pretty(model).map_err(InfraError::Serde)?;
+        let dto = keyforge_protocol::CostModelDto::from(model.clone());
+        let json = serde_json::to_string_pretty(&dto).map_err(InfraError::Serde)?;
         atomic_write(&output_path, json)?;
         Ok(())
     }

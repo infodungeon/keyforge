@@ -144,6 +144,7 @@ mod tests {
     };
     use keyforge_model::{Corpus, CostModel, KeyNode, Keyboard, Layout, Rubric};
     use keyforge_physics::{EngineCompilationContext, EngineFactory};
+    use keyforge_protocol::CostModelDto;
     use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rand::SeedableRng;
@@ -169,7 +170,8 @@ mod tests {
             },
             "dynamic_rules": { "sequence_modifiers": {}, "penalties": {}, "constraints": {} }
         }"#;
-        Ok(serde_json::from_str(json)?)
+        let dto: CostModelDto = serde_json::from_str(json)?;
+        Ok(dto.into())
     }
 
     fn setup_engine(size: usize) -> anyhow::Result<Box<dyn ScoringEngine>> {
