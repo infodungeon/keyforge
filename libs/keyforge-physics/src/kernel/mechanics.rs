@@ -32,39 +32,51 @@ pub fn calculate_flow_cost(
     bonus_roll: Score,
     bonus_roll_out: Score,
 ) -> Score {
+    use keyforge_model::types::{Finger, Hand, Movement, TrigramFlow};
+
+    // Optimization: avoid construction if hands differ (not a flow)
     if h1 != h2 || h2 != h3 {
         return Score::ZERO;
     }
 
-    if f1 == f3 && f1 != f2 {
+    // Construct lightweight movements for logic evaluation
+    let m1 = Movement::new(
+        0,
+        0,
+        Hand::from(h1),
+        Hand::from(h2),
+        Finger::from(f1),
+        Finger::from(f2),
+        keyforge_model::types::RowIndex::new(0),
+        keyforge_model::types::RowIndex::new(0),
+    );
+    let m2 = Movement::new(
+        0,
+        0,
+        Hand::from(h2),
+        Hand::from(h3),
+        Finger::from(f2),
+        Finger::from(f3),
+        keyforge_model::types::RowIndex::new(0),
+        keyforge_model::types::RowIndex::new(0),
+    );
+    let flow = TrigramFlow { m1, m2 };
+
+    if flow.is_redirect() {
         return penalty_redirect;
     }
 
-    let dir1 = f2.diff(f1);
-    let dir2 = f3.diff(f2);
-    if dir1 == 0 || dir2 == 0 {
-        return Score::ZERO;
+    if flow.is_roll_in() {
+        return Score::ZERO.checked_sub(bonus_roll).unwrap_or(Score::MIN);
     }
 
-    // Direction change detection (dir1.signum() != dir2.signum())
-    if (dir1 > 0 && dir2 < 0) || (dir1 < 0 && dir2 > 0) {
-        return penalty_redirect;
+    if flow.is_roll_out() {
+        return Score::ZERO
+            .checked_sub(bonus_roll_out)
+            .unwrap_or(Score::MIN);
     }
 
-    match dir1.cmp(&0) {
-        std::cmp::Ordering::Less => {
-            // Inward Roll (Outer -> Inner)
-            // Score is negative (bonus)
-            Score::ZERO.checked_sub(bonus_roll).unwrap_or(Score::MIN)
-        }
-        std::cmp::Ordering::Greater => {
-            // Outward Roll (Inner -> Outer)
-            Score::ZERO
-                .checked_sub(bonus_roll_out)
-                .unwrap_or(Score::MIN)
-        }
-        std::cmp::Ordering::Equal => Score::ZERO,
-    }
+    Score::ZERO
 }
 
 /// Bit-perfect integer square root.
@@ -109,7 +121,7 @@ pub fn calculate_pair_cost(
     let k1 = &kb.keys[i_idx];
     let k2 = &kb.keys[j_idx];
 
-    if k1.hand != k2.hand {
+    if k1.hand() != k2.hand() {
         return Ok(0);
     }
 
@@ -125,10 +137,10 @@ pub fn calculate_pair_cost(
     let dist_sq_weighted = i128::from(dx2) * t_lat_i + i128::from(dy2) * t_vert_i;
     let mut cost = integer_sqrt_i128(dist_sq_weighted);
 
-    if k1.finger == k2.finger {
+    if k1.finger() == k2.finger() {
         cost = calculate_sfb_cost(kb, rubric, k1, k2, cost)?;
     } else {
-        cost = calculate_non_sfb_penalties(rubric, k1, k2, cost)?;
+        cost = calculate_non_sfb_penalties(rubric, &movement, cost)?;
     }
 
     Ok(cost)
@@ -145,12 +157,12 @@ fn calculate_sfb_cost(
     let mut reach_k2 = 0i64;
     if let Some(origin) = kb
         .finger_origins
-        .get(k2.hand.as_usize())
-        .and_then(|h| h.get(k2.finger.as_usize()))
+        .get(k2.hand().as_usize())
+        .and_then(|h| h.get(k2.finger().as_usize()))
     {
         let movement = keyforge_model::types::Movement::from_points(
             *origin,
-            keyforge_model::types::Point::new(k2.x, k2.y),
+            keyforge_model::types::Point::new(k2.x(), k2.y()),
         );
         let horiz_reach_sq = i64::from(movement.dx) * i64::from(movement.dx);
         let vert_reach_sq = i64::from(movement.dy) * i64::from(movement.dy);
@@ -168,11 +180,11 @@ fn calculate_sfb_cost(
             context: "Pair cost reach reduction".to_string(),
         })?;
 
-    let row_diff = (i32::from(k1.row.raw()) - i32::from(k2.row.raw())).unsigned_abs();
-    let col_diff = (i32::from(k1.col.raw()) - i32::from(k2.col.raw())).unsigned_abs();
+    let row_diff = (i32::from(k1.row().raw()) - i32::from(k2.row().raw())).unsigned_abs();
+    let col_diff = (i32::from(k1.col().raw()) - i32::from(k2.col().raw())).unsigned_abs();
 
     if col_diff == 1 {
-        let sfb_extra = if k1.finger.is_weak() {
+        let sfb_extra = if k1.finger().is_weak() {
             rubric.sfb_lateral_weak().raw()
         } else {
             rubric.sfb_lateral().raw()
@@ -206,23 +218,21 @@ fn calculate_sfb_cost(
 
 fn calculate_non_sfb_penalties(
     rubric: &Rubric,
-    k1: &keyforge_model::KeyNode,
-    k2: &keyforge_model::KeyNode,
+    movement: &keyforge_model::types::Movement,
     mut cost: i64,
 ) -> Result<i64, PhysicsError> {
-    let finger_diff = k1.finger.distance(k2.finger);
-    let row_diff = (i32::from(k1.row.raw()) - i32::from(k2.row.raw())).unsigned_abs();
-
-    if finger_diff == 1 && k1.finger != FingerIndex::THUMB && k2.finger != FingerIndex::THUMB {
-        if row_diff >= u32::from(rubric.threshold_scissor_row_diff().unsigned_abs()) {
-            cost = cost
-                .checked_add(rubric.penalty_scissor().raw())
-                .ok_or_else(|| PhysicsError::ScoreOverflow {
-                    context: "Pair cost scissor".to_string(),
-                })?;
-        } else if row_diff == 0 {
-            let col_diff = (i32::from(k1.col.raw()) - i32::from(k2.col.raw())).unsigned_abs();
-            if col_diff > 1 {
+    if movement.is_scissor(rubric.threshold_scissor_row_diff()) {
+        cost = cost
+            .checked_add(rubric.penalty_scissor().raw())
+            .ok_or_else(|| PhysicsError::ScoreOverflow {
+                context: "Pair cost scissor".to_string(),
+            })?;
+    } else {
+        let row_diff = (i32::from(movement.r1.raw()) - i32::from(movement.r2.raw())).abs();
+        if row_diff == 0 && movement.is_same_hand() && movement.f1 != movement.f2 {
+            let col_diff = movement.dx.abs();
+            let f_dist = movement.f1.distance(movement.f2);
+            if f_dist == 1 && col_diff > 1000 {
                 cost = cost
                     .checked_add(rubric.sfb_lateral().raw())
                     .ok_or_else(|| PhysicsError::ScoreOverflow {
@@ -245,39 +255,36 @@ mod tests {
 
     fn setup_kb_pair() -> anyhow::Result<Keyboard> {
         let keys = vec![
-            KeyNode {
-                index: KeyIndex::new(0),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new(1),
-                row: RowIndex::new(0),
-                col: ColIndex::new(0),
-                x: SpatialUnit::from_f32(0.0),
-                y: SpatialUnit::from_f32(0.0),
-                is_home: true,
-                ..Default::default()
-            },
-            KeyNode {
-                index: KeyIndex::new(1),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new(1),
-                row: RowIndex::new(1),
-                col: ColIndex::new(0),
-                x: SpatialUnit::from_f32(0.0),
-                y: SpatialUnit::from_f32(1.0),
-                is_home: false,
-                ..Default::default()
-            },
-            KeyNode {
-                index: KeyIndex::new(2),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new(2),
-                row: RowIndex::new(1),
-                col: ColIndex::new(1),
-                x: SpatialUnit::from_f32(1.0),
-                y: SpatialUnit::from_f32(1.0),
-                is_home: false,
-                ..Default::default()
-            },
+            KeyNode::builder()
+                .index(KeyIndex::new(0))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new(1))
+                .row(RowIndex::new(0))
+                .col(ColIndex::new(0))
+                .x(SpatialUnit::from_f32(0.0))
+                .y(SpatialUnit::from_f32(0.0))
+                .is_home(true)
+                .build(),
+            KeyNode::builder()
+                .index(KeyIndex::new(1))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new(1))
+                .row(RowIndex::new(1))
+                .col(ColIndex::new(0))
+                .x(SpatialUnit::from_f32(0.0))
+                .y(SpatialUnit::from_f32(1.0))
+                .is_home(false)
+                .build(),
+            KeyNode::builder()
+                .index(KeyIndex::new(2))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new(2))
+                .row(RowIndex::new(1))
+                .col(ColIndex::new(1))
+                .x(SpatialUnit::from_f32(1.0))
+                .y(SpatialUnit::from_f32(1.0))
+                .is_home(false)
+                .build(),
         ];
         Ok(Keyboard::new(
             keys,
@@ -301,18 +308,16 @@ mod tests {
     #[test]
     fn test_calculate_pair_cost_different_hands() -> anyhow::Result<()> {
         let keys = vec![
-            KeyNode {
-                index: KeyIndex::new(0),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new(1),
-                ..Default::default()
-            },
-            KeyNode {
-                index: KeyIndex::new(1),
-                hand: HandIndex::new(1),
-                finger: FingerIndex::new(1),
-                ..Default::default()
-            },
+            KeyNode::builder()
+                .index(KeyIndex::new(0))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new(1))
+                .build(),
+            KeyNode::builder()
+                .index(KeyIndex::new(1))
+                .hand(HandIndex::new(1))
+                .finger(FingerIndex::new(1))
+                .build(),
         ];
         let kb = Arc::new(Keyboard::new(
             keys,

@@ -155,7 +155,7 @@ impl GhostScorer {
         for pos in positions {
             let key = &self.keyboard.keys()[pos];
 
-            let effort = self.rubric.finger_effort[key.finger.as_usize()];
+            let effort = self.rubric.finger_effort[key.finger().as_usize()];
 
             // In Ghost mode, we don't cache, we look up every time
 
@@ -237,7 +237,7 @@ impl GhostScorer {
             "model_a_row_staggered"
         };
 
-        let hand_key = if key.hand.is_left() {
+        let hand_key = if key.hand().is_left() {
             "left_hand"
         } else {
             "right_hand"
@@ -253,7 +253,7 @@ impl GhostScorer {
                     .or_else(|| m.static_costs.get("universal_hand"))
             })
             .and_then(|h| {
-                let f_key = match key.finger {
+                let f_key = match key.finger() {
                     keyforge_model::FingerIndex::THUMB => "thumb",
                     keyforge_model::FingerIndex::INDEX => "index",
                     keyforge_model::FingerIndex::MIDDLE => "middle",
@@ -265,7 +265,7 @@ impl GhostScorer {
             })
             .map(|f| match f {
                 keyforge_model::cost_model::FingerDefinition::Standard(reach) => {
-                    reach.base.get(&key.row).copied().unwrap_or(Score::ZERO)
+                    reach.base.get(&key.row()).copied().unwrap_or(Score::ZERO)
                 }
                 keyforge_model::cost_model::FingerDefinition::Thumb(pos) => {
                     pos.values().min().copied().unwrap_or(Score::ZERO)
@@ -275,7 +275,7 @@ impl GhostScorer {
             .ok_or_else(|| {
                 PhysicsError::Config(format!(
                     "Could not resolve static cost for key at index {}",
-                    key.index
+                    key.index()
                 ))
             })?;
 
@@ -286,7 +286,7 @@ impl GhostScorer {
     fn calculate_pair_cost(&self, p1: usize, p2: usize) -> Score {
         let k1 = &self.keyboard.keys()[p1];
         let k2 = &self.keyboard.keys()[p2];
-        if k1.hand != k2.hand {
+        if k1.hand() != k2.hand() {
             return Score::ZERO;
         }
 
@@ -301,7 +301,7 @@ impl GhostScorer {
             dist_sq_weighted,
         ));
 
-        if k1.finger == k2.finger {
+        if k1.finger() == k2.finger() {
             // SFB Handling
             cost = cost.checked_add(self.rubric.sfb_base).unwrap_or(Score::MAX);
         }
@@ -315,12 +315,12 @@ impl GhostScorer {
         let k3 = &self.keyboard.keys()[p3];
 
         crate::kernel::mechanics::calculate_flow_cost(
-            k1.hand,
-            k2.hand,
-            k3.hand,
-            k1.finger,
-            k2.finger,
-            k3.finger,
+            k1.hand(),
+            k2.hand(),
+            k3.hand(),
+            k1.finger(),
+            k2.finger(),
+            k3.finger(),
             self.rubric.redirect,
             self.rubric.roll_bonus,
             self.rubric.roll_out_bonus,

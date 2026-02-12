@@ -173,12 +173,13 @@ fn run_benchmark(
 pub fn measure_performance(config: &crate::models::CalibrationConfig) -> Result<f64, AgentError> {
     let mut keys = Vec::with_capacity(config.key_count);
     for i in 0..config.key_count {
-        keys.push(keyforge_model::geometry::KeyNode {
-            index: i.into(),
-            x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
-            y: keyforge_model::types::SpatialUnit::default(),
-            ..Default::default()
-        });
+        keys.push(
+            keyforge_model::geometry::KeyNode::builder()
+                .index(i.into())
+                .x(keyforge_model::types::SpatialUnit::from_f32(i as f32))
+                .y(keyforge_model::types::SpatialUnit::default())
+                .build(),
+        );
     }
     let keyboard = Arc::new(Keyboard::new(
         keys,

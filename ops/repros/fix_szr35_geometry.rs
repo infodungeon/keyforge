@@ -25,7 +25,7 @@ fn main() {
     // and thumb positions (Row 3, Space keys)
 
     let mut fix_count = 0;
-    for (i, key) in kb_def.geometry.keys.iter_mut().enumerate() {
+    for (i, key) in kb_def.geometry.keys_mut().iter_mut().enumerate() {
         let should_be_home = match i {
             // Left Hand Home Row (A S D F)
             5..=8 => true,
@@ -38,12 +38,14 @@ fn main() {
             _ => false,
         };
 
-        if key.is_home != should_be_home {
+        if key.is_home() != should_be_home {
             println!(
                 "Setting Key {} ({}): is_home = {}",
-                i, key.label, should_be_home
+                i,
+                key.label(),
+                should_be_home
             );
-            key.is_home = should_be_home;
+            key.set_is_home(should_be_home);
             fix_count += 1;
         }
     }

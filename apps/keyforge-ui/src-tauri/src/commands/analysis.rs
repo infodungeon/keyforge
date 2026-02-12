@@ -235,8 +235,9 @@ pub async fn validate_layout_string(
         score: report.clone().into(),
         geometry: job_config
             .to_domain_geometry()
-            .keys
-            .into_iter()
+            .keys()
+            .iter()
+            .cloned()
             .map(Into::into)
             .collect(),
         heatmap: report.heatmap.iter().map(|v| v.to_f32()).collect(),

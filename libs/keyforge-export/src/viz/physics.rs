@@ -26,17 +26,17 @@ pub fn generate_physics_svg(
     )?;
 
     for key in geo.keys() {
-        let x = key.x.to_f32() * 50.0 + 50.0;
-        let y = key.y.to_f32() * 50.0 + 50.0;
-        let w = key.w * 45.0;
-        let h = key.h * 45.0;
+        let x = key.x().to_f32() * 50.0 + 50.0;
+        let y = key.y().to_f32() * 50.0 + 50.0;
+        let w = key.w() * 45.0;
+        let h = key.h() * 45.0;
 
-        let freq: f32 = heatmap.get(key.index.as_usize()).copied().unwrap_or(0.0);
+        let freq: f32 = heatmap.get(key.index().as_usize()).copied().unwrap_or(0.0);
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let intensity = (freq * 255.0).min(255.0) as u8;
         let color = format!("rgb({}, {}, {})", 255 - intensity, 255 - intensity, 255);
 
-        let class = if key.is_home { "key home" } else { "key" };
+        let class = if key.is_home() { "key home" } else { "key" };
 
         writeln!(
             &mut svg,
@@ -49,7 +49,7 @@ pub fn generate_physics_svg(
             "<text x=\"{}\" y=\"{}\" font-size=\"10\" text-anchor=\"middle\" fill=\"#000\">{}</text>",
             x + w / 2.0,
             y + h / 2.0 + 4.0,
-            key.label
+            key.label()
         )?;
     }
 

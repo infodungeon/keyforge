@@ -161,22 +161,24 @@ impl JobConfig {
             .geometry
             .keys
             .iter()
-            .map(|k| keyforge_model::geometry::KeyNode {
-                index: k.index.into(),
-                label: k.label.clone(),
-                x: keyforge_model::types::SpatialUnit::from_f32(k.x),
-                y: keyforge_model::types::SpatialUnit::from_f32(k.y),
-                w: k.w,
-                h: k.h,
-                hand: k.hand.into(),
-                finger: k.finger.into(),
-                row: k.row.into(),
-                col: k.col.into(),
-                is_home: k.is_home,
-                is_stretch: k.is_stretch,
-                r: k.r,
-                rx: keyforge_model::types::SpatialUnit::from_f32(k.rx),
-                ry: keyforge_model::types::SpatialUnit::from_f32(k.ry),
+            .map(|k| {
+                keyforge_model::geometry::KeyNode::builder()
+                    .index(k.index.into())
+                    .label(k.label.clone())
+                    .x(keyforge_model::types::SpatialUnit::from_f32(k.x))
+                    .y(keyforge_model::types::SpatialUnit::from_f32(k.y))
+                    .w(k.w)
+                    .h(k.h)
+                    .hand(k.hand.into())
+                    .finger(k.finger.into())
+                    .row(k.row.into())
+                    .col(k.col.into())
+                    .is_home(k.is_home)
+                    .is_stretch(k.is_stretch)
+                    .r(k.r)
+                    .rx(keyforge_model::types::SpatialUnit::from_f32(k.rx))
+                    .ry(keyforge_model::types::SpatialUnit::from_f32(k.ry))
+                    .build()
             })
             .collect();
 

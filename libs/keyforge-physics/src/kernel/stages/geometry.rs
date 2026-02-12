@@ -42,18 +42,18 @@ impl<'a> CompilationStage for GeometryStage<'a> {
         let mut key_home_distances = Vec::with_capacity(key_count);
 
         for k in kb.keys() {
-            hands.push(k.hand);
-            fingers.push(k.finger);
-            rows.push(k.row);
-            cols.push(k.col);
+            hands.push(k.hand());
+            fingers.push(k.finger());
+            rows.push(k.row());
+            cols.push(k.col());
 
             let mut dist_from_home = Score::ZERO;
             if let Some(origin) = kb
                 .finger_origins
-                .get(k.hand.as_usize())
-                .and_then(|h| h.get(k.finger.as_usize()))
+                .get(k.hand().as_usize())
+                .and_then(|h| h.get(k.finger().as_usize()))
             {
-                let movement = Movement::from_points(*origin, Point::new(k.x, k.y));
+                let movement = Movement::from_points(*origin, Point::new(k.x(), k.y()));
                 let dx2 = i64::from(movement.dx) * i64::from(movement.dx);
                 let dy2 = i64::from(movement.dy) * i64::from(movement.dy);
 
@@ -98,22 +98,20 @@ mod tests {
     #[test]
     fn test_geometry_stage_execution() -> anyhow::Result<()> {
         let keys = vec![
-            KeyNode {
-                index: KeyIndex::new(0),
-                x: keyforge_model::types::SpatialUnit::from_f32(0.0),
-                y: keyforge_model::types::SpatialUnit::from_f32(0.0),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new_unchecked(1),
-                ..Default::default()
-            },
-            KeyNode {
-                index: KeyIndex::new(1),
-                x: keyforge_model::types::SpatialUnit::from_f32(3.0),
-                y: keyforge_model::types::SpatialUnit::from_f32(4.0),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new_unchecked(1),
-                ..Default::default()
-            },
+            KeyNode::builder()
+                .index(KeyIndex::new(0))
+                .x(keyforge_model::types::SpatialUnit::from_f32(0.0))
+                .y(keyforge_model::types::SpatialUnit::from_f32(0.0))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new_unchecked(1))
+                .build(),
+            KeyNode::builder()
+                .index(KeyIndex::new(1))
+                .x(keyforge_model::types::SpatialUnit::from_f32(3.0))
+                .y(keyforge_model::types::SpatialUnit::from_f32(4.0))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new_unchecked(1))
+                .build(),
         ];
         let kb = Keyboard::new(keys, RowIndex::new(0), "test".into())?;
         let rubric = Rubric::builder()

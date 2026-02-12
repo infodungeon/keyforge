@@ -19,13 +19,26 @@ pub fn to_domain_keyboard(
         .iter()
         .enumerate()
         .map(|(i, k)| {
-            let mut kn = to_domain_keynode(k);
-            kn.index = i.into();
             // Task-adap-rev-001: Only override is_home if it's false in input
-            if !k.is_home {
-                kn.is_home = k.row == geo.home_row();
-            }
-            kn
+            let is_home = k.is_home() || k.row() == geo.home_row();
+
+            keyforge_model::KeyNode::builder()
+                .index(i.into())
+                .label(k.label().to_string())
+                .x(k.x())
+                .y(k.y())
+                .w(k.w())
+                .h(k.h())
+                .r(k.r())
+                .rx(k.rx())
+                .ry(k.ry())
+                .hand(k.hand())
+                .finger(k.finger())
+                .row(k.row())
+                .col(k.col())
+                .is_home(is_home)
+                .is_stretch(k.is_stretch())
+                .build()
         })
         .collect();
 
@@ -36,23 +49,23 @@ pub fn to_domain_keyboard(
 /// Converts a protocol-level key node into a domain-level node.
 #[must_use]
 pub fn to_domain_keynode(k: &geometry::KeyNode) -> keyforge_model::KeyNode {
-    keyforge_model::KeyNode {
-        index: k.index,
-        label: k.label.clone(),
-        x: k.x,
-        y: k.y,
-        w: k.w,
-        h: k.h,
-        r: k.r,
-        rx: k.rx,
-        ry: k.ry,
-        hand: k.hand,
-        finger: k.finger,
-        row: k.row,
-        col: k.col,
-        is_home: k.is_home,
-        is_stretch: k.is_stretch,
-    }
+    keyforge_model::KeyNode::builder()
+        .index(k.index())
+        .label(k.label().to_string())
+        .x(k.x())
+        .y(k.y())
+        .w(k.w())
+        .h(k.h())
+        .r(k.r())
+        .rx(k.rx())
+        .ry(k.ry())
+        .hand(k.hand())
+        .finger(k.finger())
+        .row(k.row())
+        .col(k.col())
+        .is_home(k.is_home())
+        .is_stretch(k.is_stretch())
+        .build()
 }
 
 /// Resolves a list of protocol constraints against a keycount and registry.
@@ -98,7 +111,7 @@ pub fn resolve_cost_matrix(
     let mut overrides = Vec::new();
     let mut id_map = std::collections::HashMap::new();
     for (i, k) in geo.keys().iter().enumerate() {
-        id_map.insert(k.label.clone(), i);
+        id_map.insert(k.label().to_string(), i);
     }
     for (from, to, cost) in raw {
         if let (Some(&idx1), Some(&idx2)) = (id_map.get(from), id_map.get(to)) {
@@ -116,22 +129,21 @@ mod tests {
 
     #[test]
     fn test_to_domain_keynode_conversion() -> anyhow::Result<()> {
-        let proto_key = KeyNode {
-            index: KeyIndex(0),
-            label: "A".to_string(),
-            x: keyforge_model::types::SpatialUnit::from_f32(10.0),
-            y: keyforge_model::types::SpatialUnit::from_f32(20.0),
-            hand: HandIndex::new(0),
-            finger: FingerIndex::new(1),
-            row: RowIndex::new(0),
-            col: ColIndex::new(0),
-            is_home: true,
-            ..Default::default()
-        };
+        let proto_key = KeyNode::builder()
+            .index(KeyIndex(0))
+            .label("A".to_string())
+            .x(keyforge_model::types::SpatialUnit::from_f32(10.0))
+            .y(keyforge_model::types::SpatialUnit::from_f32(20.0))
+            .hand(HandIndex::new(0))
+            .finger(FingerIndex::new(1))
+            .row(RowIndex::new(0))
+            .col(ColIndex::new(0))
+            .is_home(true)
+            .build();
 
         let domain_key = to_domain_keynode(&proto_key);
-        assert_eq!(domain_key.index, proto_key.index);
-        assert_eq!(domain_key.label, proto_key.label);
+        assert_eq!(domain_key.index(), proto_key.index());
+        assert_eq!(domain_key.label(), proto_key.label());
         Ok(())
     }
 
@@ -139,26 +151,24 @@ mod tests {
     fn test_to_domain_keyboard_conversion() -> anyhow::Result<()> {
         let proto_geo = KeyboardGeometry::new(
             vec![
-                KeyNode {
-                    index: KeyIndex(0),
-                    label: "A".to_string(),
-                    hand: HandIndex::new(0),
-                    finger: FingerIndex::new(1),
-                    row: RowIndex::new(0),
-                    col: ColIndex::new(0),
-                    is_home: true,
-                    ..Default::default()
-                },
-                KeyNode {
-                    index: KeyIndex(1),
-                    label: "B".to_string(),
-                    hand: HandIndex::new(1),
-                    finger: FingerIndex::new(2),
-                    row: RowIndex::new(0),
-                    col: ColIndex::new(1),
-                    is_home: false,
-                    ..Default::default()
-                },
+                KeyNode::builder()
+                    .index(KeyIndex(0))
+                    .label("A".to_string())
+                    .hand(HandIndex::new(0))
+                    .finger(FingerIndex::new(1))
+                    .row(RowIndex::new(0))
+                    .col(ColIndex::new(0))
+                    .is_home(true)
+                    .build(),
+                KeyNode::builder()
+                    .index(KeyIndex(1))
+                    .label("B".to_string())
+                    .hand(HandIndex::new(1))
+                    .finger(FingerIndex::new(2))
+                    .row(RowIndex::new(0))
+                    .col(ColIndex::new(1))
+                    .is_home(false)
+                    .build(),
             ],
             vec![KeyIndex::new(0)],
             vec![KeyIndex::new(1)],
@@ -211,14 +221,8 @@ mod tests {
     fn test_resolve_cost_matrix() -> anyhow::Result<()> {
         let proto_geo = KeyboardGeometry::new(
             vec![
-                KeyNode {
-                    label: "A".into(),
-                    ..Default::default()
-                },
-                KeyNode {
-                    label: "B".into(),
-                    ..Default::default()
-                },
+                KeyNode::builder().label("A".into()).build(),
+                KeyNode::builder().label("B".into()).build(),
             ],
             vec![],
             vec![],

@@ -49,44 +49,44 @@ pub struct KeyNodeDto {
 impl From<keyforge_model::KeyNode> for KeyNodeDto {
     fn from(val: keyforge_model::KeyNode) -> Self {
         Self {
-            index: val.index.raw(),
-            label: val.label,
-            x: val.x.to_f32(),
-            y: val.y.to_f32(),
-            w: val.w,
-            h: val.h,
-            hand: val.hand.into(),
-            finger: val.finger.into(),
-            row: val.row.into(),
-            col: val.col.into(),
-            is_home: val.is_home,
-            is_stretch: val.is_stretch,
-            r: val.r,
-            rx: val.rx.to_f32(),
-            ry: val.ry.to_f32(),
+            index: val.index().raw(),
+            label: val.label().to_string(),
+            x: val.x().to_f32(),
+            y: val.y().to_f32(),
+            w: val.w(),
+            h: val.h(),
+            hand: val.hand().into(),
+            finger: val.finger().into(),
+            row: val.row().into(),
+            col: val.col().into(),
+            is_home: val.is_home(),
+            is_stretch: val.is_stretch(),
+            r: val.r(),
+            rx: val.rx().to_f32(),
+            ry: val.ry().to_f32(),
         }
     }
 }
 
 impl From<KeyNodeDto> for keyforge_model::KeyNode {
     fn from(val: KeyNodeDto) -> Self {
-        Self {
-            index: val.index.into(),
-            label: val.label,
-            x: keyforge_model::types::SpatialUnit::from_f32(val.x),
-            y: keyforge_model::types::SpatialUnit::from_f32(val.y),
-            w: val.w,
-            h: val.h,
-            hand: val.hand.into(),
-            finger: val.finger.into(),
-            row: val.row.into(),
-            col: val.col.into(),
-            is_home: val.is_home,
-            is_stretch: val.is_stretch,
-            r: val.r,
-            rx: keyforge_model::types::SpatialUnit::from_f32(val.rx),
-            ry: keyforge_model::types::SpatialUnit::from_f32(val.ry),
-        }
+        keyforge_model::KeyNode::builder()
+            .index(val.index.into())
+            .label(val.label)
+            .x(keyforge_model::types::SpatialUnit::from_f32(val.x))
+            .y(keyforge_model::types::SpatialUnit::from_f32(val.y))
+            .w(val.w)
+            .h(val.h)
+            .hand(val.hand.into())
+            .finger(val.finger.into())
+            .row(val.row.into())
+            .col(val.col.into())
+            .is_home(val.is_home)
+            .is_stretch(val.is_stretch)
+            .r(val.r)
+            .rx(keyforge_model::types::SpatialUnit::from_f32(val.rx))
+            .ry(keyforge_model::types::SpatialUnit::from_f32(val.ry))
+            .build()
     }
 }
 

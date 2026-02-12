@@ -28,14 +28,14 @@ fn main() {
         println!(
             "{:<3} {:<8} {:<8?} {:<8?} {:<8} {:<8} {:<8} ({:.1}, {:.1})",
             i,
-            key.label,
-            key.finger,
-            key.hand,
-            key.row.raw(),
-            key.col.raw(),
-            key.is_home,
-            key.x.to_f32(),
-            key.y.to_f32()
+            key.label(),
+            key.finger(),
+            key.hand(),
+            key.row().raw(),
+            key.col().raw(),
+            key.is_home(),
+            key.x().to_f32(),
+            key.y().to_f32()
         );
     }
 }

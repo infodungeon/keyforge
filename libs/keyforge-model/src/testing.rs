@@ -90,25 +90,19 @@ impl Arbitrary for KeyNode {
             any::<ColIndex>(),
             any::<bool>(),
         )
-            .prop_map(
-                |(index, label, x, y, hand, finger, row, col, is_home)| Self {
-                    index,
-                    label,
-                    x: SpatialUnit::from_f32(x),
-                    y: SpatialUnit::from_f32(y),
-                    w: 1.0,
-                    h: 1.0,
-                    r: 0.0,
-                    rx: SpatialUnit::default(),
-                    ry: SpatialUnit::default(),
-                    hand,
-                    finger,
-                    row,
-                    col,
-                    is_home,
-                    is_stretch: false,
-                },
-            )
+            .prop_map(|(index, label, x, y, hand, finger, row, col, is_home)| {
+                Self::builder()
+                    .index(index)
+                    .label(label)
+                    .x(SpatialUnit::from_f32(x))
+                    .y(SpatialUnit::from_f32(y))
+                    .hand(hand)
+                    .finger(finger)
+                    .row(row)
+                    .col(col)
+                    .is_home(is_home)
+                    .build()
+            })
             .boxed()
     }
 }
@@ -125,7 +119,7 @@ impl Arbitrary for Keyboard {
                 let mut keys = keys;
                 for (i, key) in keys.iter_mut().enumerate() {
                     let i_u16 = u16::try_from(i).unwrap_or(u16::MAX);
-                    key.index = KeyIndex::new(i_u16);
+                    key.set_index(KeyIndex::new(i_u16));
                 }
                 #[allow(clippy::unwrap_used)]
                 Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap()
@@ -288,15 +282,13 @@ pub fn setup_minimal_assets() -> (Keyboard, Corpus, Rubric, CostModel) {
             let u8_val = u8::try_from(i).unwrap_or(0);
             let f32_val = f32::from(u8_val);
             let u16_val = u16::from(u8_val);
-            KeyNode {
-                index: KeyIndex::new(u16_val),
-                label: format!("k{i}"),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::new(u8_val),
-                x: SpatialUnit::from_f32(f32_val),
-                y: SpatialUnit::default(),
-                ..Default::default()
-            }
+            KeyNode::builder()
+                .index(KeyIndex::new(u16_val))
+                .label(format!("k{i}"))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new(u8_val))
+                .x(SpatialUnit::from_f32(f32_val))
+                .build()
         })
         .collect();
     let kb = Keyboard::new(keys, RowIndex::new(0), "test".into()).unwrap();

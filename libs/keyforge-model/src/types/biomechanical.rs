@@ -185,12 +185,12 @@ impl Movement {
         Self {
             dx: k2.x().raw() - k1.x().raw(),
             dy: k2.y().raw() - k1.y().raw(),
-            h1: Hand::from(k1.hand),
-            h2: Hand::from(k2.hand),
-            f1: Finger::from(k1.finger),
-            f2: Finger::from(k2.finger),
-            r1: k1.row,
-            r2: k2.row,
+            h1: Hand::from(k1.hand()),
+            h2: Hand::from(k2.hand()),
+            f1: Finger::from(k1.finger()),
+            f2: Finger::from(k2.finger()),
+            r1: k1.row(),
+            r2: k2.row(),
         }
     }
 
@@ -317,7 +317,7 @@ impl TrigramFlow {
             return false;
         }
 
-        // All moving in same direction and inward (towards thumb)
+        // All moving in same direction and inward (Outer -> Inner)
         // In our indexing (0=Thumb, 4=Pinky), inward is decreasing index.
         dir1 < 0 && dir2 < 0
     }
@@ -337,7 +337,7 @@ impl TrigramFlow {
             return false;
         }
 
-        // All moving in same direction and outward (away from thumb)
+        // All moving in same direction and outward (Inner -> Outer)
         // In our indexing (0=Thumb, 4=Pinky), outward is increasing index.
         dir1 > 0 && dir2 > 0
     }

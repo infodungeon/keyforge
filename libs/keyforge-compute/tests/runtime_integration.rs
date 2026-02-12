@@ -88,15 +88,17 @@ mod runtime_tests {
     #[tokio::test]
     async fn test_runtime_execution() {
         let loader = MockLoader::new();
-        let mut kb_def = KeyboardDefinition::default();
-        kb_def
-            .geometry
-            .keys
-            .push(keyforge_model::KeyNode::default());
-        kb_def
-            .geometry
-            .prime_slots
-            .push(keyforge_model::types::KeyIndex::new(0));
+        let geometry = keyforge_model::geometry::KeyboardGeometry::new(
+            vec![keyforge_model::KeyNode::default()],
+            vec![keyforge_model::types::KeyIndex::new(0)],
+            vec![],
+            vec![],
+            keyforge_model::types::RowIndex::new(0),
+        );
+        let kb_def = KeyboardDefinition {
+            geometry,
+            ..Default::default()
+        };
 
         let session = keyforge_compute::SessionBuilder::new(&loader)
             .with_keyboard_def(Arc::new(kb_def))

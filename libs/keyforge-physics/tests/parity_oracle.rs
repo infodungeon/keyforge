@@ -7,13 +7,14 @@ use std::sync::Arc;
 
 fn setup_test_keyboard() -> Arc<Keyboard> {
     let keys: Vec<_> = (0..30)
-        .map(|i| KeyNode {
-            index: KeyIndex(i),
-            label: format!("k{i}"),
-            hand: HandIndex::new(u8::try_from(i % 2).unwrap_or(0)),
-            finger: FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)),
-            row: RowIndex::new(i8::try_from(i / 10).unwrap_or(0)),
-            ..Default::default()
+        .map(|i| {
+            KeyNode::builder()
+                .index(KeyIndex(i))
+                .label(format!("k{i}"))
+                .hand(HandIndex::new(u8::try_from(i % 2).unwrap_or(0)))
+                .finger(FingerIndex::new_unchecked(u8::try_from(i % 5).unwrap_or(0)))
+                .row(RowIndex::new(i8::try_from(i / 10).unwrap_or(0)))
+                .build()
         })
         .collect();
     Arc::new(Keyboard::new(keys, RowIndex::new(1), "test".into()).unwrap())

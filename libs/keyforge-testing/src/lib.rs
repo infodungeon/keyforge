@@ -222,26 +222,24 @@ impl HermeticWorkspace {
         // 3. Keyboard
         let geometry = KeyboardGeometry::new(
             vec![
-                KeyNode {
-                    index: keyforge_model::types::KeyIndex::new(0),
-                    x: SpatialUnit::from_f32(0.0),
-                    y: SpatialUnit::from_f32(0.0),
-                    hand: HandIndex::new(0),
-                    finger: FingerIndex::new(1),
-                    row: RowIndex::new(0),
-                    col: ColIndex::new(0),
-                    ..Default::default()
-                },
-                KeyNode {
-                    index: keyforge_model::types::KeyIndex::new(1),
-                    x: SpatialUnit::from_f32(1.0),
-                    y: SpatialUnit::from_f32(0.0),
-                    hand: HandIndex::new(0),
-                    finger: FingerIndex::new(2),
-                    row: RowIndex::new(0),
-                    col: ColIndex::new(1),
-                    ..Default::default()
-                },
+                KeyNode::builder()
+                    .index(keyforge_model::types::KeyIndex::new(0))
+                    .x(SpatialUnit::from_f32(0.0))
+                    .y(SpatialUnit::from_f32(0.0))
+                    .hand(HandIndex::new(0))
+                    .finger(FingerIndex::new(1))
+                    .row(RowIndex::new(0))
+                    .col(ColIndex::new(0))
+                    .build(),
+                KeyNode::builder()
+                    .index(keyforge_model::types::KeyIndex::new(1))
+                    .x(SpatialUnit::from_f32(1.0))
+                    .y(SpatialUnit::from_f32(0.0))
+                    .hand(HandIndex::new(0))
+                    .finger(FingerIndex::new(2))
+                    .row(RowIndex::new(0))
+                    .col(ColIndex::new(1))
+                    .build(),
             ],
             vec![
                 keyforge_model::types::KeyIndex::new(0),

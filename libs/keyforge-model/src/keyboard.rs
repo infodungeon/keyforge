@@ -67,9 +67,9 @@ impl Keyboard {
                 let has_keys = kb
                     .keys
                     .iter()
-                    .any(|k| k.hand.as_usize() == h_idx && k.finger.as_usize() == f_idx);
+                    .any(|k| k.hand().as_usize() == h_idx && k.finger().as_usize() == f_idx);
                 if has_keys && origin.x.raw() == 0 && origin.y.raw() == 0 {
-                    let key_at_zero = kb.keys.iter().any(|k| k.x.raw() == 0 && k.y.raw() == 0);
+                    let key_at_zero = kb.keys.iter().any(|k| k.x().raw() == 0 && k.y().raw() == 0);
                     if !key_at_zero {
                         return Err(ForgeError::InvalidData(format!(
                             "Finger origin calculation failed for hand {h_idx}, finger {f_idx}"
@@ -112,13 +112,13 @@ impl Keyboard {
         let max_hand = self
             .keys
             .iter()
-            .map(|k| k.hand.as_usize())
+            .map(|k| k.hand().as_usize())
             .max()
             .unwrap_or(0);
         let max_finger = self
             .keys
             .iter()
-            .map(|k| k.finger.as_usize())
+            .map(|k| k.finger().as_usize())
             .max()
             .unwrap_or(0);
 
@@ -130,23 +130,25 @@ impl Keyboard {
                     .keys
                     .iter()
                     .find(|k| {
-                        k.hand.as_usize() == hand && k.finger.as_usize() == finger && k.is_home
+                        k.hand().as_usize() == hand
+                            && k.finger().as_usize() == finger
+                            && k.is_home()
                     })
                     .or_else(|| {
                         self.keys.iter().find(|k| {
-                            k.hand.as_usize() == hand
-                                && k.finger.as_usize() == finger
-                                && k.row == self.home_row
+                            k.hand().as_usize() == hand
+                                && k.finger().as_usize() == finger
+                                && k.row() == self.home_row
                         })
                     })
                     .or_else(|| {
-                        self.keys
-                            .iter()
-                            .find(|k| k.hand.as_usize() == hand && k.finger.as_usize() == finger)
+                        self.keys.iter().find(|k| {
+                            k.hand().as_usize() == hand && k.finger().as_usize() == finger
+                        })
                     });
 
                 if let Some(k) = origin {
-                    self.finger_origins[hand][finger] = Point::new(k.x, k.y);
+                    self.finger_origins[hand][finger] = Point::new(k.x(), k.y());
                 }
             }
         }
@@ -167,22 +169,20 @@ mod tests {
     #[test]
     fn test_keyboard_spatial_precomputation() -> anyhow::Result<()> {
         let keys = vec![
-            KeyNode {
-                index: KeyIndex(0),
-                x: crate::types::SpatialUnit::from_f32(0.0),
-                y: crate::types::SpatialUnit::from_f32(0.0),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::INDEX,
-                ..Default::default()
-            },
-            KeyNode {
-                index: KeyIndex(1),
-                x: crate::types::SpatialUnit::from_f32(3.0),
-                y: crate::types::SpatialUnit::from_f32(4.0),
-                hand: HandIndex::new(0),
-                finger: FingerIndex::MIDDLE,
-                ..Default::default()
-            },
+            KeyNode::builder()
+                .index(KeyIndex(0))
+                .x(crate::types::SpatialUnit::from_f32(0.0))
+                .y(crate::types::SpatialUnit::from_f32(0.0))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::INDEX)
+                .build(),
+            KeyNode::builder()
+                .index(KeyIndex(1))
+                .x(crate::types::SpatialUnit::from_f32(3.0))
+                .y(crate::types::SpatialUnit::from_f32(4.0))
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::MIDDLE)
+                .build(),
         ];
         let kb = Keyboard::new(keys, crate::types::RowIndex::new(0), "test".into())?;
 

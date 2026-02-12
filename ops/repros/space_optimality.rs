@@ -31,12 +31,13 @@ fn mock_cost_model() -> CostModel {
 
 fn main() {
     let keys: Vec<KeyNode> = (0u16..5)
-        .map(|i| KeyNode {
-            index: i.into(),
-            hand: HandIndex::new(0),
-            finger: FingerIndex::new_unchecked(i as u8),
-            x: keyforge_model::types::SpatialUnit::from_f32(i as f32),
-            ..Default::default()
+        .map(|i| {
+            KeyNode::builder()
+                .index(i.into())
+                .hand(HandIndex::new(0))
+                .finger(FingerIndex::new_unchecked(i as u8))
+                .x(keyforge_model::types::SpatialUnit::from_f32(i as f32))
+                .build()
         })
         .collect();
     let kb = Arc::new(

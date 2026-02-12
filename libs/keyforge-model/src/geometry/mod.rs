@@ -79,35 +79,35 @@ impl Validator for KeyboardDefinition {
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyNode {
     /// Unique index of the key in the layout.
-    pub index: KeyIndex,
+    index: KeyIndex,
     /// Descriptive label for the key (e.g., "K01", "Thumb").
-    pub label: String,
+    label: String,
     /// X-coordinate of the key center in keyboard units.
-    pub x: SpatialUnit,
+    x: SpatialUnit,
     /// Y-coordinate of the key center in keyboard units.
-    pub y: SpatialUnit,
+    y: SpatialUnit,
     /// Width of the key in keyboard units (default 1.0).
-    pub w: f32,
+    w: f32,
     /// Height of the key in keyboard units (default 1.0).
-    pub h: f32,
+    h: f32,
     /// Which hand is responsible for this key.
-    pub hand: HandIndex,
+    hand: HandIndex,
     /// Which finger is responsible for this key.
-    pub finger: FingerIndex,
+    finger: FingerIndex,
     /// Row index (logical).
-    pub row: RowIndex,
+    row: RowIndex,
     /// Column index (logical).
-    pub col: ColIndex,
+    col: ColIndex,
     /// Whether this key is part of the "home" position.
-    pub is_home: bool,
+    is_home: bool,
     /// Whether this key requires a stretch to reach.
-    pub is_stretch: bool,
+    is_stretch: bool,
     /// Rotation angle in degrees.
-    pub r: f32,
+    r: f32,
     /// Rotation center X.
-    pub rx: SpatialUnit,
+    rx: SpatialUnit,
     /// Rotation center Y.
-    pub ry: SpatialUnit,
+    ry: SpatialUnit,
 }
 
 impl Default for KeyNode {
@@ -133,6 +133,23 @@ impl Default for KeyNode {
 }
 
 impl KeyNode {
+    /// Sets the unique index.
+    pub fn set_index(&mut self, index: KeyIndex) {
+        self.index = index;
+    }
+
+    /// Returns the unique index.
+    #[must_use]
+    pub const fn index(&self) -> KeyIndex {
+        self.index
+    }
+
+    /// Returns the label.
+    #[must_use]
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
     /// Returns the X-coordinate.
     #[must_use]
     pub const fn x(&self) -> SpatialUnit {
@@ -155,6 +172,53 @@ impl KeyNode {
     #[must_use]
     pub const fn h(&self) -> f32 {
         self.h
+    }
+
+    /// Returns the hand assignment.
+    #[must_use]
+    pub const fn hand(&self) -> HandIndex {
+        self.hand
+    }
+
+    /// Returns the finger assignment.
+    #[must_use]
+    pub const fn finger(&self) -> FingerIndex {
+        self.finger
+    }
+
+    /// Returns the logical row.
+    #[must_use]
+    pub const fn row(&self) -> RowIndex {
+        self.row
+    }
+
+    /// Returns the logical column.
+    #[must_use]
+    pub const fn col(&self) -> ColIndex {
+        self.col
+    }
+
+    /// Returns true if this is a home key.
+    #[must_use]
+    pub const fn is_home(&self) -> bool {
+        self.is_home
+    }
+
+    /// Sets the home key status.
+    pub fn set_is_home(&mut self, is_home: bool) {
+        self.is_home = is_home;
+    }
+
+    /// Returns true if this key requires a stretch.
+    #[must_use]
+    pub const fn is_stretch(&self) -> bool {
+        self.is_stretch
+    }
+
+    /// Returns the rotation angle.
+    #[must_use]
+    pub const fn r(&self) -> f32 {
+        self.r
     }
 
     /// Returns the rotation center X.
@@ -321,19 +385,19 @@ impl KeyNodeBuilder {
 #[derive(Debug, Clone)]
 pub struct KeyboardGeometry {
     /// List of physical keys.
-    pub keys: Vec<KeyNode>,
+    keys: Vec<KeyNode>,
     /// Indices of keys that are "prime" (highest efficiency).
-    pub prime_slots: Vec<KeyIndex>,
+    prime_slots: Vec<KeyIndex>,
     /// Indices of keys that are "med" (medium efficiency).
-    pub med_slots: Vec<KeyIndex>,
+    med_slots: Vec<KeyIndex>,
     /// Indices of keys that are "low" (lowest efficiency).
-    pub low_slots: Vec<KeyIndex>,
+    low_slots: Vec<KeyIndex>,
     /// Logical index of the home row.
-    pub home_row: RowIndex,
+    home_row: RowIndex,
     /// Row difference threshold for "long" SFBs.
-    pub threshold_sfb_long_row_diff: i8,
+    threshold_sfb_long_row_diff: i8,
     /// Row difference threshold for scissors.
-    pub threshold_scissor_row_diff: i8,
+    threshold_scissor_row_diff: i8,
 }
 
 impl Default for KeyboardGeometry {
@@ -375,6 +439,27 @@ impl KeyboardGeometry {
     #[must_use]
     pub fn keys(&self) -> &[KeyNode] {
         &self.keys
+    }
+
+    /// Returns a specific key by index, if it exists.
+    #[must_use]
+    pub fn get_key(&self, index: KeyIndex) -> Option<&KeyNode> {
+        self.keys.get(usize::from(index.raw()))
+    }
+
+    /// Returns a mutable slice of keys.
+    pub fn keys_mut(&mut self) -> &mut Vec<KeyNode> {
+        &mut self.keys
+    }
+
+    /// Returns a mutable reference to the keys (alias for `keys_mut()`).
+    pub fn all_keys_mut(&mut self) -> &mut [KeyNode] {
+        &mut self.keys
+    }
+
+    /// Returns a mutable reference to the prime slots.
+    pub fn prime_slots_mut(&mut self) -> &mut Vec<KeyIndex> {
+        &mut self.prime_slots
     }
 
     /// Returns the home row index.
@@ -558,17 +643,16 @@ impl KeyboardDefinition {
                 let u16_val = u16::try_from(i).unwrap_or(u16::MAX);
                 let f32_val = f32::from(u16_val);
                 let i8_val = i8::try_from(i % 128).unwrap_or(0);
-                KeyNode {
-                    index: KeyIndex::new(u16_val),
-                    label: format!("K{i:02}"),
-                    x: SpatialUnit::from_f32(f32_val),
-                    y: SpatialUnit::default(),
-                    hand: HandIndex::new(0),
-                    finger: FingerIndex::new_unchecked(0),
-                    row: RowIndex::new(0),
-                    col: ColIndex::new(i8_val),
-                    ..Default::default()
-                }
+                KeyNode::builder()
+                    .index(KeyIndex::new(u16_val))
+                    .label(format!("K{i:02}"))
+                    .x(SpatialUnit::from_f32(f32_val))
+                    .y(SpatialUnit::default())
+                    .hand(HandIndex::new(0))
+                    .finger(FingerIndex::new_unchecked(0))
+                    .row(RowIndex::new(0))
+                    .col(ColIndex::new(i8_val))
+                    .build()
             })
             .collect();
 
@@ -578,14 +662,15 @@ impl KeyboardDefinition {
                 author: "system".to_string(),
                 ..Default::default()
             },
-            geometry: KeyboardGeometry {
+            geometry: KeyboardGeometry::new(
                 keys,
-                prime_slots: (0..u16::try_from(keys_count).unwrap_or(0))
+                (0..u16::try_from(keys_count).unwrap_or(0))
                     .map(KeyIndex::new)
                     .collect(),
-                home_row: RowIndex::new(0),
-                ..Default::default()
-            },
+                vec![],
+                vec![],
+                RowIndex::new(0),
+            ),
             ..Default::default()
         }
     }

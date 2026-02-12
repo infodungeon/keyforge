@@ -107,21 +107,24 @@ impl Projection<HiveKeyboardProjection> for KeyboardDefinition {
                     .map_err(|_| ForgeError::Projection("Key index overflow".into()))?,
             );
 
-            keys.push(KeyNode {
-                index: kidx,
-                label: format!("k{idx}"),
-                x: keyforge_model::types::SpatialUnit::from_f32(row.x),
-                y: keyforge_model::types::SpatialUnit::from_f32(row.y),
-                w: row.w.unwrap_or(1.0),
-                h: row.h.unwrap_or(1.0),
-                hand: HandIndex::new(u8::try_from(row.hand).unwrap_or(0)),
-                finger: FingerIndex::new_unchecked(u8::try_from(row.finger).unwrap_or(0)),
-                row: RowIndex::new(i8::try_from(row.row_idx).unwrap_or(0)),
-                col: ColIndex::new(i8::try_from(row.col_idx).unwrap_or(0)),
-                is_stretch: row.is_stretch.unwrap_or(false),
-                r: row.r.unwrap_or(0.0),
-                ..Default::default()
-            });
+            keys.push(
+                KeyNode::builder()
+                    .index(kidx)
+                    .label(format!("k{idx}"))
+                    .x(keyforge_model::types::SpatialUnit::from_f32(row.x))
+                    .y(keyforge_model::types::SpatialUnit::from_f32(row.y))
+                    .w(row.w.unwrap_or(1.0))
+                    .h(row.h.unwrap_or(1.0))
+                    .hand(HandIndex::new(u8::try_from(row.hand).unwrap_or(0)))
+                    .finger(FingerIndex::new_unchecked(
+                        u8::try_from(row.finger).unwrap_or(0),
+                    ))
+                    .row(RowIndex::new(i8::try_from(row.row_idx).unwrap_or(0)))
+                    .col(ColIndex::new(i8::try_from(row.col_idx).unwrap_or(0)))
+                    .is_stretch(row.is_stretch.unwrap_or(false))
+                    .r(row.r.unwrap_or(0.0))
+                    .build(),
+            );
 
             if row.is_prime.unwrap_or(false) {
                 prime_slots.push(kidx);

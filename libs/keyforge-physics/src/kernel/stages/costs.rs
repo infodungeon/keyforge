@@ -38,11 +38,11 @@ impl CompilationStage for CostStage<'_> {
         let mut key_costs = Vec::with_capacity(key_count);
         for k in self.kb.keys() {
             let static_cost = resolve_key_cost(k, &phys_model.static_costs)?;
-            let finger_effort = self.rubric.finger_effort()[k.finger.as_usize()];
+            let finger_effort = self.rubric.finger_effort()[k.finger().as_usize()];
 
             key_costs.push(static_cost.checked_add(finger_effort).ok_or_else(|| {
                 PhysicsError::ScoreOverflow {
-                    context: format!("Static key cost accumulation for key {}", k.index),
+                    context: format!("Static key cost accumulation for key {}", k.index()),
                 }
             })?);
         }
@@ -89,7 +89,7 @@ fn get_hand_def<'a>(
     key: &KeyNode,
     static_costs: &'a std::collections::HashMap<String, HandDefinition>,
 ) -> Result<&'a HandDefinition, PhysicsError> {
-    let hand_key = if key.hand == HandIndex::LEFT {
+    let hand_key = if key.hand() == HandIndex::LEFT {
         "left_hand"
     } else {
         "right_hand"
@@ -109,7 +109,7 @@ fn get_finger_def<'a>(
     key: &KeyNode,
     hand: &'a HandDefinition,
 ) -> Result<&'a FingerDefinition, PhysicsError> {
-    let finger_key = match key.finger {
+    let finger_key = match key.finger() {
         FingerIndex::THUMB => "thumb",
         FingerIndex::INDEX => "index",
         FingerIndex::MIDDLE => "middle",
@@ -121,7 +121,8 @@ fn get_finger_def<'a>(
     hand.fingers.get(finger_key).ok_or_else(|| {
         PhysicsError::Config(format!(
             "Finger {:?} ({}) not found in hand definition",
-            key.finger, finger_key
+            key.finger(),
+            finger_key
         ))
     })
 }
@@ -133,8 +134,8 @@ fn resolve_standard_finger(
     const ZONE_INNER_THRESHOLD: u8 = 1;
     const ZONE_OUTER_THRESHOLD: u8 = 1;
 
-    let col_abs = key.col.raw().unsigned_abs();
-    let zone = match key.finger {
+    let col_abs = key.col().raw().unsigned_abs();
+    let zone = match key.finger() {
         FingerIndex::INDEX if col_abs > ZONE_INNER_THRESHOLD => &reach.inner,
         FingerIndex::PINKY if col_abs > ZONE_OUTER_THRESHOLD => &reach.outer,
         _ => &reach.base,
@@ -142,7 +143,7 @@ fn resolve_standard_finger(
 
     // Fallback to base if specifically requested zone is empty
     let target_zone = if zone.is_empty() { &reach.base } else { zone };
-    target_zone.get(&key.row).copied().unwrap_or(Score::ZERO)
+    target_zone.get(&key.row()).copied().unwrap_or(Score::ZERO)
 }
 
 #[keyforge_testing_macros::kf_test]
@@ -173,14 +174,13 @@ mod tests {
             .insert("index".to_string(), FingerDefinition::Standard(zones));
         static_costs.insert("universal_hand".to_string(), hand_def);
 
-        let key = KeyNode {
-            index: KeyIndex::new(0),
-            hand: HandIndex::new(0),
-            finger: FingerIndex::new_unchecked(1),
-            row: RowIndex::new(0),
-            col: ColIndex::new(0),
-            ..Default::default()
-        };
+        let key = KeyNode::builder()
+            .index(KeyIndex::new(0))
+            .hand(HandIndex::new(0))
+            .finger(FingerIndex::new_unchecked(1))
+            .row(RowIndex::new(0))
+            .col(ColIndex::new(0))
+            .build();
 
         let cost = resolve_key_cost(&key, &static_costs)?;
         assert_eq!(cost.raw(), 10_000_000);
@@ -209,27 +209,24 @@ mod tests {
         static_costs.insert("universal_hand".to_string(), HandDefinition { fingers });
 
         // Index finger, col 0 (base)
-        let k_base = KeyNode {
-            finger: FingerIndex::INDEX,
-            col: ColIndex::new(0),
-            ..Default::default()
-        };
+        let k_base = KeyNode::builder()
+            .finger(FingerIndex::INDEX)
+            .col(ColIndex::new(0))
+            .build();
         assert_eq!(resolve_key_cost(&k_base, &static_costs)?.raw(), 1_000_000);
 
         // Index finger, col 2 (inner)
-        let k_inner = KeyNode {
-            finger: FingerIndex::INDEX,
-            col: ColIndex::new(2),
-            ..Default::default()
-        };
+        let k_inner = KeyNode::builder()
+            .finger(FingerIndex::INDEX)
+            .col(ColIndex::new(2))
+            .build();
         assert_eq!(resolve_key_cost(&k_inner, &static_costs)?.raw(), 5_000_000);
 
         // Index finger, col -128 (inner, via unsigned_abs)
-        let k_min = KeyNode {
-            finger: FingerIndex::INDEX,
-            col: ColIndex::new(-128),
-            ..Default::default()
-        };
+        let k_min = KeyNode::builder()
+            .finger(FingerIndex::INDEX)
+            .col(ColIndex::new(-128))
+            .build();
         assert_eq!(resolve_key_cost(&k_min, &static_costs)?.raw(), 5_000_000);
         Ok(())
     }
