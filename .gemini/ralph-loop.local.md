@@ -1,5 +1,5 @@
 ---
-active: true
+active: false
 iteration: 1
 max_iterations: 0
 completion_promise: "WORKSPACE COMPILES"
