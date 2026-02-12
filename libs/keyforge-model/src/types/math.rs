@@ -100,79 +100,8 @@ impl Point {
     /// Calculates the squared distance between two points.
     #[must_use]
     pub fn dist_sq(self, other: Self) -> i64 {
-        Movement::from_points(self, other).dist_sq()
-    }
-}
-
-/// Represents the transition between two points on the keyboard.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Movement {
-    /// Horizontal offset in spatial units.
-    pub dx: i32,
-    /// Vertical offset in spatial units.
-    pub dy: i32,
-}
-
-impl Movement {
-    /// Creates a `Movement` from two points.
-    #[must_use]
-    pub fn from_points(start: Point, end: Point) -> Self {
-        Self {
-            dx: end.x.raw() - start.x.raw(),
-            dy: end.y.raw() - start.y.raw(),
-        }
-    }
-
-    /// Calculates the squared Euclidean distance.
-    #[must_use]
-    pub fn dist_sq(&self) -> i64 {
-        let dx = i64::from(self.dx);
-        let dy = i64::from(self.dy);
+        let dx = i64::from(other.x.raw() - self.x.raw());
+        let dy = i64::from(other.y.raw() - self.y.raw());
         dx * dx + dy * dy
-    }
-
-    /// Calculates the Manhattan distance.
-    #[must_use]
-    pub fn manhattan(&self) -> i32 {
-        self.dx.abs() + self.dy.abs()
-    }
-
-    /// Returns true if the movement is purely vertical.
-    #[must_use]
-    pub fn is_vertical(&self) -> bool {
-        self.dx == 0 && self.dy != 0
-    }
-
-    /// Returns true if the movement is purely horizontal.
-    #[must_use]
-    pub fn is_horizontal(&self) -> bool {
-        self.dy == 0 && self.dx != 0
-    }
-}
-
-/// Analyzes a sequence of three points for biomechanical flow.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TrigramFlow {
-    /// Movement from the first to second point.
-    pub m1: Movement,
-    /// Movement from the second to third point.
-    pub m2: Movement,
-}
-
-impl TrigramFlow {
-    /// Creates a `TrigramFlow` from three points.
-    #[must_use]
-    pub fn from_points(p1: Point, p2: Point, p3: Point) -> Self {
-        Self {
-            m1: Movement::from_points(p1, p2),
-            m2: Movement::from_points(p2, p3),
-        }
-    }
-
-    /// Returns true if the sequence represents a redirect (direction change on either axis).
-    #[must_use]
-    pub fn is_redirect(&self) -> bool {
-        (self.m1.dx.signum() != self.m2.dx.signum() && self.m1.dx != 0 && self.m2.dx != 0)
-            || (self.m1.dy.signum() != self.m2.dy.signum() && self.m1.dy != 0 && self.m2.dy != 0)
     }
 }

@@ -18,6 +18,9 @@
 //! key positions, dimensions, and finger assignments.
 
 use crate::asset::{Asset, AssetCategory};
+use crate::config::weights::constants::{
+    DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF, DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF,
+};
 use crate::constants::{MAX_KEYBOARD_KEYS, MAX_KEYBOARD_NAME_LEN};
 use crate::error::ForgeError;
 use crate::types::{ColIndex, FingerIndex, HandIndex, KeyIndex, RowIndex, SpatialUnit};
@@ -129,8 +132,193 @@ impl Default for KeyNode {
     }
 }
 
-/// Collection of keys and slot definitions defining the keyboard geometry.
+impl KeyNode {
+    /// Returns the X-coordinate.
+    #[must_use]
+    pub const fn x(&self) -> SpatialUnit {
+        self.x
+    }
+
+    /// Returns the Y-coordinate.
+    #[must_use]
+    pub const fn y(&self) -> SpatialUnit {
+        self.y
+    }
+
+    /// Returns the width.
+    #[must_use]
+    pub const fn w(&self) -> f32 {
+        self.w
+    }
+
+    /// Returns the height.
+    #[must_use]
+    pub const fn h(&self) -> f32 {
+        self.h
+    }
+
+    /// Returns the rotation center X.
+    #[must_use]
+    pub const fn rx(&self) -> SpatialUnit {
+        self.rx
+    }
+
+    /// Returns the rotation center Y.
+    #[must_use]
+    pub const fn ry(&self) -> SpatialUnit {
+        self.ry
+    }
+
+    /// Returns the point (X, Y).
+    #[must_use]
+    pub fn point(&self) -> crate::types::Point {
+        crate::types::Point::new(self.x, self.y)
+    }
+
+    /// Returns a builder for `KeyNode`.
+    #[must_use]
+    pub fn builder() -> KeyNodeBuilder {
+        KeyNodeBuilder::default()
+    }
+}
+
+/// Builder for `KeyNode`.
 #[derive(Debug, Clone, Default)]
+pub struct KeyNodeBuilder {
+    index: KeyIndex,
+    label: String,
+    x: SpatialUnit,
+    y: SpatialUnit,
+    w: Option<f32>,
+    h: Option<f32>,
+    hand: HandIndex,
+    finger: FingerIndex,
+    row: RowIndex,
+    col: ColIndex,
+    is_home: bool,
+    is_stretch: bool,
+    r: f32,
+    rx: SpatialUnit,
+    ry: SpatialUnit,
+}
+
+impl KeyNodeBuilder {
+    /// Sets the key index.
+    #[must_use]
+    pub fn index(mut self, index: KeyIndex) -> Self {
+        self.index = index;
+        self
+    }
+    /// Sets the label.
+    #[must_use]
+    pub fn label(mut self, label: String) -> Self {
+        self.label = label;
+        self
+    }
+    /// Sets the X coordinate.
+    #[must_use]
+    pub fn x(mut self, x: SpatialUnit) -> Self {
+        self.x = x;
+        self
+    }
+    /// Sets the Y coordinate.
+    #[must_use]
+    pub fn y(mut self, y: SpatialUnit) -> Self {
+        self.y = y;
+        self
+    }
+    /// Sets the width.
+    #[must_use]
+    pub fn w(mut self, w: f32) -> Self {
+        self.w = Some(w);
+        self
+    }
+    /// Sets the height.
+    #[must_use]
+    pub fn h(mut self, h: f32) -> Self {
+        self.h = Some(h);
+        self
+    }
+    /// Sets the hand.
+    #[must_use]
+    pub fn hand(mut self, hand: HandIndex) -> Self {
+        self.hand = hand;
+        self
+    }
+    /// Sets the finger.
+    #[must_use]
+    pub fn finger(mut self, finger: FingerIndex) -> Self {
+        self.finger = finger;
+        self
+    }
+    /// Sets the row.
+    #[must_use]
+    pub fn row(mut self, row: RowIndex) -> Self {
+        self.row = row;
+        self
+    }
+    /// Sets the column.
+    #[must_use]
+    pub fn col(mut self, col: ColIndex) -> Self {
+        self.col = col;
+        self
+    }
+    /// Sets home row status.
+    #[must_use]
+    pub fn is_home(mut self, is_home: bool) -> Self {
+        self.is_home = is_home;
+        self
+    }
+    /// Sets stretch status.
+    #[must_use]
+    pub fn is_stretch(mut self, is_stretch: bool) -> Self {
+        self.is_stretch = is_stretch;
+        self
+    }
+    /// Sets rotation.
+    #[must_use]
+    pub fn r(mut self, r: f32) -> Self {
+        self.r = r;
+        self
+    }
+    /// Sets rotation center X.
+    #[must_use]
+    pub fn rx(mut self, rx: SpatialUnit) -> Self {
+        self.rx = rx;
+        self
+    }
+    /// Sets rotation center Y.
+    #[must_use]
+    pub fn ry(mut self, ry: SpatialUnit) -> Self {
+        self.ry = ry;
+        self
+    }
+
+    /// Builds the `KeyNode`.
+    #[must_use]
+    pub fn build(self) -> KeyNode {
+        KeyNode {
+            index: self.index,
+            label: self.label,
+            x: self.x,
+            y: self.y,
+            w: self.w.unwrap_or(1.0),
+            h: self.h.unwrap_or(1.0),
+            hand: self.hand,
+            finger: self.finger,
+            row: self.row,
+            col: self.col,
+            is_home: self.is_home,
+            is_stretch: self.is_stretch,
+            r: self.r,
+            rx: self.rx,
+            ry: self.ry,
+        }
+    }
+}
+
+/// Collection of keys and slot definitions defining the keyboard geometry.
+#[derive(Debug, Clone)]
 pub struct KeyboardGeometry {
     /// List of physical keys.
     pub keys: Vec<KeyNode>,
@@ -142,6 +330,24 @@ pub struct KeyboardGeometry {
     pub low_slots: Vec<KeyIndex>,
     /// Logical index of the home row.
     pub home_row: RowIndex,
+    /// Row difference threshold for "long" SFBs.
+    pub threshold_sfb_long_row_diff: i8,
+    /// Row difference threshold for scissors.
+    pub threshold_scissor_row_diff: i8,
+}
+
+impl Default for KeyboardGeometry {
+    fn default() -> Self {
+        Self {
+            keys: Vec::new(),
+            prime_slots: Vec::new(),
+            med_slots: Vec::new(),
+            low_slots: Vec::new(),
+            home_row: RowIndex::new(0),
+            threshold_sfb_long_row_diff: DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF,
+            threshold_scissor_row_diff: DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
+        }
+    }
 }
 
 impl KeyboardGeometry {
@@ -160,6 +366,8 @@ impl KeyboardGeometry {
             med_slots,
             low_slots,
             home_row,
+            threshold_sfb_long_row_diff: DEFAULT_THRESHOLD_SFB_LONG_ROW_DIFF,
+            threshold_scissor_row_diff: DEFAULT_THRESHOLD_SCISSOR_ROW_DIFF,
         }
     }
 
@@ -173,6 +381,26 @@ impl KeyboardGeometry {
     #[must_use]
     pub fn home_row(&self) -> RowIndex {
         self.home_row
+    }
+
+    /// Returns the SFB long row difference threshold.
+    #[must_use]
+    pub fn threshold_sfb_long_row_diff(&self) -> i8 {
+        self.threshold_sfb_long_row_diff
+    }
+
+    /// Returns the scissor row difference threshold.
+    #[must_use]
+    pub fn threshold_scissor_row_diff(&self) -> i8 {
+        self.threshold_scissor_row_diff
+    }
+
+    /// Sets the thresholds for the keyboard geometry.
+    #[must_use]
+    pub fn with_thresholds(mut self, sfb_long: i8, scissor: i8) -> Self {
+        self.threshold_sfb_long_row_diff = sfb_long;
+        self.threshold_scissor_row_diff = scissor;
+        self
     }
 
     /// Returns the prime slots.

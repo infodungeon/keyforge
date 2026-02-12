@@ -99,10 +99,10 @@ impl Keyboard {
         let n = self.keys.len();
         let mut cache = vec![Movement::default(); n * n];
         for i in 0..n {
-            let p1 = Point::new(self.keys[i].x, self.keys[i].y);
+            let k1 = &self.keys[i];
             for j in 0..n {
-                let p2 = Point::new(self.keys[j].x, self.keys[j].y);
-                cache[i * n + j] = Movement::from_points(p1, p2);
+                let k2 = &self.keys[j];
+                cache[i * n + j] = Movement::from_keys(k1, k2);
             }
         }
         self.spatial_cache = cache;
